@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders, postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
@@ -15,6 +15,14 @@ function fmtNum(v: any, d = 0) {
   if (isNaN(n)) return String(v)
   if (Math.abs(n) >= 100000) return (n / 1000).toFixed(0) + 'K'
   return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+
+function fmtPrem(v: any) {
+  const n = parseFloat(v) || 0
+  if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + 'B'
+  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + 'M'
+  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(0) + 'K'
+  return n.toFixed(2)
 }
 
 function OIHBars({ rows, priceStrike, callWall, putWall }: {
@@ -81,6 +89,7 @@ export default function OIScreen() {
   const spxPrice= !isNdx ? (data?.spx ?? data?.daily_open) : null
   const callWallsAbove = isNdx ? (data?.ndx_call_walls_above ?? []) : (data?.gex_call_walls_above ?? data?.top_call_walls_above ?? [])
   const putWallsBelow  = isNdx ? (data?.ndx_put_walls_below  ?? []) : (data?.gex_put_walls_below  ?? data?.top_put_walls_below  ?? [])
+  const hotStrikes     = isNdx ? (data?.ndx_hot_strikes ?? []) : (data?.hot_strikes ?? [])
 
   const priceNum = data?.daily_open ?? 0
   const ndxNum   = typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0
@@ -200,6 +209,28 @@ export default function OIScreen() {
         <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} />
         {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
       </div>
+
+      {/* ── Hot Strikes ── */}
+      {hotStrikes.length > 0 && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            Hot Strikes — Today's Flow
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', gap: '3px 8px', fontSize: 8, fontFamily: 'var(--mono)' }}>
+            <span style={{ color: 'var(--muted2)', fontWeight: 700 }}>STRIKE</span>
+            <span style={{ color: 'var(--green)', fontWeight: 700 }}>CALL $</span>
+            <span style={{ color: 'var(--red)', fontWeight: 700 }}>PUT $</span>
+            {hotStrikes.map((r: any, i: number) => (
+              <React.Fragment key={i}>
+                <span style={{ color: 'var(--text)' }}>{(r.strike || 0).toFixed ? (r.strike || 0).toFixed(0) : r.strike}</span>
+                <span style={{ color: 'var(--green)' }}>{fmtPrem(r.call_prem)}</span>
+                <span style={{ color: 'var(--red)' }}>{fmtPrem(r.put_prem)}</span>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Wall lists ── */}
       {(callWallsAbove.length > 0 || putWallsBelow.length > 0) && (

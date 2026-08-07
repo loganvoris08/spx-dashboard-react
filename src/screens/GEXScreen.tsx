@@ -6,6 +6,39 @@ import { useSide } from '../lib/SideContext'
 type Bucket = '0dte' | 'weekly' | 'monthly' | 'all'
 const BUCKETS: Bucket[] = ['0dte', 'weekly', 'monthly', 'all']
 
+function GexSparkline({ rows }: { rows: any[] }) {
+  if (!rows?.length) return null
+  const W = 300, H = 80, pad = 4
+  const vals = rows.map((r: any) => parseFloat(r.gex) || 0)
+  const mn = Math.min(...vals), mx = Math.max(...vals)
+  const rng = Math.max(mx - mn, 0.01)
+  const yOf = (v: number) => pad + (H - 2 * pad) * (1 - (v - mn) / rng)
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1 || 1) * (W - 2 * pad) + pad).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ')
+  const hasZero = mn < 0 && mx > 0
+  const zy = yOf(0).toFixed(1)
+  const last = rows[rows.length - 1]
+  const lastGex = parseFloat(last?.gex) || 0
+  const isPinning = lastGex >= 0
+
+  return (
+    <div className="panel">
+      <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        Intraday GEX — 1-Min
+        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+      </div>
+      <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 4 }}>Net dealer gamma / 1% move per minute. Positive = pinning. Negative = amplifying.</div>
+      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }}>
+        {hasZero && <line x1="0" y1={zy} x2={W} y2={zy} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3,3" />}
+        <polyline points={pts} fill="none" stroke="var(--green)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      </svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>
+        <span>{rows[0]?.time ?? ''}</span>
+        <span style={{ color: isPinning ? 'var(--green)' : 'var(--red)' }}>{last?.time ?? ''} {isPinning ? 'Pinning' : 'Amplifying'}</span>
+      </div>
+    </div>
+  )
+}
+
 function fmtNum(v: any, d = 0) {
   if (v == null) return '--'
   const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, ''))
@@ -279,6 +312,11 @@ export default function GEXScreen() {
             )
           })}
         </div>
+      )}
+
+      {/* ── Intraday GEX 1-Min ── */}
+      {(data?.spot_exposures?.length > 0) && (
+        <GexSparkline rows={data.spot_exposures} />
       )}
 
       {/* ── Dealer Positioning Score ── */}
