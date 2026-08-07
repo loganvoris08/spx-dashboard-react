@@ -540,6 +540,26 @@ html,body,#root{height:100%;-webkit-font-smoothing:antialiased;}
 .expiry-btn{font-size:8px;font-family:var(--mono);padding:2px 6px;border-radius:3px;border:1px solid var(--border2);color:var(--muted2);cursor:pointer;background:none;text-transform:uppercase;letter-spacing:.5px;}
 .expiry-btn.active{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.08);}
 
+/* ── Extra utility classes not in old dash ── */
+.lv-col-scroll{overflow-y:auto;flex:1;min-height:0;}
+.wall-info{font-size:9px;color:var(--muted2);padding:4px 6px;font-family:var(--mono);}
+.ladder-title-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);}
+.ladder-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);}
+.ladder-legend{display:flex;gap:8px;font-size:8px;color:var(--muted2);align-items:center;}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;vertical-align:middle;}
+.net-delta-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border2);}
+.net-delta-label{font-size:9px;color:var(--muted2);}
+.dh-poly-badge{font-family:var(--mono);font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;border:1px solid var(--border2);color:var(--muted2);}
+.dh-poly-badge.est{color:var(--yellow);border-color:var(--yellow);}
+.tide-filter-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.tide-filter-label{font-size:8px;color:var(--muted2);font-weight:700;letter-spacing:.5px;}
+.tide-filter-group{display:flex;gap:3px;}
+.tide-btn{font-size:8px;font-family:var(--mono);padding:2px 6px;border-radius:3px;border:1px solid var(--border2);color:var(--muted2);cursor:pointer;background:none;text-transform:uppercase;}
+.tide-btn.active{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.08);}
+.tide-div-badge{background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:8px 10px;margin-bottom:8px;}
+.panel-header{display:flex;align-items:center;gap:8px;}
+.menu-sep{height:1px;background:rgba(255,255,255,.05);margin:2px 0;}
+
 /* ── Mobile ── */
 @media(max-width:640px) {
   .mobile-side-row{display:flex!important;}

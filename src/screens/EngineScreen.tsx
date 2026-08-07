@@ -24,8 +24,14 @@ function Divider() {
 export default function EngineScreen() {
   const { data } = useDashboard()
 
-  const ts = data?.last_update ?? data?.last_refresh
-  const tsStr = ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--'
+  function fmtTs(v: any) {
+    if (!v) return '--'
+    const d = new Date(v)
+    if (isNaN(d.getTime())) return String(v)
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  }
+  const tsStr = fmtTs(data?.last_update ?? data?.last_refresh)
+  const webhookTs = fmtTs(data?.last_webhook ?? data?.webhook_ts)
 
   return (
     <>
@@ -50,7 +56,7 @@ export default function EngineScreen() {
         <Row label="Swing Closes"     value={data?.swing_closes} />
         <Row label="Daily Zone"       value={data?.daily_zone ?? data?.es_d_zone_state} />
         <Divider />
-        <Row label="Last Webhook"     value={data?.last_webhook} />
+        <Row label="Last Webhook"     value={webhookTs} />
         <Row label="Options Status"   value={data?.options_status} />
         <Row label="Last Refresh"     value={tsStr} />
         <Row label="Chain Count"      value={data?.chain_count} />
