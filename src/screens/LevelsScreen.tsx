@@ -1,7 +1,35 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
+
+const BASE = import.meta.env.VITE_API_URL ?? ''
+function token() { return localStorage.getItem('dash_token') ?? '' }
+
+function TickerRow({ c }: { c: any }) {
+  const isCall  = (c.type || '').toLowerCase() === 'call'
+  const cond    = (c.cond_label || '').toUpperCase()
+  const unusual = (c.unusual || '').toUpperCase()
+  const isUnusual = unusual.includes('UNUSUAL') || unusual.includes('HIGH')
+  const prem = c.premium != null
+    ? (c.premium >= 1e6 ? '$' + (c.premium / 1e6).toFixed(1) + 'M' : c.premium >= 1000 ? '$' + (c.premium / 1000).toFixed(0) + 'K' : '$' + Math.round(c.premium))
+    : '--'
+  const exp = c.expiry ? String(c.expiry).replace(/^\d{4}-/, '').replace(/-/g, '/') : ''
+  const color = isCall ? 'var(--green)' : 'var(--red)'
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderBottom: '1px solid rgba(255,255,255,0.04)', fontFamily: 'var(--mono)', fontSize: 10, borderLeft: `2px solid ${color}` }}>
+      <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: isCall ? 'rgba(0,255,136,0.15)' : 'rgba(255,51,68,0.15)', color, flexShrink: 0 }}>{isCall ? 'C' : 'P'}</span>
+      <span style={{ fontWeight: 700, color }}>{c.strike}</span>
+      <span style={{ color: 'var(--muted2)', fontSize: 9 }}>{exp}</span>
+      <span style={{ color, fontWeight: 700 }}>{prem}</span>
+      {cond === 'SWEEP'   && <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(251,146,60,0.12)', color: '#fb923c' }}>SWEEP</span>}
+      {cond === 'FLOOR'   && <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>FLOOR</span>}
+      {cond === 'MULTI'   && <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(100,116,139,0.2)', color: '#94a3b8' }}>MULTI</span>}
+      {isUnusual && <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'rgba(234,179,8,0.12)', color: '#eab308' }}>⚡</span>}
+      <span style={{ marginLeft: 'auto', color: 'var(--muted2)', fontSize: 9 }}>{c.aggression || ''}</span>
+    </div>
+  )
+}
 
 type OIBucket = 'all' | 'week'
 type GEXBucket = '0dte' | 'weekly' | 'monthly' | 'all'
@@ -86,7 +114,37 @@ export default function LevelsScreen() {
   const isNdx = side === 'ndx'
   const [oiBucket, setOiBucket]   = useState<OIBucket>('all')
   const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
+  const [ticker, setTicker]       = useState<any[]>([])
+  const [tickerCount, setTickerCount] = useState(0)
+  const seenRef = useState<Set<string>>(() => new Set())[0]
   const ladders = useLadders(true)
+
+  const loadTicker = useCallback(async () => {
+    const ep = isNdx ? '/api/ndx-flow' : '/api/spx-flow'
+    try {
+      const res = await fetch(`${BASE}${ep}`, { headers: { Authorization: `Bearer ${token()}` } })
+      if (!res.ok) return
+      const d = await res.json()
+      const contracts: any[] = d.contracts || []
+      const toAdd = contracts.filter(c => {
+        const k = `${c.strike}|${c.type}|${c.expiry}|${c.premium}`
+        if (seenRef.has(k)) return false
+        seenRef.add(k)
+        return true
+      }).slice(0, 20)
+      if (toAdd.length) setTicker(prev => [...toAdd, ...prev].slice(0, 30))
+      setTickerCount(seenRef.size)
+    } catch {}
+  }, [isNdx, seenRef])
+
+  useEffect(() => {
+    seenRef.clear()
+    setTicker([])
+    setTickerCount(0)
+    loadTicker()
+    const t = setInterval(loadTicker, 17_000)
+    return () => clearInterval(t)
+  }, [loadTicker, seenRef])
 
   const nd = data?.ndx ?? {}
 
@@ -240,6 +298,23 @@ export default function LevelsScreen() {
       {/* ── UW LIVE badge strip ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', background: 'rgba(0,255,136,0.03)', borderBottom: '1px solid rgba(0,255,136,0.08)', flexShrink: 0 }}>
         <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 6px', fontWeight: 700 }}>UW LIVE</span>
+      </div>
+
+      {/* ── Live Options Ticker ── */}
+      <div className="panel">
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>Live Options Ticker</span>
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
+          </div>
+          {tickerCount > 0 && <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{tickerCount} today</span>}
+        </div>
+        <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+          {ticker.length === 0
+            ? <div style={{ color: 'var(--muted2)', fontSize: 10, padding: '8px 0', textAlign: 'center' }}>Loading ticker…</div>
+            : ticker.map((c, i) => <TickerRow key={i} c={c} />)
+          }
+        </div>
       </div>
 
       {/* ── Dealer Score ── */}
