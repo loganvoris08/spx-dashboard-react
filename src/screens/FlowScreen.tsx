@@ -93,8 +93,55 @@ export default function FlowScreen() {
     return () => clearInterval(timer.current)
   }, [loadFlow])
 
+  // 0DTE data
+  const dteRatio    = data?.dte_ratio ?? data?.dte_call_put_ratio
+  const dteNetPrem  = data?.dte_net_premium
+  const dteAtmIv    = data?.dte_atm_iv
+  const dteCount    = data?.dte_count ?? data?.dte_contracts
+  const dteCallPrem = data?.dte_call_premium
+  const dtePutPrem  = data?.dte_put_premium
+  const has0DTE     = dteRatio != null || dteNetPrem != null || dteAtmIv != null || dteCount != null
+
   return (
     <>
+      {/* ── 0DTE Options Pulse ── */}
+      {has0DTE && (
+        <div className="panel">
+          <div className="panel-title">
+            0DTE Options Pulse
+            <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>-- min to expiry</span>
+          </div>
+          <div className="dte-grid">
+            <div className="dte-card">
+              <div className="dte-label">Call / Put</div>
+              <div className="dte-val" style={{ color: dteRatio != null && parseFloat(dteRatio) > 1 ? 'var(--green)' : dteRatio != null && parseFloat(dteRatio) < 1 ? 'var(--red)' : 'var(--text)' }}>
+                {dteRatio != null ? parseFloat(dteRatio).toFixed(2) : '--'}
+              </div>
+            </div>
+            <div className="dte-card">
+              <div className="dte-label">Net Premium</div>
+              <div className="dte-val" style={{ color: dteNetPrem != null && dteNetPrem > 0 ? 'var(--green)' : dteNetPrem != null && dteNetPrem < 0 ? 'var(--red)' : 'var(--text)' }}>
+                {dteNetPrem != null ? (dteNetPrem >= 0 ? '+' : '') + (Math.abs(dteNetPrem) >= 1_000_000 ? (dteNetPrem / 1_000_000).toFixed(1) + 'M' : (dteNetPrem / 1_000).toFixed(0) + 'K') : '--'}
+              </div>
+            </div>
+            <div className="dte-card">
+              <div className="dte-label">ATM IV</div>
+              <div className="dte-val warn">{dteAtmIv != null ? parseFloat(dteAtmIv).toFixed(1) + '%' : '--'}</div>
+            </div>
+            <div className="dte-card">
+              <div className="dte-label">0DTE Contracts</div>
+              <div className="dte-val">{dteCount != null ? Number(dteCount).toLocaleString() : '--'}</div>
+            </div>
+          </div>
+          {(dteCallPrem != null || dtePutPrem != null) && (
+            <div style={{ fontSize: 9, color: 'var(--muted2)', display: 'flex', gap: 12 }}>
+              <span>Call prem: <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)' }}>{dteCallPrem != null ? '$' + (dteCallPrem / 1_000).toFixed(0) + 'K' : '--'}</span></span>
+              <span>Put prem: <span style={{ color: 'var(--red)', fontFamily: 'var(--mono)' }}>{dtePutPrem != null ? '$' + (dtePutPrem / 1_000).toFixed(0) + 'K' : '--'}</span></span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Flow Bias ── */}
       <div className="panel">
         <div className="panel-title">Options Flow Bias — {isNdx ? 'NDX' : 'SPX'}</div>

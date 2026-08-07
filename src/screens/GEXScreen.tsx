@@ -56,7 +56,8 @@ export default function GEXScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const isNdx = side === 'ndx'
-  const [bucket, setBucket] = useState<Bucket>('all')
+  const [bucket, setBucket]       = useState<Bucket>('all')
+  const [range, setRange]         = useState(150)
   const [dealerText, setDealerText] = useState('')
   const [loadingDealer, setLoadingDealer] = useState(false)
   const ladders = useLadders(true)
@@ -78,12 +79,36 @@ export default function GEXScreen() {
   const dhPressure  = isNdx ? nd.delta_hedging_pressure : data?.delta_hedging_pressure
   const charm    = isNdx ? nd.charm_flow  : data?.charm_flow
   const vanna    = isNdx ? nd.vanna_flow  : data?.vanna_flow
+  const netDeltaDisplay = !isNdx ? data?.net_dealer_delta : null
 
-  const priceNum = data?.daily_open ?? 0
-  const flipNum  = parseFloat(String(flip).replace(/,/g, '')) || 0
-  const bucketData = isNdx
+  // Dealer scorecard
+  const score      = data?.dealer_score ?? data?.scorecard_score
+  const scoreLabel = data?.dealer_label ?? data?.scorecard_label
+  const scGamma    = data?.scf_gamma
+  const scDelta    = data?.scf_delta
+  const scFlip     = data?.scf_flip
+  const scFlow     = data?.scf_flow
+  const scCharm    = data?.scf_charm
+  const scVanna    = data?.scf_vanna
+
+  const priceNum = isNdx
+    ? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0)
+    : (data?.daily_open ?? 0)
+  const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
+
+  const allRows = isNdx
     ? (ladders?.ndx?.gex_ladder_buckets?.[bucket] ?? ladders?.ndx?.gex_rows ?? [])
     : (ladders?.gex_ladder_buckets?.[bucket] ?? ladders?.gex_rows ?? [])
+  const rangeFiltered = allRows.filter((r: any) => {
+    const s = parseFloat(String(r.strike).replace(/,/g, ''))
+    return Math.abs(s - priceNum) <= range
+  })
+  const bucketData = rangeFiltered.length > 0 ? rangeFiltered : allRows
+
+  // Top gamma strikes: sort by absolute net_gex
+  const topGamma = [...allRows]
+    .sort((a: any, b: any) => Math.abs(b.net_gex ?? 0) - Math.abs(a.net_gex ?? 0))
+    .slice(0, 8)
 
   async function loadDealer() {
     setLoadingDealer(true)
@@ -92,30 +117,68 @@ export default function GEXScreen() {
     finally { setLoadingDealer(false) }
   }
 
-  const keyStats = [
-    { label: 'Regime',    value: regime },
-    { label: 'Net GEX',   value: netGex },
-    { label: 'Flip',      value: fmtNum(flip),  col: 'var(--yellow)' },
-    { label: 'Call Wall', value: fmtNum(cWall), col: 'var(--green)'  },
-    { label: 'Put Wall',  value: fmtNum(pWall), col: 'var(--red)'    },
-    { label: 'Net Delta', value: netDelta,  col: netDelta === 'LONG' ? 'var(--green)' : netDelta === 'SHORT' ? 'var(--red)' : undefined },
-    { label: 'Flow',      value: flowBias  },
-    { label: 'P/C',       value: pcRatio ? parseFloat(pcRatio).toFixed(2) : null },
-  ].filter(x => x.value)
+  const scoreBarW = score != null ? `${Math.min(100, Math.max(0, (score + 30) / 60 * 100))}%` : '50%'
+  const scoreBarColor = score != null && score > 0 ? 'var(--green)' : score != null && score < 0 ? 'var(--red)' : 'var(--yellow)'
 
   return (
     <>
-      {/* ── Key levels strip ── */}
-      <div className="panel">
-        <div className="panel-title">GEX Key Levels — {isNdx ? 'NDX' : 'SPX'}</div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {keyStats.map((x, i) => (
-            <div key={i} className="stat" style={{ minWidth: 72, flex: 1 }}>
-              <div className="stat-label">{x.label}</div>
-              <div className="stat-val" style={{ color: x.col ?? 'var(--text)', fontSize: 10 }}>{x.value}</div>
-            </div>
-          ))}
-        </div>
+      {/* ── Range slider ── */}
+      <div className="ladder-slider-wrap">
+        <span className="ladder-slider-label">View Range</span>
+        <input type="range" className="ladder-slider" min={25} max={300} step={25} value={range} onChange={e => setRange(Number(e.target.value))} />
+        <span className="ladder-slider-val">±{range} pts</span>
+      </div>
+
+      {/* ── Key levels bar ── */}
+      <div className="key-levels-bar">
+        {regime && (
+          <div className="kl-item">
+            <div className="kl-label">Regime</div>
+            <div className="kl-val" style={{ fontSize: 9, color: regime.toUpperCase().includes('NEG') ? 'var(--red)' : regime.toUpperCase().includes('POS') ? 'var(--green)' : 'var(--muted2)' }}>{regime}</div>
+          </div>
+        )}
+        {flip && (
+          <div className="kl-item">
+            <div className="kl-label">Gamma Flip</div>
+            <div className="kl-val flip">{fmtNum(flip)}</div>
+          </div>
+        )}
+        {maxPain != null && (
+          <div className="kl-item">
+            <div className="kl-label">Max Pain</div>
+            <div className="kl-val">{fmtNum(maxPain)}</div>
+          </div>
+        )}
+        {cWall && (
+          <div className="kl-item">
+            <div className="kl-label">Call Wall</div>
+            <div className="kl-val call">{fmtNum(cWall)}</div>
+          </div>
+        )}
+        {pWall && (
+          <div className="kl-item">
+            <div className="kl-label">Put Wall</div>
+            <div className="kl-val put">{fmtNum(pWall)}</div>
+          </div>
+        )}
+        {netDelta && (
+          <div className="kl-item">
+            <div className="kl-label">Net Delta</div>
+            <div className="kl-val" style={{ fontSize: 9, color: netDelta === 'LONG' ? 'var(--green)' : netDelta === 'SHORT' ? 'var(--red)' : 'var(--muted2)' }}>{netDelta}</div>
+          </div>
+        )}
+        {flowBias && (
+          <div className="kl-item">
+            <div className="kl-label">Flow</div>
+            <div className="kl-val" style={{ fontSize: 9, color: String(flowBias).includes('CALL') ? 'var(--green)' : String(flowBias).includes('PUT') ? 'var(--red)' : 'var(--muted2)' }}>{flowBias}</div>
+          </div>
+        )}
+        {pcRatio && (
+          <div className="kl-item">
+            <div className="kl-label">P/C Ratio</div>
+            <div className="kl-val" style={{ fontSize: 11 }}>{parseFloat(pcRatio).toFixed(2)}</div>
+          </div>
+        )}
       </div>
 
       {/* ── Dealer Read ── */}
@@ -150,7 +213,10 @@ export default function GEXScreen() {
 
       {/* ── Flow Pressure ── */}
       <div className="panel">
-        <div className="panel-title">Flow Pressure</div>
+        <div className="panel-title">
+          Flow Pressure
+          <span style={{ fontSize: 9, color: 'var(--muted2)', fontWeight: 400 }}>Call GEX above vs Put GEX below</span>
+        </div>
         <div className="flow-bar-wrap">
           <div className="flow-labels">
             <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 9 }}>CALLS {callPct.toFixed(0)}%</span>
@@ -162,8 +228,14 @@ export default function GEXScreen() {
             <div className="flow-bar-put"  style={{ width: `${putPct}%`  }} />
           </div>
         </div>
+        {netDeltaDisplay != null && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 9, color: 'var(--muted2)' }}>Net Dealer Delta</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700 }}>{fmtNum(netDeltaDisplay)}</span>
+          </div>
+        )}
         {gammaPerPct != null && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
             <span style={{ fontSize: 9, color: 'var(--muted2)' }}>Dealer Gamma / 1% Move</span>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700 }}>{fmtNum(gammaPerPct)}</span>
           </div>
@@ -172,14 +244,85 @@ export default function GEXScreen() {
 
       {/* ── Delta Hedging ── */}
       <div className="panel">
-        <div className="panel-title">Delta Hedging Flow</div>
+        <div className="panel-title">
+          Delta Hedging Flow
+          {dhPressure && (
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: String(dhPressure).toUpperCase().includes('BULL') ? 'var(--green)' : String(dhPressure).toUpperCase().includes('BEAR') ? 'var(--red)' : 'var(--muted2)', padding: '1px 6px', borderRadius: 3, border: '1px solid var(--border2)' }}>
+              {dhPressure}
+            </span>
+          )}
+        </div>
         <div className="stat-grid">
-          {dhPressure && <div className="stat"><div className="stat-label">DH Pressure</div><div className="stat-val" style={{ fontSize: 10 }}>{dhPressure}</div></div>}
-          {charm      && <div className="stat"><div className="stat-label">Charm Flow</div><div className="stat-val" style={{ fontSize: 10 }}>{charm}</div></div>}
-          {vanna      && <div className="stat"><div className="stat-label">Vanna</div><div className="stat-val" style={{ fontSize: 10 }}>{vanna}</div></div>}
+          {netDelta    && <div className="stat"><div className="stat-label">Net Delta</div><div className="stat-val" style={{ fontSize: 10, color: netDelta === 'LONG' ? 'var(--green)' : 'var(--red)' }}>{netDelta}</div></div>}
+          {charm       && <div className="stat"><div className="stat-label">Charm Flow</div><div className="stat-val" style={{ fontSize: 10 }}>{charm}</div></div>}
+          {vanna       && <div className="stat"><div className="stat-label">Vanna</div><div className="stat-val" style={{ fontSize: 10 }}>{vanna}</div></div>}
           {maxPain != null && <div className="stat"><div className="stat-label">Max Pain</div><div className="stat-val" style={{ fontSize: 10 }}>{fmtNum(maxPain)}</div></div>}
         </div>
       </div>
+
+      {/* ── Top Gamma Strikes ── */}
+      {topGamma.length > 0 && (
+        <div className="panel">
+          <div className="panel-title">Top Gamma Strikes</div>
+          {topGamma.map((r: any, i: number) => {
+            const netG = r.net_gex ?? ((r.call_gex ?? 0) - (r.put_gex ?? 0))
+            const isPos = netG >= 0
+            return (
+              <div key={i} className="td-row">
+                <div className="td-label" style={{ fontFamily: 'var(--mono)', color: 'var(--text2)', fontSize: 10 }}>{r.strike}</div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(100, Math.abs(netG) / (topGamma[0]?.net_gex ? Math.abs(topGamma[0].net_gex) : 1) * 100)}%`, background: isPos ? 'var(--green)' : 'var(--red)', borderRadius: 3 }} />
+                  </div>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, color: isPos ? 'var(--green)' : 'var(--red)', minWidth: 50, textAlign: 'right' }}>{fmtNum(netG)}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Dealer Positioning Score ── */}
+      {(score != null || scGamma || scDelta || dhPressure) && (
+        <div className="panel">
+          <div className="panel-title">Dealer Positioning Score</div>
+          <div className="scorecard">
+            <div className="scorecard-header">
+              <span className="scorecard-title">Positioning</span>
+              <div style={{ textAlign: 'right' }}>
+                {score != null && (
+                  <div className={`scorecard-score ${score > 0 ? 'bull' : score < 0 ? 'bear' : 'neut'}`}>{score}</div>
+                )}
+                {scoreLabel && (
+                  <div className={`scorecard-label ${score != null && score > 0 ? 'bull' : score != null && score < 0 ? 'bear' : 'neut'}`}>{scoreLabel}</div>
+                )}
+              </div>
+            </div>
+            {score != null && (
+              <div className="scorecard-bar">
+                <div className="scorecard-bar-fill" style={{ width: scoreBarW, background: scoreBarColor }} />
+              </div>
+            )}
+            <div className="scorecard-factors">
+              {[
+                { label: 'Gamma',        val: scGamma ?? data?.gamma_state },
+                { label: 'Delta',        val: scDelta ?? data?.net_delta_dir },
+                { label: 'Flip Zone',    val: scFlip },
+                { label: 'Flow',         val: scFlow ?? flowBias },
+                { label: 'Charm',        val: scCharm ?? charm },
+                { label: 'Vanna',        val: scVanna ?? vanna },
+              ].map((f, i) => (
+                <div key={i} className="sc-factor">
+                  <div className="sc-factor-label">{f.label}</div>
+                  <div className={`sc-factor-val ${f.val && String(f.val).toUpperCase().includes('BULL') || f.val && String(f.val).toUpperCase().includes('BUY') ? 'bull' : f.val && String(f.val).toUpperCase().includes('BEAR') || f.val && String(f.val).toUpperCase().includes('SELL') ? 'bear' : 'neut'}`}>
+                    {f.val ?? '--'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

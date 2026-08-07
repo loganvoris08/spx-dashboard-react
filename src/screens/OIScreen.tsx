@@ -3,8 +3,11 @@ import { useDashboard } from '../hooks/useDashboard'
 import { useLadders, postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
 
-type Bucket = '0dte' | 'weekly' | 'monthly' | 'all'
-const BUCKETS: Bucket[] = ['0dte', 'weekly', 'monthly', 'all']
+type Bucket = 'all' | 'week'
+const BUCKETS: { id: Bucket; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'week', label: 'This Week' },
+]
 
 function fmtNum(v: any, d = 0) {
   if (v == null) return '--'
@@ -62,6 +65,7 @@ export default function OIScreen() {
   const { side } = useSide()
   const isNdx = side === 'ndx'
   const [bucket, setBucket] = useState<Bucket>('all')
+  const [range, setRange]   = useState(150)
   const [oiText, setOiText] = useState('')
   const [loadingOi, setLoadingOi] = useState(false)
   const ladders = useLadders(true)
@@ -69,6 +73,12 @@ export default function OIScreen() {
   const nd = data?.ndx ?? {}
   const cWall = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
   const pWall = isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
+  const trueRes = !isNdx ? (data?.true_resistance ?? data?.gex_call_walls_above?.[0]?.strike) : null
+  const trueSup = !isNdx ? (data?.true_support    ?? data?.gex_put_walls_below?.[0]?.strike)  : null
+  const width   = !isNdx ? data?.wall_width : null
+  const struct  = !isNdx ? (data?.wall_structure ?? data?.structure_state) : null
+  const ivRank  = !isNdx ? (data?.iv_rank ?? data?.ivr) : null
+  const spxPrice= !isNdx ? (data?.spx ?? data?.daily_open) : null
   const callWallsAbove = isNdx ? (data?.ndx_call_walls_above ?? []) : (data?.gex_call_walls_above ?? data?.top_call_walls_above ?? [])
   const putWallsBelow  = isNdx ? (data?.ndx_put_walls_below  ?? []) : (data?.gex_put_walls_below  ?? data?.top_put_walls_below  ?? [])
 
@@ -78,9 +88,18 @@ export default function OIScreen() {
   const cwNum    = parseFloat(String(cWall).replace(/,/g, '')) || 0
   const pwNum    = parseFloat(String(pWall).replace(/,/g, '')) || 0
 
-  const bucketData = isNdx
-    ? (ladders?.ndx?.oi_ladder_buckets?.[bucket] ?? ladders?.ndx?.ladder_rows ?? [])
-    : (ladders?.oi_ladder_buckets?.[bucket]        ?? ladders?.ladder_rows      ?? [])
+  const allRows = isNdx
+    ? (ladders?.ndx?.oi_ladder_buckets?.all ?? ladders?.ndx?.oi_ladder_buckets?.weekly ?? ladders?.ndx?.ladder_rows ?? [])
+    : (ladders?.oi_ladder_buckets?.all ?? ladders?.ladder_rows ?? [])
+  const weekRows = isNdx
+    ? (ladders?.ndx?.oi_ladder_buckets?.weekly ?? ladders?.ndx?.ladder_rows ?? [])
+    : (ladders?.oi_ladder_buckets?.weekly ?? ladders?.ladder_rows ?? [])
+  const bucketData = bucket === 'all' ? allRows : weekRows
+
+  const rangeFiltered = bucketData.filter((r: any) => {
+    const s = parseFloat(String(r.strike).replace(/,/g, ''))
+    return Math.abs(s - priceRef) <= range
+  })
 
   async function loadOiRead() {
     setLoadingOi(true)
@@ -91,34 +110,66 @@ export default function OIScreen() {
 
   return (
     <>
+      {/* ── Range slider ── */}
+      <div className="ladder-slider-wrap">
+        <span className="ladder-slider-label">View Range</span>
+        <input type="range" className="ladder-slider" min={25} max={300} step={25} value={range} onChange={e => setRange(Number(e.target.value))} />
+        <span className="ladder-slider-val">±{range} pts</span>
+      </div>
+
       {/* ── Key levels bar ── */}
-      {(cWall || pWall) && (
-        <div className="panel">
-          <div className="panel-title">Key OI Levels — {isNdx ? 'NDX' : 'SPX'}</div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <div className="stat" style={{ flex: 1 }}>
-              <div className="stat-label">Call Wall</div>
-              <div className="stat-val" style={{ color: 'var(--green)', fontSize: 13 }}>{fmtNum(cWall)}</div>
-            </div>
-            <div className="stat" style={{ flex: 1 }}>
-              <div className="stat-label">Put Wall</div>
-              <div className="stat-val" style={{ color: 'var(--red)', fontSize: 13 }}>{fmtNum(pWall)}</div>
-            </div>
-            {data?.dist_to_call != null && !isNdx && (
-              <div className="stat" style={{ flex: 1 }}>
-                <div className="stat-label">Dist Call</div>
-                <div className="stat-val" style={{ color: 'var(--green)', fontSize: 11 }}>{data.dist_to_call}</div>
-              </div>
-            )}
-            {data?.dist_to_put != null && !isNdx && (
-              <div className="stat" style={{ flex: 1 }}>
-                <div className="stat-label">Dist Put</div>
-                <div className="stat-val" style={{ color: 'var(--red)', fontSize: 11 }}>{data.dist_to_put}</div>
-              </div>
-            )}
+      <div className="key-levels-bar">
+        {spxPrice && (
+          <div className="kl-item">
+            <div className="kl-label">SPX</div>
+            <div className="kl-val price">{fmtNum(spxPrice, 2)}</div>
           </div>
-        </div>
-      )}
+        )}
+        {cWall && (
+          <div className="kl-item">
+            <div className="kl-label">Call Wall</div>
+            <div className="kl-val call">{fmtNum(cWall)}</div>
+            {data?.dist_to_call && <div className="kl-dist">{data.dist_to_call}</div>}
+          </div>
+        )}
+        {pWall && (
+          <div className="kl-item">
+            <div className="kl-label">Put Wall</div>
+            <div className="kl-val put">{fmtNum(pWall)}</div>
+            {data?.dist_to_put && <div className="kl-dist">{data.dist_to_put}</div>}
+          </div>
+        )}
+        {trueRes && (
+          <div className="kl-item">
+            <div className="kl-label">True Res.</div>
+            <div className="kl-val call">{fmtNum(trueRes)}</div>
+          </div>
+        )}
+        {trueSup && (
+          <div className="kl-item">
+            <div className="kl-label">True Sup.</div>
+            <div className="kl-val put">{fmtNum(trueSup)}</div>
+          </div>
+        )}
+        {width != null && (
+          <div className="kl-item">
+            <div className="kl-label">Width</div>
+            <div className="kl-val">{fmtNum(width)} pts</div>
+          </div>
+        )}
+        {struct && (
+          <div className="kl-item">
+            <div className="kl-label">Structure</div>
+            <div className="kl-val" style={{ fontSize: 9, color: 'var(--muted2)' }}>{struct}</div>
+          </div>
+        )}
+        {ivRank && (
+          <div className="kl-item">
+            <div className="kl-label">IV Rank</div>
+            <div className="kl-val" style={{ fontSize: 10 }}>{ivRank}</div>
+          </div>
+        )}
+      </div>
 
       {/* ── OI Read ── */}
       <div className="panel">
@@ -137,7 +188,7 @@ export default function OIScreen() {
           <span className="panel-title" style={{ margin: 0 }}>Open Interest by Strike — {isNdx ? 'NDX' : 'SPX'}</span>
           <div style={{ display: 'flex', gap: 4 }}>
             {BUCKETS.map(b => (
-              <span key={b} className={`expiry-btn${bucket === b ? ' active' : ''}`} onClick={() => setBucket(b)}>{b}</span>
+              <span key={b.id} className={`expiry-btn${bucket === b.id ? ' active' : ''}`} onClick={() => setBucket(b.id)}>{b.label}</span>
             ))}
           </div>
         </div>
@@ -146,7 +197,7 @@ export default function OIScreen() {
           <span style={{ color: 'var(--muted2)' }}>|</span>
           <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
         </div>
-        <OIHBars rows={bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} />
+        <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} />
         {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
       </div>
 

@@ -1,42 +1,80 @@
+import { useState } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
+import { useLadders } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
+
+type OIBucket = 'all' | 'week'
+type GEXBucket = '0dte' | 'weekly' | 'monthly' | 'all'
 
 function fmtNum(v: any, d = 0) {
   if (v == null || v === '' || v === '--') return '--'
   const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/,/g, ''))
   if (isNaN(n)) return String(v)
+  if (Math.abs(n) >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B'
+  if (Math.abs(n) >= 1_000_000)     return (n / 1_000_000).toFixed(1) + 'M'
   return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 }
 
-function statValClass(v?: string) {
-  if (!v) return ''
-  const u = v.toUpperCase()
-  if (u.includes('BULL') || u.includes('POS') || u.includes('CALL') || u.includes('LONG') || u.includes('ABOVE')) return 'bull'
-  if (u.includes('BEAR') || u.includes('NEG') || u.includes('PUT') || u.includes('SHORT') || u.includes('BELOW')) return 'bear'
-  if (u.includes('WARN') || u.includes('NEUTRAL') || u.includes('NEUT')) return 'neut'
-  return ''
+function scoreBarColor(score: number | null) {
+  if (score == null) return 'var(--yellow)'
+  if (score > 0) return 'var(--green)'
+  if (score < 0) return 'var(--red)'
+  return 'var(--yellow)'
 }
 
-function Row({ label, value, valClass }: { label: string; value: any; valClass?: string }) {
+function OIRow({ row, priceStrike, callWall, putWall, maxVal }: {
+  row: any; priceStrike: number; callWall: number; putWall: number; maxVal: number
+}) {
+  const strike  = parseFloat(String(row.strike).replace(/,/g, ''))
+  const isPrice = priceStrike && Math.abs(strike - priceStrike) < 3
+  const isCall  = callWall && Math.abs(strike - callWall) < 3
+  const isPut   = putWall  && Math.abs(strike - putWall)  < 3
+  const cFill   = Math.min(1, (row.call_value || 0) / maxVal)
+  const pFill   = Math.min(1, (row.put_value  || 0) / maxVal)
+  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
+
   return (
-    <div className="td-row">
-      <div className="td-label">{label}</div>
-      <div className={`td-val${valClass ? ' ' + valClass : ''}`}>{value ?? '--'}</div>
+    <div className="hbar-row" style={{ background: bg }}>
+      <div className="hbar-strike" style={{ color: isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : 'var(--muted2)', textAlign: 'right', paddingRight: 5 }}>
+        {row.strike}
+      </div>
+      <div className="hbar-left">
+        <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.7)' }} />
+      </div>
+      <div className="hbar-divider" style={{ background: isPrice ? 'var(--yellow)' : 'var(--border2)' }} />
+      <div className="hbar-right">
+        <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: 'rgba(0,255,136,0.7)', position: 'absolute', left: 0, borderRadius: '0 2px 2px 0' }} />
+      </div>
+      <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, paddingRight: 0, color: isCall ? 'var(--green)' : isPrice ? 'var(--yellow)' : 'var(--muted2)', fontSize: 7 }}>
+        {isCall ? '▲' : isPut ? '▼' : ''}
+      </div>
     </div>
   )
 }
 
-function ZoneBox({ label, bot, top, mid, state }: { label: string; bot?: number; top?: number; mid?: number; state?: string }) {
-  if (!bot || !top) return null
+function GEXRow({ row, priceStrike, flipStrike, maxVal }: {
+  row: any; priceStrike: number; flipStrike: number; maxVal: number
+}) {
+  const strike  = parseFloat(String(row.strike).replace(/,/g, ''))
+  const isPrice = priceStrike && Math.abs(strike - priceStrike) < 3
+  const isFlip  = flipStrike  && Math.abs(strike - flipStrike)  < 3
+  const cGex = row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0)
+  const pGex = row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? Math.abs(row.net_gex) : 0)
+  const cFill = Math.min(1, Math.abs(cGex) / maxVal)
+  const pFill = Math.min(1, Math.abs(pGex) / maxVal)
+  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : 'transparent'
+
   return (
-    <div className="zone-status-box">
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <div className="zone-state-label">{state ?? label}</div>
+    <div className="gex-hrow" style={{ background: bg }}>
+      <div className="hbar-strike" style={{ color: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--muted2)' }}>
+        {row.strike}
       </div>
-      <div className="zone-levels">
-        <div className="zl"><div className="zl-label">Zone Bot</div><div className="zl-val">{fmtNum(bot, 2)}</div></div>
-        <div className="zl"><div className="zl-label">Zone Top</div><div className="zl-val">{fmtNum(top, 2)}</div></div>
-        {mid != null && <div className="zl"><div className="zl-label">Mid</div><div className="zl-val">{fmtNum(mid, 2)}</div></div>}
+      <div className="hbar-left">
+        <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.75)' }} />
+      </div>
+      <div className="hbar-divider" style={{ width: 16, background: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--border2)', height: '100%' }} />
+      <div className="hbar-right">
+        <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: cGex >= 0 ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,68,0.75)', position: 'absolute', left: 0, borderRadius: '0 2px 2px 0' }} />
       </div>
     </div>
   )
@@ -46,167 +84,199 @@ export default function LevelsScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const isNdx = side === 'ndx'
+  const [oiBucket, setOiBucket]   = useState<OIBucket>('all')
+  const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
+  const ladders = useLadders(true)
+
   const nd = data?.ndx ?? {}
 
-  const spxFlip = data?.gex_flip_zone_raw || data?.gex_flip_zone
-  const spxCW   = data?.nearest_call_wall || data?.gex_nearest_call_wall
-  const spxPW   = data?.nearest_put_wall  || data?.gex_nearest_put_wall
-  const distCall= data?.dist_to_call
-  const distPut = data?.dist_to_put
+  // Banner stats
+  const regime      = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
+  const flip        = isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
+  const cWall       = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
+  const pWall       = isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
+  const netDelta    = !isNdx ? data?.net_delta_dir : null
+  const dhPressure  = !isNdx ? data?.delta_hedging_pressure : null
+  const gammaDollar = !isNdx ? data?.dealer_gamma_dollar_per_pct : null
 
-  const ndxFlip = nd.gex_flip_zone_raw || data?.ndx_gex_flip_zone
-  const ndxCW   = nd.nearest_call_wall  || nd.gex_nearest_call_wall
-  const ndxPW   = nd.nearest_put_wall   || nd.gex_nearest_put_wall
+  // Scorecard
+  const score     = data?.dealer_score ?? data?.scorecard_score
+  const scoreLabel= data?.dealer_label ?? data?.scorecard_label
+  const scGamma   = data?.scf_gamma   ?? data?.charm_flow
+  const scDelta   = data?.scf_delta   ?? data?.delta_hedging_pressure
+  const scFlip    = data?.scf_flip    ?? (data?.gex_flip_zone_raw ? 'ABOVE' : null)
+  const scFlow    = data?.scf_flow    ?? data?.flow_bias
+  const scCharm   = data?.scf_charm   ?? data?.charm_flow
+  const scVanna   = data?.scf_vanna   ?? data?.vanna_flow
 
-  const flip  = isNdx ? ndxFlip : spxFlip
-  const cWall = isNdx ? ndxCW   : spxCW
-  const pWall = isNdx ? ndxPW   : spxPW
+  // Price references
+  const priceNum = isNdx
+    ? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0)
+    : (data?.daily_open ?? 0)
+  const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
+  const cwNum    = parseFloat(String(cWall ?? '').replace(/,/g, '')) || 0
+  const pwNum    = parseFloat(String(pWall ?? '').replace(/,/g, '')) || 0
 
-  const spxBot  = data?.spx_zone_bot
-  const spxTop  = data?.spx_zone_top
-  const spxState= data?.spx_zone_state
-  const esDBot  = data?.es_d_zone_bot
-  const esDTop  = data?.es_d_zone_top
-  const esDMid  = data?.es_d_zone_mid
-  const esDState= data?.es_d_zone_state
-  const es10Bot = data?.es_10m_zone_bot
-  const es10Top = data?.es_10m_zone_top
-  const es10Mid = data?.es_10m_zone_mid
-  const es10State= data?.es_10m_zone_state
+  // Ladder data
+  const oiRows = isNdx
+    ? (ladders?.ndx?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ndx?.ladder_rows ?? [])
+    : (ladders?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ladder_rows ?? [])
+  const gexRows = isNdx
+    ? (ladders?.ndx?.gex_ladder_buckets?.[gexBucket] ?? ladders?.ndx?.gex_rows ?? [])
+    : (ladders?.gex_ladder_buckets?.[gexBucket] ?? ladders?.gex_rows ?? [])
 
-  const zones: any[] = data?.zones ?? []
+  const maxOI  = Math.max(...(oiRows.map((r: any) => Math.max(r.call_value || 0, r.put_value || 0))), 1)
+  const maxGEX = Math.max(...(gexRows.map((r: any) => Math.max(Math.abs(r.call_gex || 0), Math.abs(r.put_gex || 0), Math.abs(r.net_gex || 0)))), 1)
 
-  const marketStats = [
-    { label: 'Mode',       value: data?.market_mode ?? data?.mode },
-    { label: 'Break',      value: data?.break_state },
-    { label: 'Bias',       value: data?.bias },
-    { label: 'Day Bias',   value: data?.day_bias },
-    { label: 'Flow',       value: data?.flow_state },
-    { label: 'Gamma',      value: data?.gamma_state },
-    { label: 'OI State',   value: data?.oi_state },
-    { label: 'Trap',       value: data?.trap_state !== 'None' ? data?.trap_state : null },
-    { label: 'Price Loc',  value: data?.price_location_state },
-    { label: 'Structure',  value: data?.structure_state },
-  ].filter(r => r.value)
+  const regimeCls = (r?: string) => {
+    if (!r) return 'neut'
+    const u = r.toUpperCase()
+    if (u.includes('NEG')) return 'bear'
+    if (u.includes('POS')) return 'bull'
+    return 'neut'
+  }
+
+  const scoreBarW = score != null ? `${Math.min(100, Math.max(0, (score + 30) / 60 * 100))}%` : '50%'
 
   return (
     <>
-      {/* ── GEX Key Levels ── */}
-      <div className="panel">
-        <div className="panel-title">Key GEX Levels — {isNdx ? 'NDX' : 'SPX'}</div>
-        <div style={{ display: 'flex', gap: 6, marginBottom: (!isNdx && (distCall != null || distPut != null)) ? 10 : 0 }}>
-          {pWall && (
-            <div style={{ flex: 1, padding: '8px 10px', borderRadius: 5, background: 'rgba(255,51,68,0.06)', border: '1px solid rgba(255,51,68,0.2)', textAlign: 'center' }}>
-              <div style={{ fontSize: 7, color: 'var(--muted2)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>Put Wall</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: 'var(--red)' }}>{fmtNum(pWall)}</div>
-            </div>
-          )}
-          {flip && (
-            <div style={{ flex: 1, padding: '8px 10px', borderRadius: 5, background: 'rgba(255,204,0,0.06)', border: '1px solid rgba(255,204,0,0.2)', textAlign: 'center' }}>
-              <div style={{ fontSize: 7, color: 'var(--muted2)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>GEX Flip</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: 'var(--yellow)' }}>{fmtNum(flip)}</div>
-            </div>
-          )}
-          {cWall && (
-            <div style={{ flex: 1, padding: '8px 10px', borderRadius: 5, background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)', textAlign: 'center' }}>
-              <div style={{ fontSize: 7, color: 'var(--muted2)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>Call Wall</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>{fmtNum(cWall)}</div>
-            </div>
-          )}
-        </div>
-        {!isNdx && (distCall != null || distPut != null) && (
-          <div style={{ display: 'flex', gap: 16, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-            {distPut  != null && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>Dist put: <span style={{ color: 'var(--red)', fontFamily: 'var(--mono)' }}>{distPut}</span></span>}
-            {distCall != null && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>Dist call: <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)' }}>{distCall}</span></span>}
+      {/* ── lv-banner ── */}
+      <div className="lv-banner">
+        {regime && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">Regime</span>
+            <span className={`lv-stat-val ${regimeCls(regime)}`}>{regime}</span>
+          </div>
+        )}
+        {flip && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">Flip Zone</span>
+            <span className="lv-stat-val" style={{ color: 'var(--yellow)' }}>{fmtNum(flip)}</span>
+          </div>
+        )}
+        {cWall && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">Call Wall</span>
+            <span className="lv-stat-val bull">{fmtNum(cWall)}</span>
+          </div>
+        )}
+        {pWall && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">Put Wall</span>
+            <span className="lv-stat-val bear">{fmtNum(pWall)}</span>
+          </div>
+        )}
+        {netDelta && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">Net Delta</span>
+            <span className={`lv-stat-val ${netDelta === 'LONG' ? 'bull' : netDelta === 'SHORT' ? 'bear' : 'neut'}`}>{netDelta}</span>
+          </div>
+        )}
+        {dhPressure && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">Pressure</span>
+            <span className="lv-stat-val neut">{dhPressure}</span>
+          </div>
+        )}
+        {gammaDollar != null && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">Dealer γ/1%</span>
+            <span className="lv-stat-val neut">{fmtNum(gammaDollar)}</span>
           </div>
         )}
       </div>
 
-      {/* ── Scalp Signal ── */}
-      {!isNdx && (data?.entry || data?.target || data?.stop_logic) && (
-        <div className="panel">
-          <div className="panel-title">Scalp Signal — 10m Zone to Zone</div>
-          {data.entry     && <Row label="Entry"  value={data.entry} valClass="green" />}
-          {data.target    && <Row label="Target" value={data.target} valClass="yellow" />}
-          {data.stop_logic && <Row label="Stop"  value={data.stop_logic} valClass="red" />}
-          {data.reason && <div style={{ marginTop: 8, fontSize: 10, color: 'var(--muted2)', lineHeight: 1.6, fontStyle: 'italic' }}>{data.reason}</div>}
-        </div>
-      )}
-
-      {/* ── Zones ── */}
-      {!isNdx && (es10Bot || esDBot || spxBot) && (
-        <div className="panel">
-          <div className="panel-title">ES 10M Zone — Intraday</div>
-          {es10Bot && es10Top && <ZoneBox label="ES 10M Zone" bot={es10Bot} top={es10Top} mid={es10Mid} state={es10State} />}
-          {esDBot && esDTop && (
-            <>
-              <div className="panel-title" style={{ marginTop: 10 }}>ES Daily Zone — Swing</div>
-              <ZoneBox label="ES Daily" bot={esDBot} top={esDTop} mid={esDMid} state={esDState} />
-            </>
-          )}
-          {spxBot && spxTop && (
-            <>
-              <div className="panel-title" style={{ marginTop: 10 }}>SPX Daily Zone — Context</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <div className="zl" style={{ flex: 1, minWidth: 80 }}><div className="zl-label">Zone Bot</div><div className="zl-val">{fmtNum(spxBot, 2)}</div></div>
-                <div className="zl" style={{ flex: 1, minWidth: 80 }}><div className="zl-label">Zone Top</div><div className="zl-val">{fmtNum(spxTop, 2)}</div></div>
-                <div className="zl" style={{ flex: 1, minWidth: 80 }}><div className="zl-label">State</div><div className="zl-val" style={{ fontSize: 9 }}>{spxState ?? '--'}</div></div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── NDX details ── */}
-      {isNdx && (
-        <div className="panel">
-          <div className="panel-title">NDX Key Levels</div>
-          <Row label="Flip Zone"    value={fmtNum(ndxFlip)} valClass="yellow" />
-          <Row label="Call Wall"    value={fmtNum(ndxCW)}   valClass="green" />
-          <Row label="Put Wall"     value={fmtNum(ndxPW)}   valClass="red" />
-          <Row label="Net GEX"      value={nd.net_gex_state ?? data?.ndx_net_gex_state} />
-          <Row label="Gamma Regime" value={nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime} />
-        </div>
-      )}
-
-      {/* ── Level details (SPX) ── */}
-      {!isNdx && (
-        <div className="panel">
-          <div className="panel-title">Level Details</div>
-          <Row label="Max Pain"     value={fmtNum(data?.max_pain_strike)} />
-          <Row label="Net Delta"    value={data?.net_delta_dir} valClass={data?.net_delta_dir === 'LONG' ? 'green' : data?.net_delta_dir === 'SHORT' ? 'red' : ''} />
-          <Row label="P/C Ratio"    value={data?.put_call_ratio ? parseFloat(data.put_call_ratio).toFixed(2) : null} />
-          <Row label="Daily Open"   value={fmtNum(data?.daily_open, 2)} />
-        </div>
-      )}
-
-      {/* ── Market States ── */}
-      {marketStats.length > 0 && !isNdx && (
-        <div className="panel">
-          <div className="panel-title">Market States</div>
-          <div className="stat-grid">
-            {marketStats.map((s, i) => (
-              <div key={i} className="stat">
-                <div className="stat-label">{s.label}</div>
-                <div className={`stat-val ${statValClass(s.value)}`} style={{ fontSize: 10 }}>{s.value}</div>
-              </div>
-            ))}
+      {/* ── lv-body: two columns ── */}
+      <div className="lv-body">
+        {/* OI column */}
+        <div className="lv-col">
+          <div className="lv-col-header">
+            <span className="lv-col-header-label">OI Ladder</span>
+            <div className="lv-bucket-tabs">
+              <button className={`lv-bucket${oiBucket === 'all' ? ' active' : ''}`} onClick={() => setOiBucket('all')}>All</button>
+              <button className={`lv-bucket${oiBucket === 'week' ? ' active' : ''}`} onClick={() => setOiBucket('week')}>Week</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, padding: '3px 8px', background: 'var(--surface)', borderBottom: '0.5px solid var(--border)', fontSize: 7, fontWeight: 700, fontFamily: 'var(--mono)', flexShrink: 0 }}>
+            <span style={{ color: 'var(--red)' }}>◀ PUTS</span>
+            <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
+          </div>
+          <div className="lv-col-scroll">
+            {oiRows.length > 0
+              ? oiRows.map((r: any, i: number) => (
+                  <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxVal={maxOI} />
+                ))
+              : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
+            }
           </div>
         </div>
-      )}
 
-      {/* ── Saved zones ── */}
-      {!isNdx && zones.length > 0 && (
+        {/* GEX column */}
+        <div className="lv-col">
+          <div className="lv-col-header">
+            <span className="lv-col-header-label">GEX Ladder</span>
+            <div className="lv-bucket-tabs">
+              <button className={`lv-bucket${gexBucket === '0dte' ? ' active' : ''}`} onClick={() => setGexBucket('0dte')}>0DTE</button>
+              <button className={`lv-bucket${gexBucket === 'weekly' ? ' active' : ''}`} onClick={() => setGexBucket('weekly')}>Wk</button>
+              <button className={`lv-bucket${gexBucket === 'monthly' ? ' active' : ''}`} onClick={() => setGexBucket('monthly')}>Mo</button>
+              <button className={`lv-bucket${gexBucket === 'all' ? ' active' : ''}`} onClick={() => setGexBucket('all')}>All</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, padding: '3px 8px', background: 'var(--surface)', borderBottom: '0.5px solid var(--border)', fontSize: 7, fontWeight: 700, fontFamily: 'var(--mono)', flexShrink: 0 }}>
+            <span style={{ color: 'var(--red)' }}>◀ PUT γ</span>
+            <span style={{ color: 'var(--green)' }}>CALL γ ▶</span>
+          </div>
+          <div className="lv-col-scroll">
+            {gexRows.length > 0
+              ? gexRows.map((r: any, i: number) => (
+                  <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxVal={maxGEX} />
+                ))
+              : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
+            }
+          </div>
+        </div>
+      </div>
+
+      {/* ── UW LIVE badge strip ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', background: 'rgba(0,255,136,0.03)', borderBottom: '1px solid rgba(0,255,136,0.08)', flexShrink: 0 }}>
+        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 6px', fontWeight: 700 }}>UW LIVE</span>
+      </div>
+
+      {/* ── Dealer Score ── */}
+      {(score != null || scGamma || scDelta) && (
         <div className="panel">
-          <div className="panel-title">Saved Zones</div>
-          {zones.map((z: any, i: number) => (
-            <Row
-              key={i}
-              label={z.label ?? `Zone ${i + 1}`}
-              value={z.top && z.bot ? `${fmtNum(z.bot)} – ${fmtNum(z.top)}` : fmtNum(z.level ?? z.price)}
-              valClass={z.type === 'support' ? 'green' : z.type === 'resistance' ? 'red' : ''}
-            />
-          ))}
+          <div className="panel-title">Dealer Positioning Score</div>
+          <div className="scorecard">
+            <div className="scorecard-header">
+              <span className="scorecard-title">Dealer Score</span>
+              <div style={{ textAlign: 'right' }}>
+                {score != null && <div className={`scorecard-score ${score > 0 ? 'bull' : score < 0 ? 'bear' : 'neut'}`}>{score}</div>}
+                {scoreLabel && <div className={`scorecard-label ${score != null && score > 0 ? 'bull' : score != null && score < 0 ? 'bear' : 'neut'}`}>{scoreLabel}</div>}
+              </div>
+            </div>
+            {score != null && (
+              <div className="scorecard-bar">
+                <div className="scorecard-bar-fill" style={{ width: scoreBarW, background: scoreBarColor(score) }} />
+              </div>
+            )}
+            <div className="scorecard-factors">
+              {[
+                { label: 'Gamma',  val: scGamma  ?? data?.gamma_state },
+                { label: 'Delta',  val: scDelta  ?? data?.net_delta_dir },
+                { label: 'Flip',   val: scFlip },
+                { label: 'Flow',   val: scFlow   ?? data?.flow_bias },
+                { label: 'Charm',  val: scCharm },
+                { label: 'Vanna',  val: scVanna },
+              ].map((f, i) => (
+                <div key={i} className="sc-factor">
+                  <div className="sc-factor-label">{f.label}</div>
+                  <div className={`sc-factor-val ${f.val && String(f.val).toUpperCase().includes('BULL') ? 'bull' : f.val && String(f.val).toUpperCase().includes('BEAR') ? 'bear' : 'neut'}`}>
+                    {f.val ?? '--'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </>
