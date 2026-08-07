@@ -26,6 +26,7 @@ export default defineConfig({
       '/fomc':           { target: API, changeOrigin: true },
       '/earnings':       { target: API, changeOrigin: true },
       '/calendar':       { target: API, changeOrigin: true },
+      '/institutions':   { target: API, changeOrigin: true },
     },
   },
 })

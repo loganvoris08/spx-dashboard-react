@@ -104,6 +104,32 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   const esFmt   = data?.es_price != null ? fmt2(data.es_price) : (data?.es != null ? fmt2(data.es) : '--')
   const vixFmt  = data?.vix != null ? Number(data.vix).toFixed(2) : '--'
 
+  // Day change
+  const spxChg  = data?.spx_change ?? data?.day_change
+  const spxChgPct = data?.spx_change_pct ?? data?.day_change_pct
+  const esChg   = data?.es_change
+  const vixChg  = data?.vix_change
+
+  function fmtChg(v: any, pct?: any) {
+    if (v == null) return null
+    const n = parseFloat(String(v))
+    if (isNaN(n)) return null
+    const sign = n >= 0 ? '+' : ''
+    const pStr = pct != null ? ` (${n >= 0 ? '+' : ''}${parseFloat(String(pct)).toFixed(2)}%)` : ''
+    return `${sign}${n.toFixed(2)}${pStr}`
+  }
+
+  // OI Strip
+  const putWall  = data?.nearest_put_wall ?? data?.put_wall
+  const callWall = data?.nearest_call_wall ?? data?.call_wall
+  const gexFlip  = data?.gex_flip_zone_raw ?? data?.gex_flip_zone
+  const hasOiStrip = putWall || gexFlip || callWall
+
+  // Flip Alert — show when within 5 pts of flip zone
+  const spxPrice = spxNum ?? 0
+  const flipDist = gexFlip && spxPrice ? Math.abs(spxPrice - gexFlip) : null
+  const showFlipAlert = flipDist != null && flipDist < 5
+
   // Signal
   const signal   = data?.trade_signal ?? data?.signal ?? 'WAIT'
   const sc       = pillClass(signal)
@@ -158,14 +184,23 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
           <div className="ticker">
             <div className="ticker-label">SPX</div>
             <div className="ticker-val spx">{spxFmt}</div>
+            {fmtChg(spxChg, spxChgPct) && (
+              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: spxChg >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
+            )}
           </div>
           <div className="ticker">
             <div className="ticker-label">ES</div>
             <div className="ticker-val es">{esFmt}</div>
+            {fmtChg(esChg) && (
+              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: esChg >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg)}</div>
+            )}
           </div>
           <div className="ticker">
             <div className="ticker-label">VIX</div>
             <div className="ticker-val vix">{vixFmt}</div>
+            {fmtChg(vixChg) && (
+              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: vixChg >= 0 ? 'var(--red)' : 'var(--green)', marginTop: 1 }}>{fmtChg(vixChg)}</div>
+            )}
           </div>
         </div>
 
@@ -217,6 +252,22 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
           <span className={`sb-session ${sessionClass(session)}`}>{session.toUpperCase()}</span>
         )}
       </div>
+
+      {/* ── Flip Alert ── */}
+      {showFlipAlert && (
+        <div style={{ padding: '4px 12px', background: 'rgba(255,204,0,.04)', borderBottom: '1px solid rgba(255,204,0,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span className="flip-alert">⚡ AT GAMMA FLIP — {flipDist != null ? flipDist.toFixed(1) : '--'} pts away</span>
+        </div>
+      )}
+
+      {/* ── OI Strip ── */}
+      {hasOiStrip && (
+        <div className="oi-strip">
+          {putWall  && <div className="oi-strip-item"><div className="oi-strip-label">Put Wall</div><div className="oi-strip-val put">{fmt2(putWall)}</div></div>}
+          {gexFlip  && <div className="oi-strip-item"><div className="oi-strip-label">GEX Flip</div><div className="oi-strip-val flip">{fmt2(gexFlip)}</div></div>}
+          {callWall && <div className="oi-strip-item"><div className="oi-strip-label">Call Wall</div><div className="oi-strip-val call">{fmt2(callWall)}</div></div>}
+        </div>
+      )}
 
       {/* ── Tabbar ── */}
       <div className="tabbar">

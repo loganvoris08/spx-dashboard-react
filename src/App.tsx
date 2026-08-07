@@ -9,13 +9,16 @@ import LevelsScreen from './screens/LevelsScreen'
 import GEXScreen from './screens/GEXScreen'
 import OIScreen from './screens/OIScreen'
 import FlowScreen from './screens/FlowScreen'
-import AIScreen from './screens/AIScreen'
 import TideScreen from './screens/TideScreen'
 import VolScreen from './screens/VolScreen'
 import NewsScreen from './screens/NewsScreen'
 import ChartScreen from './screens/ChartScreen'
 import EsChartScreen from './screens/EsChartScreen'
 import Es10mScreen from './screens/Es10mScreen'
+import EngineScreen from './screens/EngineScreen'
+import MMPlaybookScreen from './screens/MMPlaybookScreen'
+import SmartMoneyScreen from './screens/SmartMoneyScreen'
+import LearnScreen from './screens/LearnScreen'
 import './index.css'
 
 function Dashboard() {
@@ -39,11 +42,10 @@ function Dashboard() {
         {tab === 'ndx'        && <ChartScreen />}
         {tab === 'nq'         && <EsChartScreen />}
         {tab === 'nq10m'      && <Es10mScreen />}
-        {tab === 'ai'         && <AIScreen />}
-        {tab === 'engine'     && <SignalScreen />}
-        {tab === 'playbook'   && <AIScreen />}
-        {tab === 'learn'      && <AIScreen />}
-        {tab === 'smartmoney' && <FlowScreen />}
+        {tab === 'engine'     && <EngineScreen />}
+        {tab === 'playbook'   && <MMPlaybookScreen />}
+        {tab === 'learn'      && <LearnScreen />}
+        {tab === 'smartmoney' && <SmartMoneyScreen />}
       </Layout>
     </SideProvider>
   )

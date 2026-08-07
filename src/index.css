@@ -636,6 +636,25 @@ html, body, #root {
 .dte-val { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--text); }
 .dte-val.warn { color: var(--yellow); }
 
+/* ── Smart Money panels ── */
+.sm-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin: 8px; overflow: hidden; }
+.sm-panel-header { display: flex; align-items: center; gap: 6px; padding: 10px 12px 8px; border-bottom: 1px solid var(--border); }
+.sm-panel-title { font-size: 10px; font-weight: 700; letter-spacing: .8px; color: var(--text); }
+.sm-uw-badge { font-size: 7px; font-family: var(--mono); color: var(--green); background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); border-radius: 3px; padding: 1px 5px; font-weight: 700; }
+.sm-ts { font-size: 9px; color: var(--muted2); margin-left: auto; }
+.sm-refresh-btn { display: block; width: calc(100% - 24px); margin: 8px 12px; padding: 7px; background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 10px; letter-spacing: .6px; text-transform: uppercase; cursor: pointer; text-align: center; }
+.sm-refresh-btn:hover { background: rgba(255,255,255,.08); color: var(--text); }
+
+/* ── OI Strip ── */
+.oi-strip { display: flex; align-items: center; justify-content: center; gap: 20px; padding: 5px 12px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; overflow: hidden; }
+.oi-strip-item { display: flex; flex-direction: column; align-items: center; }
+.oi-strip-label { font-size: 7px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted2); }
+.oi-strip-val { font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.oi-strip-val.put  { color: var(--red); }
+.oi-strip-val.flip { color: var(--yellow); }
+.oi-strip-val.call { color: var(--green); }
+.flip-alert { background: rgba(255,204,0,.06); border: 1px solid rgba(255,204,0,.25); border-radius: 4px; padding: 3px 10px; font-size: 9px; font-weight: 700; font-family: var(--mono); color: var(--yellow); letter-spacing: .05em; }
+
 /* ── Mobile ── */
 @media (max-width: 640px) {
   .mobile-side-row { display: flex !important; }

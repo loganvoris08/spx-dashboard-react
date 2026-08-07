@@ -101,13 +101,20 @@ export default function FlowScreen() {
   const [dpItems,      setDpItems]      = useState<any[]>([])
   const [unusualItems, setUnusualItems] = useState<any[]>([])
   const [dteStats,     setDteStats]     = useState<any>(null)
+  const [nopeData,     setNopeData]     = useState<any>(null)
+  const [greekData,    setGreekData]    = useState<any>(null)
+  const [expiryData,   setExpiryData]   = useState<any[]>([])
+  const [sectorTide,   setSectorTide]   = useState<any[]>([])
+  const [sectorFlow,   setSectorFlow]   = useState<any[]>([])
   const [loadingUnusual, setLoadingUnusual] = useState(false)
   const [loadingDp,    setLoadingDp]    = useState(false)
   const [loadingFlow,  setLoadingFlow]  = useState(false)
+  const [loadingSector,setLoadingSector]= useState(false)
 
   const tickerTimer = useRef<any>(null)
   const blockTimer  = useRef<any>(null)
   const dteTimer    = useRef<any>(null)
+  const nopeTimer   = useRef<any>(null)
   const tickerSeen  = useRef(new Set<string>())
 
   const nd        = data?.ndx ?? {}
@@ -170,6 +177,44 @@ export default function FlowScreen() {
     }
   }, [isNdx])
 
+  /* ── NOPE ── */
+  const loadNope = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/nope')
+      setNopeData(d)
+    } catch {}
+  }, [])
+
+  /* ── Greek flow ── */
+  const loadGreek = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/greek-flow')
+      setGreekData(d)
+    } catch {}
+  }, [])
+
+  /* ── Flow by expiry ── */
+  const loadExpiry = useCallback(async () => {
+    try {
+      const d = await apiFetch(isNdx ? '/api/ndx-flow-expiry' : '/api/flow-expiry')
+      setExpiryData(d.expiry ?? d.data ?? d ?? [])
+    } catch { setExpiryData([]) }
+  }, [isNdx])
+
+  /* ── Sector flow ── */
+  const loadSector = useCallback(async () => {
+    setLoadingSector(true)
+    try {
+      const [tide, flow] = await Promise.allSettled([
+        apiFetch('/api/sector-tide'),
+        apiFetch('/api/sector-flow'),
+      ])
+      if (tide.status === 'fulfilled') setSectorTide(tide.value.sectors ?? tide.value.data ?? tide.value ?? [])
+      if (flow.status === 'fulfilled') setSectorFlow(flow.value.sectors ?? flow.value.data ?? flow.value ?? [])
+    } catch {}
+    finally { setLoadingSector(false) }
+  }, [])
+
   /* ── Unusual alerts (on demand) ── */
   const loadUnusual = useCallback(async () => {
     setLoadingUnusual(true)
@@ -195,17 +240,23 @@ export default function FlowScreen() {
     loadBlocks()
     load0dte()
     loadDarkPool()
+    loadNope()
+    loadGreek()
+    loadExpiry()
+    loadSector()
 
     tickerTimer.current = setInterval(loadTicker, 17_000)
     blockTimer.current  = setInterval(loadBlocks,  30_000)
     dteTimer.current    = setInterval(load0dte,    60_000)
+    nopeTimer.current   = setInterval(loadNope,    60_000)
 
     return () => {
       clearInterval(tickerTimer.current)
       clearInterval(blockTimer.current)
       clearInterval(dteTimer.current)
+      clearInterval(nopeTimer.current)
     }
-  }, [isNdx, loadTicker, loadBlocks, load0dte, loadDarkPool])
+  }, [isNdx, loadTicker, loadBlocks, load0dte, loadDarkPool, loadNope, loadGreek, loadExpiry, loadSector])
 
   /* ── 0DTE computed values ── */
   const dteCallPrem = dteStats?.net_call_prem ?? dteStats?.call_premium
@@ -380,6 +431,136 @@ export default function FlowScreen() {
             }
           </div>
         </div>
+      </div>
+
+      {/* ── NOPE ── */}
+      <div className="panel">
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          NOPE — Net Options Pricing Effect
+          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+        </div>
+        <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Net dealer delta flow adjusted for options volume. Positive = net bullish hedge pressure. Negative = bearish.</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>NOPE</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: nopeData?.nope_val != null ? (nopeData.nope_val > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
+              {nopeData?.nope_val != null ? Number(nopeData.nope_val).toFixed(2) : '--'}
+            </div>
+          </div>
+          <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>NOPE Fill</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: nopeData?.nope_fill_val != null ? (nopeData.nope_fill_val > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
+              {nopeData?.nope_fill_val != null ? Number(nopeData.nope_fill_val).toFixed(2) : '--'}
+            </div>
+          </div>
+        </div>
+        {nopeData?.history && Array.isArray(nopeData.history) && nopeData.history.length > 1 && (
+          <svg width="100%" height="50" viewBox="0 0 300 50" preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }}>
+            {(() => {
+              const pts = nopeData.history.map((v: number) => Number(v))
+              const mn = Math.min(...pts), mx = Math.max(...pts)
+              const rng = mx - mn || 1
+              const coords = pts.map((v: number, i: number) => `${(i / (pts.length - 1)) * 300},${50 - ((v - mn) / rng) * 46}`)
+              const zero = 50 - ((-mn) / rng) * 46
+              return <>
+                <line x1="0" y1={zero} x2="300" y2={zero} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                <polyline points={coords.join(' ')} fill="none" stroke="var(--green)" strokeWidth="1.5" />
+              </>
+            })()}
+          </svg>
+        )}
+      </div>
+
+      {/* ── Greek Flow ── */}
+      <div className="panel">
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Greek Flow — Delta &amp; Vega
+          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+        </div>
+        <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Directional delta flow = net call minus put delta. Directional vega = call vega premium − put vega premium.</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>Dir. Δ Flow</div>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: greekData?.delta_flow != null ? (greekData.delta_flow > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
+              {greekData?.delta_flow != null ? (greekData.delta_flow > 0 ? '+' : '') + Number(greekData.delta_flow).toFixed(0) : '--'}
+            </div>
+          </div>
+          <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>Dir. ν Flow</div>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: greekData?.vega_flow != null ? (greekData.vega_flow > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
+              {greekData?.vega_flow != null ? (greekData.vega_flow > 0 ? '+' : '') + Number(greekData.vega_flow).toFixed(0) : '--'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Flow By Expiry ── */}
+      {expiryData.length > 0 && (
+        <div className="panel">
+          <div className="panel-title">Flow By Expiry</div>
+          {expiryData.map((row: any, i: number) => {
+            const net = (row.call_prem ?? 0) - (row.put_prem ?? 0)
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)', fontSize: 10 }}>
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, minWidth: 60 }}>{row.expiry ?? row.date}</span>
+                <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)' }}>{row.call_prem != null ? fmtPrem(row.call_prem) : '--'}</span>
+                <span style={{ color: 'var(--muted2)', fontSize: 8 }}>C</span>
+                <span style={{ color: 'var(--red)', fontFamily: 'var(--mono)' }}>{row.put_prem != null ? fmtPrem(Math.abs(row.put_prem)) : '--'}</span>
+                <span style={{ color: 'var(--muted2)', fontSize: 8 }}>P</span>
+                <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', color: net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'var(--text)', fontWeight: 700 }}>
+                  {net > 0 ? '+' : ''}{fmtPrem(net)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Sector Tide ── */}
+      {sectorTide.length > 0 && (
+        <div className="panel">
+          <div className="panel-title">Sector Tide</div>
+          {sectorTide.map((s: any, i: number) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: '1px solid var(--border)', fontSize: 10 }}>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, minWidth: 40 }}>{s.ticker ?? s.symbol}</span>
+              <span style={{ flex: 1, color: 'var(--muted2)' }}>{s.name ?? ''}</span>
+              <span style={{ fontFamily: 'var(--mono)', color: (s.bias || '').includes('BULL') || (s.tide || '').includes('POS') ? 'var(--green)' : (s.bias || '').includes('BEAR') || (s.tide || '').includes('NEG') ? 'var(--red)' : 'var(--text)', fontWeight: 700, fontSize: 9 }}>
+                {s.bias ?? s.tide ?? s.state ?? '--'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Sector Flow Pulse ── */}
+      <div className="panel">
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Sector Flow Pulse</span>
+          <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>bull premium % by sector ETF</span>
+        </div>
+        {sectorFlow.length === 0 && !loadingSector ? (
+          <button className="ai-read-btn" onClick={loadSector}>⚡ LOAD SECTOR FLOW</button>
+        ) : loadingSector ? (
+          <div style={{ textAlign: 'center', color: 'var(--muted2)', fontSize: 10, padding: 8 }}>Loading...</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginTop: 8 }}>
+            {sectorFlow.map((s: any, i: number) => {
+              const bullPct = s.bull_pct ?? s.call_pct ?? 50
+              return (
+                <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '6px 8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11 }}>{s.ticker ?? s.symbol}</span>
+                    <span style={{ fontSize: 9, color: bullPct > 55 ? 'var(--green)' : bullPct < 45 ? 'var(--red)' : 'var(--muted2)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{Number(bullPct).toFixed(0)}%</span>
+                  </div>
+                  <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: bullPct > 55 ? 'var(--green)' : bullPct < 45 ? 'var(--red)' : 'var(--yellow)', borderRadius: 2, width: `${bullPct}%` }} />
+                  </div>
+                  {s.name && <div style={{ fontSize: 8, color: 'var(--muted2)', marginTop: 2 }}>{s.name}</div>}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Unusual Alerts (Big Prints) ── */}
