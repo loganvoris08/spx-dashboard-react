@@ -228,6 +228,53 @@ export default function SignalScreen() {
         </div>
       )}
 
+      {/* ── Zone Target Tracker ── */}
+      {entry && (
+        <div className="panel" style={{ paddingBottom: 6 }}>
+          <div className="target-tracker">
+            <div className="tt-header">
+              <span className="tt-title">Zone Target Tracker</span>
+              <span className={`tt-signal ${cls}`}>{signal}</span>
+            </div>
+            <div className="tt-ladder">
+              <div className={`tt-level ${target ? 'target' : 'neutral'}`}>
+                <span>Target</span>
+                <span>{target ?? '--'}</span>
+                <span className="tt-dist" />
+              </div>
+              {(() => {
+                const tgt = target  ? parseFloat(String(target).replace(/,/g,'')) : null
+                const ent = entry   ? parseFloat(String(entry).replace(/,/g,'')) : null
+                const stp = stopLogic ? parseFloat(String(stopLogic).replace(/,/g,'')) : null
+                const cur = data?.es_price != null ? parseFloat(String(data.es_price).replace(/,/g,'')) : null
+                const fillPct = (tgt != null && ent != null && tgt !== ent)
+                  ? Math.min(100, Math.max(0, Math.abs((cur ?? ent) - ent) / Math.abs(tgt - ent) * 100))
+                  : 50
+                const stopPct = (stp != null && ent != null && stp !== ent)
+                  ? Math.min(100, Math.max(0, Math.abs((cur ?? ent) - ent) / Math.abs(stp - ent) * 100))
+                  : 50
+                const barColor = cls === 'long' ? 'var(--green)' : cls === 'short' ? 'var(--red)' : 'var(--yellow)'
+                return <>
+                  <div className="tt-progress"><div className="tt-progress-fill" style={{ width: `${fillPct}%`, background: barColor }} /></div>
+                  <div className="tt-level current">
+                    <span>ES Now</span>
+                    <span>{cur != null ? cur.toFixed(2) : '--'}</span>
+                  </div>
+                  {stp != null && <>
+                    <div className="tt-progress"><div className="tt-progress-fill" style={{ width: `${stopPct}%`, background: 'var(--red)' }} /></div>
+                    <div className="tt-level stop">
+                      <span>Stop</span>
+                      <span>{stopLogic ?? '--'}</span>
+                      <span className="tt-dist" />
+                    </div>
+                  </>}
+                </>
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Scalp Signal ── */}
       <div className="panel">
         <div className="panel-title">Scalp Signal — 10m Zone to Zone</div>
