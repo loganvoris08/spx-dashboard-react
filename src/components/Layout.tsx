@@ -21,8 +21,9 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   const { side, setSide } = useSide()
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
 
-  const spx     = data?.spx  ?? '--'
-  const ndx     = data?.ndx  ?? '--'
+  const spxRaw  = data?.spx
+  const spx     = typeof spxRaw === 'number' ? spxRaw : (spxRaw?.price ?? data?.daily_open ?? '--')
+  const ndx     = data?.ndx?.price ?? '--'
   const signal  = data?.trade_signal ?? data?.signal ?? 'WAIT'
   const sigColor = signalColor(signal)
 
