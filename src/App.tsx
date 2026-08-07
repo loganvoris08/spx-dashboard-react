@@ -5,18 +5,12 @@ import { useDashboard } from './hooks/useDashboard'
 import Layout from './components/Layout'
 import LoginScreen from './screens/LoginScreen'
 import SignalScreen from './screens/SignalScreen'
+import LevelsScreen from './screens/LevelsScreen'
+import GEXScreen from './screens/GEXScreen'
+import OIScreen from './screens/OIScreen'
+import FlowScreen from './screens/FlowScreen'
+import AIScreen from './screens/AIScreen'
 import './index.css'
-
-function ComingSoon({ label }: { label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-      <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>🚧</div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>{label} coming soon</div>
-      </div>
-    </div>
-  )
-}
 
 function Dashboard() {
   const [tab, setTab] = useState('signal')
@@ -26,11 +20,11 @@ function Dashboard() {
     <SideProvider>
       <Layout activeTab={tab} setTab={setTab} data={data}>
         {tab === 'signal' && <SignalScreen />}
-        {tab === 'levels' && <ComingSoon label="Levels" />}
-        {tab === 'gex'    && <ComingSoon label="GEX" />}
-        {tab === 'oi'     && <ComingSoon label="Open Interest" />}
-        {tab === 'flow'   && <ComingSoon label="Flow" />}
-        {tab === 'ai'     && <ComingSoon label="AI Reads" />}
+        {tab === 'levels' && <LevelsScreen />}
+        {tab === 'gex'    && <GEXScreen />}
+        {tab === 'oi'     && <OIScreen />}
+        {tab === 'flow'   && <FlowScreen />}
+        {tab === 'ai'     && <AIScreen />}
       </Layout>
     </SideProvider>
   )
