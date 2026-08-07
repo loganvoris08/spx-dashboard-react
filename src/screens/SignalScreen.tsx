@@ -73,24 +73,25 @@ export default function SignalScreen() {
   const color = sigColor(cls)
   const swCls = sigClass(swing)
 
-  // Session stats
-  const prevClose = data?.prev_close ?? data?.previous_close
-  const dayOpen   = data?.daily_open ?? data?.day_open
-  const gap       = data?.open_gap   ?? data?.gap
-  const dayHigh   = data?.day_high
-  const dayLow    = data?.day_low
-  const dayRange  = data?.day_range
+  // Session stats — session_stats is a nested object
+  const ss         = data?.session_stats ?? {}
+  const prevClose  = ss.prev_close  ?? data?.prev_close  ?? data?.previous_close
+  const dayOpen    = ss.day_open    ?? data?.daily_open  ?? data?.day_open
+  const gap        = ss.gap         ?? data?.open_gap    ?? data?.gap
+  const dayHigh    = ss.day_high    ?? data?.day_high
+  const dayLow     = ss.day_low     ?? data?.day_low
+  const dayRange   = ss.range       ?? data?.day_range
 
   // Market context
   const vix9d      = data?.vix9d
   const vix        = data?.vix
   const vix3m      = data?.vix3m
-  const implPts    = data?.implied_weekly_move_pts ?? data?.implied_move_pts
-  const implPct    = data?.implied_weekly_move_pct ?? data?.implied_move_pct
+  const implPts    = data?.implied_weekly_move  ?? data?.implied_move_pts
+  const implPct    = data?.implied_weekly_pct   ?? data?.implied_move_pct
   const esBasis    = data?.es_basis
   const esBasisLbl = data?.es_basis_label
-  const volSkew    = data?.vol_skew
-  const volSkewLbl = data?.vol_skew_label
+  const volSkew    = data?.skew ?? data?.vol_skew
+  const volSkewLbl = data?.skew_label ?? data?.vol_skew_label
 
   // Zone data
   const es10Bot   = data?.es_10m_zone_bot
