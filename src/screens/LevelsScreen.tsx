@@ -91,9 +91,7 @@ export default function LevelsScreen() {
   const isNdx = side === 'ndx'
   const nd = data?.ndx ?? {}
 
-  const spxPrice   = data?.daily_open ?? data?.spx_zone_mid ?? null
-  const ndxPrice   = typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? null
-  const currentPx  = isNdx ? ndxPrice : spxPrice
+  const spxPrice = data?.daily_open ?? data?.spx_zone_mid ?? null
 
   // SPX zones
   const spxBot  = data?.spx_zone_bot

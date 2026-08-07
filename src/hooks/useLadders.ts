@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { fetchData } from '../lib/api'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 const POLL_MS = 30_000
