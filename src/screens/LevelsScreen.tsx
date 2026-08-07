@@ -64,7 +64,6 @@ export default function LevelsScreen() {
 
   const spxBot  = data?.spx_zone_bot
   const spxTop  = data?.spx_zone_top
-  const spxMid  = data?.spx_zone_mid
   const spxState= data?.spx_zone_state
   const esDBot  = data?.es_d_zone_bot
   const esDTop  = data?.es_d_zone_top
