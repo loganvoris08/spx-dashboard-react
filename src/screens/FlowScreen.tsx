@@ -110,6 +110,8 @@ export default function FlowScreen() {
   const [loadingDp,    setLoadingDp]    = useState(false)
   const [loadingFlow,  setLoadingFlow]  = useState(false)
   const [loadingSector,setLoadingSector]= useState(false)
+  const [flowAiText,   setFlowAiText]   = useState('')
+  const [loadingFlowAi,setLoadingFlowAi]= useState(false)
 
   const tickerTimer = useRef<any>(null)
   const blockTimer  = useRef<any>(null)
@@ -214,6 +216,26 @@ export default function FlowScreen() {
     } catch {}
     finally { setLoadingSector(false) }
   }, [])
+
+  /* ── Flow AI Read ── */
+  const loadFlowAiRead = useCallback(async () => {
+    setLoadingFlowAi(true)
+    try {
+      const ep = isNdx ? '/api/ndx-flow-read' : '/api/flow-read'
+      const res = await fetch(`${BASE}${ep}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ blocks: blockItems, flow: tickerItems }),
+      })
+      if (!res.ok) throw new Error(res.statusText)
+      const d = await res.json()
+      setFlowAiText(d.read || d.text || d.result || JSON.stringify(d))
+    } catch (e: any) {
+      setFlowAiText('Error: ' + e.message)
+    } finally {
+      setLoadingFlowAi(false)
+    }
+  }, [isNdx, blockItems, tickerItems])
 
   /* ── Unusual alerts (on demand) ── */
   const loadUnusual = useCallback(async () => {
@@ -598,6 +620,19 @@ export default function FlowScreen() {
           <div style={{ maxHeight: 220, overflowY: 'auto' }}>
             {dpItems.slice(0, 30).map((p, i) => <DarkPoolItem key={i} p={p} />)}
           </div>
+        )}
+      </div>
+
+      {/* ── AI Flow Read ── */}
+      <div className="panel">
+        <button className="ai-read-btn" onClick={loadFlowAiRead} disabled={loadingFlowAi}>
+          {loadingFlowAi ? '⚡ READING FLOW...' : flowAiText ? '↻ REFRESH AI READ — FLOW' : '⚡ AI READ — FLOW'}
+        </button>
+        {!loadingFlowAi && !flowAiText && (
+          <div style={{ fontSize: 9, color: 'var(--muted2)', marginTop: 4, textAlign: 'center' }}>tap to analyze block &amp; flow data</div>
+        )}
+        {flowAiText && (
+          <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text2)', lineHeight: 1.7 }}>{flowAiText}</div>
         )}
       </div>
     </>

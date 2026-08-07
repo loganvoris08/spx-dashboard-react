@@ -1,6 +1,7 @@
 import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
 
+
 function sigClass(s?: string) {
   if (!s) return 'wait'
   const u = s.toUpperCase()
@@ -55,7 +56,8 @@ function ZoneBox({ label, bot, top, mid, state, next, prev }: {
 
 export default function SignalScreen() {
   const { data } = useDashboard()
-  useSide()
+  const { side } = useSide()
+  const isNdx = side === 'ndx'
 
   const signal    = data?.trade_signal ?? data?.signal ?? 'WAIT'
   const score     = data?.score
@@ -320,6 +322,16 @@ export default function SignalScreen() {
           </>
         )}
       </div>
+
+      {/* ── NDX Zone Note ── */}
+      {isNdx && (
+        <div className="panel">
+          <div className="panel-title" style={{ color: 'var(--green)', marginBottom: 6 }}>NQ / NDX Context</div>
+          <div style={{ fontSize: 10, color: 'var(--muted2)', lineHeight: 1.6 }}>
+            Zone logic runs on ES/SPX. The zones and signals below show ES/SPX levels — use them as reference even when trading NQ, since SPX zones are the primary structural anchors.
+          </div>
+        </div>
+      )}
 
       {/* ── ES 10M Zone ── */}
       {(es10Bot || es10Top) && (

@@ -26,10 +26,23 @@ const CHART_BASE = {
   handleScroll: false, handleScale: false,
 }
 
+type Moneyness = 'all' | 'atm' | 'itm' | 'otm'
+type Expiry    = 'all' | '0dte' | 'weekly' | 'monthly'
+
+const MONEY_OPTS: { id: Moneyness; label: string }[] = [
+  { id: 'all', label: 'ALL' }, { id: 'atm', label: 'ATM' }, { id: 'itm', label: 'ITM' }, { id: 'otm', label: 'OTM' },
+]
+const EXP_OPTS: { id: Expiry; label: string }[] = [
+  { id: 'all', label: 'ALL' }, { id: '0dte', label: '0DTE' }, { id: 'weekly', label: 'WEEKLY' }, { id: 'monthly', label: 'MONTHLY' },
+]
+
 export default function TideScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const isNdx = side === 'ndx'
+
+  const [moneyness, setMoneyness] = useState<Moneyness>('all')
+  const [expiry,    setExpiry]    = useState<Expiry>('all')
 
   // Tide chart 1: Price vs Call/Put lines
   const c1Ref = useRef<HTMLDivElement>(null)
@@ -43,6 +56,11 @@ export default function TideScreen() {
   const c2    = useRef<IChartApi | null>(null)
   const netHist = useRef<ISeriesApi<'Histogram'> | null>(null)
 
+  // Tide chart 3: Flow Acceleration (5-period MA)
+  const c3Ref = useRef<HTMLDivElement>(null)
+  const c3    = useRef<IChartApi | null>(null)
+  const accelLine = useRef<ISeriesApi<'Line'> | null>(null)
+
   // UW Market Tide chart
   const mktRef = useRef<HTMLDivElement>(null)
   const mktC   = useRef<IChartApi | null>(null)
@@ -51,6 +69,7 @@ export default function TideScreen() {
   const mktNet  = useRef<ISeriesApi<'Line'> | null>(null)
 
   const [stats,     setStats]     = useState<any>(null)
+  const [divData,   setDivData]   = useState<any>(null)
   const [mktStats,  setMktStats]  = useState<any>(null)
   const [tsLabel,   setTsLabel]   = useState('--')
   const [aiRead,    setAiRead]    = useState('')
@@ -76,6 +95,13 @@ export default function TideScreen() {
         priceFormat: { type: 'custom', formatter: (p: number) => { const a = Math.abs(p); return (p>=0?'+':'-')+(a>=1e6?(a/1e6).toFixed(1)+'M':a>=1000?(a/1000).toFixed(0)+'K':a.toFixed(0)) } },
       } as any)
     }
+    if (c3Ref.current && !c3.current) {
+      c3.current = createChart(c3Ref.current, { ...CHART_BASE, height: 120, width: c3Ref.current.clientWidth })
+      accelLine.current = c3.current.addSeries(LineSeries, {
+        color: 'rgba(255,204,0,0.75)', lineWidth: 1.5,
+        priceFormat: { type: 'custom', formatter: (p: number) => { const a = Math.abs(p); return (p>=0?'+':'-')+(a>=1e6?(a/1e6).toFixed(1)+'M':a>=1000?(a/1000).toFixed(0)+'K':a.toFixed(0)) } },
+      } as any)
+    }
     if (mktRef.current && !mktC.current) {
       mktC.current  = createChart(mktRef.current, { ...CHART_BASE, height: 160, width: mktRef.current.clientWidth })
       mktCall.current = mktC.current.addSeries(LineSeries, { color: 'rgba(0,255,136,0.8)',  lineWidth: 1.5 } as any)
@@ -85,6 +111,7 @@ export default function TideScreen() {
     const onResize = () => {
       if (c1.current && c1Ref.current) c1.current.applyOptions({ width: c1Ref.current.clientWidth })
       if (c2.current && c2Ref.current) c2.current.applyOptions({ width: c2Ref.current.clientWidth })
+      if (c3.current && c3Ref.current) c3.current.applyOptions({ width: c3Ref.current.clientWidth })
       if (mktC.current && mktRef.current) mktC.current.applyOptions({ width: mktRef.current.clientWidth })
     }
     window.addEventListener('resize', onResize)
@@ -94,9 +121,10 @@ export default function TideScreen() {
     initCharts()
     if (!c1.current) return
     try {
-      const ep = isNdx ? '/api/ndx-uw-flow' : '/api/flow-history'
+      const ep = isNdx ? '/api/ndx-uw-flow' : `/api/flow-history?moneyness=${moneyness}&expiry=${expiry}`
       const d = await apiFetch(ep)
-      const hist: any[] = d.history || []
+      const hist: any[]     = d.history  || []
+      const velocity: any[] = d.velocity || []
       if (!hist.length) return
 
       const toUnix = (ts: any) => typeof ts === 'number' ? ts : Math.floor(new Date(ts).getTime() / 1000)
@@ -119,13 +147,19 @@ export default function TideScreen() {
         c2.current!.timeScale().fitContent()
       }
 
+      if (accelLine.current && velocity.length) {
+        accelLine.current.setData(velocity.map((v: any) => ({ time: toUnix(v.ts) as any, value: v.value })))
+        c3.current!.timeScale().fitContent()
+      }
+
       const last = hist[hist.length - 1] || {}
       const net  = last.net_prem ?? (last.call_prem - last.put_prem)
       const callPct = last.call_prem / Math.max(last.call_prem + last.put_prem, 1) * 100
       setStats({ call: last.call_prem, put: last.put_prem, net, callPct, spx: last.spx })
+      setDivData(d.divergence ?? null)
       setTsLabel(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
     } catch {}
-  }, [isNdx, initCharts])
+  }, [isNdx, moneyness, expiry, initCharts])
 
   const loadMarketTide = useCallback(async () => {
     initCharts()
@@ -166,9 +200,36 @@ export default function TideScreen() {
   const callPct = stats?.callPct ?? 50
   const putPct  = 100 - callPct
   const netColor = stats?.net >= 0 ? 'var(--green)' : 'var(--red)'
+  const biasBarColor = callPct >= 55 ? 'var(--green)' : callPct <= 45 ? 'var(--red)' : 'var(--yellow)'
+
+  const divColor: Record<string, string> = { green: 'var(--green)', red: 'var(--red)', yellow: 'var(--yellow)', muted: 'var(--muted2)' }
+  const divHasSignal = divData && divData.color && divData.color !== 'muted' && divData.label && divData.label !== 'BUILDING...'
+
+  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+    fontSize: 9, padding: '2px 7px', borderRadius: 3, cursor: 'pointer', fontFamily: 'var(--mono)', fontWeight: 700,
+    border: `1px solid ${active ? 'rgba(0,255,136,0.5)' : 'var(--border2)'}`,
+    background: active ? 'rgba(0,255,136,0.1)' : 'transparent',
+    color: active ? 'var(--green)' : 'var(--muted2)',
+  })
 
   return (
     <div className="panel">
+      {/* Filter bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 9, color: 'var(--muted2)', fontWeight: 600 }}>Moneyness</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {MONEY_OPTS.map(o => (
+            <span key={o.id} style={filterBtnStyle(moneyness === o.id)} onClick={() => setMoneyness(o.id)}>{o.label}</span>
+          ))}
+        </div>
+        <span style={{ fontSize: 9, color: 'var(--muted2)', fontWeight: 600, marginLeft: 4 }}>Expiry</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {EXP_OPTS.map(o => (
+            <span key={o.id} style={filterBtnStyle(expiry === o.id)} onClick={() => setExpiry(o.id)}>{o.label}</span>
+          ))}
+        </div>
+      </div>
+
       {/* Stats row */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
         {[
@@ -192,9 +253,17 @@ export default function TideScreen() {
           <span style={{ fontSize: 8, fontFamily: 'var(--mono)', color: 'var(--red)' }}>{putPct.toFixed(0)}% PUTS</span>
         </div>
         <div style={{ height: 6, borderRadius: 3, background: 'var(--surface)', overflow: 'hidden', border: '1px solid var(--border)' }}>
-          <div style={{ height: '100%', background: 'var(--green)', width: `${callPct}%`, transition: 'width 0.4s', borderRadius: 3 }} />
+          <div style={{ height: '100%', background: biasBarColor, width: `${callPct}%`, transition: 'width 0.4s', borderRadius: 3 }} />
         </div>
       </div>
+
+      {/* Divergence badge */}
+      {divHasSignal && (
+        <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--surface)', border: `1px solid ${divColor[divData.color] ?? 'var(--border)'}`, borderRadius: 6 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--mono)', color: divColor[divData.color] ?? 'var(--text)' }}>{divData.label}</div>
+          {divData.detail && <div style={{ fontSize: 9, color: 'var(--muted2)', marginTop: 2 }}>{divData.detail}</div>}
+        </div>
+      )}
 
       {/* Chart 1: Price vs Premium */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -211,7 +280,12 @@ export default function TideScreen() {
       {/* Chart 2: Net histogram */}
       <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)', marginBottom: 4 }}>Net Premium Flow (Call − Put)</div>
       <div ref={c2Ref} style={{ marginBottom: 6 }} />
-      <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 12, padding: '0 2px' }}>Green = call dominance · Red = put dominance</div>
+      <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 12, padding: '0 2px' }}>Green = call dominance · Red = put dominance · Bars show per-snapshot net</div>
+
+      {/* Chart 3: Flow Acceleration */}
+      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)', marginBottom: 4 }}>Flow Acceleration (5-period MA)</div>
+      <div ref={c3Ref} style={{ marginBottom: 6 }} />
+      <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 14, padding: '0 2px' }}>Smoothed rate of change — rising = momentum building · falling = flow decelerating</div>
 
       {/* AI Read button */}
       <div onClick={handleAiRead} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', marginBottom: aiRead ? 8 : 0 }}>
