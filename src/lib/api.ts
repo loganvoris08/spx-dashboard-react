@@ -20,19 +20,23 @@ async function get(path: string) {
   return res
 }
 
-export async function login(username: string, password: string): Promise<boolean> {
-  const res = await fetch(`${BASE}/api/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  })
-  if (!res.ok) return false
-  const data = await res.json()
-  if (data.token) {
-    _token = data.token
-    localStorage.setItem('dash_token', _token)
+export async function login(_username: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res  = await fetch(`${BASE}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
+    const data = await res.json()
+    if (data.ok && data.token) {
+      _token = data.token
+      localStorage.setItem('dash_token', _token)
+      return { ok: true }
+    }
+    return { ok: false, error: data.error ?? `Server error ${res.status}` }
+  } catch (e: any) {
+    return { ok: false, error: `Network error: ${e.message}` }
   }
-  return data.ok === true
 }
 
 export function logout() {

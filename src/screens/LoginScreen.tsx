@@ -10,10 +10,10 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const ok = await login('admin', key.trim())
+    const result = await login('admin', key.trim())
     setLoading(false)
-    if (ok) onLogin()
-    else setError('Wrong access key')
+    if (result.ok) onLogin()
+    else setError(result.error ?? 'Wrong access key')
   }
 
   return (
