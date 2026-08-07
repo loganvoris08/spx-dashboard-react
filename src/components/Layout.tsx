@@ -131,6 +131,29 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
       <div className="topbar">
         <div className="topbar-title">SPX // CMD</div>
 
+        {/* Hamburger menu — lives in topbar so dropdown isn't clipped by tabbar overflow */}
+        <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
+          <div
+            className={`menu-btn${menuOpen ? ' active' : ''}`}
+            onClick={() => setMenuOpen(o => !o)}
+          >
+            ☰
+          </div>
+          {menuOpen && (
+            <div className="menu-dropdown">
+              {MENU_ITEMS.map(m => (
+                <div
+                  key={m.id}
+                  className={`menu-item${activeTab === m.id ? ' active' : ''}`}
+                  onClick={() => selectTab(m.id)}
+                >
+                  {m.label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="ticker-strip">
           <div className="ticker">
             <div className="ticker-label">SPX</div>
@@ -195,33 +218,8 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
         )}
       </div>
 
-      {/* ── Tabbar with hamburger ── */}
+      {/* ── Tabbar ── */}
       <div className="tabbar">
-        {/* Hamburger menu */}
-        <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
-          <div
-            className={`tab menu-btn${menuOpen ? ' active' : ''}`}
-            onClick={() => setMenuOpen(o => !o)}
-            style={{ fontSize: 16, padding: '0 12px', display: 'flex', alignItems: 'center' }}
-          >
-            ☰
-          </div>
-          {menuOpen && (
-            <div className="menu-dropdown">
-              {MENU_ITEMS.map(m => (
-                <div
-                  key={m.id}
-                  className={`menu-item${activeTab === m.id ? ' active' : ''}`}
-                  onClick={() => selectTab(m.id)}
-                >
-                  {m.label}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Regular tabs */}
         {tabs.map(t => (
           <div key={t.id} className={`tab${activeTab === t.id ? ' active' : ''}`} onClick={() => setTab(t.id)}>
             {t.label}
