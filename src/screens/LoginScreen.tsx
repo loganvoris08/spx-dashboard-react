@@ -2,19 +2,18 @@ import { useState, type FormEvent } from 'react'
 import { login } from '../lib/api'
 
 export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError]       = useState('')
-  const [loading, setLoading]   = useState(false)
+  const [key, setKey]         = useState('')
+  const [error, setError]     = useState('')
+  const [loading, setLoading] = useState(false)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const ok = await login(username, password)
+    const ok = await login('admin', key.trim())
     setLoading(false)
     if (ok) onLogin()
-    else setError('Invalid credentials')
+    else setError('Wrong access key')
   }
 
   return (
@@ -23,7 +22,6 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       background: 'var(--bg)',
     }}>
       <div style={{ width: 320 }}>
-        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 22, fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text)' }}>
             SPX<span style={{ color: 'var(--green)' }}>/</span>NDX
@@ -34,23 +32,14 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
         </div>
 
         <form onSubmit={submit}>
-          <div style={{ marginBottom: 12 }}>
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              autoCapitalize="none"
-              autoCorrect="off"
-              style={inputStyle}
-            />
-          </div>
           <div style={{ marginBottom: 20 }}>
             <input
               type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
+              placeholder="Access key"
+              value={key}
+              onChange={e => setKey(e.target.value)}
+              autoCapitalize="none"
+              autoCorrect="off"
               style={inputStyle}
             />
           </div>
@@ -60,7 +49,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
             </div>
           )}
           <button type="submit" disabled={loading} style={btnStyle}>
-            {loading ? '...' : 'Sign In'}
+            {loading ? '...' : 'Enter'}
           </button>
         </form>
       </div>
