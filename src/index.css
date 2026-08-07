@@ -232,6 +232,35 @@ html, body, #root {
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--green); border-bottom-color: var(--green); }
 
+/* ── Hamburger menu ── */
+.menu-btn { position: relative; z-index: 10; }
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  min-width: 160px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.menu-item {
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+  letter-spacing: .5px;
+}
+.menu-item:last-child { border-bottom: none; }
+.menu-item:hover { background: var(--surface3); color: var(--text); }
+.menu-item.active { color: var(--green); background: rgba(0,255,136,0.06); }
+
 /* ── Tab content ── */
 .tab-content {
   flex: 1;

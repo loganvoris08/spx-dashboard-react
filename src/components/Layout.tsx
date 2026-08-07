@@ -1,13 +1,31 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode, useRef, useEffect } from 'react'
 import { useSide } from '../lib/SideContext'
 
-const TABS = [
+const SPX_TABS = [
   { id: 'levels', label: 'Levels' },
-  { id: 'oi',     label: 'Open Interest' },
+  { id: 'oi',     label: 'OI' },
   { id: 'gex',    label: 'GEX' },
   { id: 'flow',   label: 'Flow' },
-  { id: 'signal', label: 'Signal' },
-  { id: 'ai',     label: 'AI' },
+  { id: 'tide',   label: 'Tide' },
+  { id: 'vol',    label: 'Vol' },
+  { id: 'news',   label: 'News' },
+  { id: 'spx',    label: 'SPX' },
+  { id: 'es',     label: 'ES' },
+  { id: 'es10m',  label: '10M' },
+]
+
+const NDX_EXTRA = [
+  { id: 'ndx',   label: 'NDX' },
+  { id: 'nq',    label: 'NQ' },
+  { id: 'nq10m', label: 'NQ10M' },
+]
+
+const MENU_ITEMS = [
+  { id: 'signal',   label: 'Signal' },
+  { id: 'engine',   label: 'Engine' },
+  { id: 'playbook', label: 'MM Playbook' },
+  { id: 'learn',    label: 'Learn' },
+  { id: 'smartmoney', label: 'Smart Money' },
 ]
 
 interface Props {
@@ -63,6 +81,21 @@ function fmt2(v: any) {
 
 export default function Layout({ activeTab, setTab, data, children }: Props) {
   const { side, setSide } = useSide()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return
+    function handler(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuOpen])
+
+  const isNdx = side === 'ndx'
+  const tabs = [...SPX_TABS, ...(isNdx ? NDX_EXTRA : [])]
 
   // Tickers
   const spxRaw  = data?.spx
@@ -85,6 +118,11 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   // Regime
   const regime = data?.uw_gamma_regime ?? data?.gamma_state ?? data?.net_gex_state
   const isLive = !!data
+
+  function selectTab(id: string) {
+    setTab(id)
+    setMenuOpen(false)
+  }
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
@@ -157,9 +195,34 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
         )}
       </div>
 
-      {/* ── Tabbar ── */}
+      {/* ── Tabbar with hamburger ── */}
       <div className="tabbar">
-        {TABS.map(t => (
+        {/* Hamburger menu */}
+        <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
+          <div
+            className={`tab menu-btn${menuOpen ? ' active' : ''}`}
+            onClick={() => setMenuOpen(o => !o)}
+            style={{ fontSize: 16, padding: '0 12px', display: 'flex', alignItems: 'center' }}
+          >
+            ☰
+          </div>
+          {menuOpen && (
+            <div className="menu-dropdown">
+              {MENU_ITEMS.map(m => (
+                <div
+                  key={m.id}
+                  className={`menu-item${activeTab === m.id ? ' active' : ''}`}
+                  onClick={() => selectTab(m.id)}
+                >
+                  {m.label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Regular tabs */}
+        {tabs.map(t => (
           <div key={t.id} className={`tab${activeTab === t.id ? ' active' : ''}`} onClick={() => setTab(t.id)}>
             {t.label}
           </div>
