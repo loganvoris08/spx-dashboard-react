@@ -64,7 +64,6 @@ export default function GEXScreen() {
 
   const nd = data?.ndx ?? {}
   const regime   = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
-  const netGex   = isNdx ? (nd.net_gex_state ?? data?.ndx_net_gex_state) : data?.net_gex_state
   const flip     = isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
   const maxPain  = !isNdx ? data?.max_pain_strike : null
   const cWall    = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
