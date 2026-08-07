@@ -119,10 +119,16 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
     return `${sign}${n.toFixed(2)}${pStr}`
   }
 
+  function parseNum(v: any): number | null {
+    if (v == null) return null
+    const n = parseFloat(String(v).replace(/,/g, ''))
+    return isNaN(n) ? null : n
+  }
+
   // OI Strip
-  const putWall  = data?.nearest_put_wall ?? data?.put_wall
-  const callWall = data?.nearest_call_wall ?? data?.call_wall
-  const gexFlip  = data?.gex_flip_zone_raw ?? data?.gex_flip_zone
+  const putWall  = parseNum(data?.nearest_put_wall ?? data?.put_wall)
+  const callWall = parseNum(data?.nearest_call_wall ?? data?.call_wall)
+  const gexFlip  = parseNum(data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
   const hasOiStrip = putWall || gexFlip || callWall
 
   // Flip Alert — show when within 5 pts of flip zone
@@ -255,17 +261,53 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
       {/* ── Flip Alert ── */}
       {showFlipAlert && (
-        <div style={{ padding: '4px 12px', background: 'rgba(255,204,0,.04)', borderBottom: '1px solid rgba(255,204,0,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span className="flip-alert">⚡ AT GAMMA FLIP — {flipDist != null ? flipDist.toFixed(1) : '--'} pts away</span>
-        </div>
+        <div className="flip-alert">⚡ AT GAMMA FLIP — {flipDist != null ? flipDist.toFixed(1) : '--'} pts away</div>
       )}
 
       {/* ── OI Strip ── */}
       {hasOiStrip && (
         <div className="oi-strip">
-          {putWall  && <div className="oi-strip-item"><div className="oi-strip-label">Put Wall</div><div className="oi-strip-val put">{fmt2(putWall)}</div></div>}
-          {gexFlip  && <div className="oi-strip-item"><div className="oi-strip-label">GEX Flip</div><div className="oi-strip-val flip">{fmt2(gexFlip)}</div></div>}
-          {callWall && <div className="oi-strip-item"><div className="oi-strip-label">Call Wall</div><div className="oi-strip-val call">{fmt2(callWall)}</div></div>}
+          <div className="oi-strip-main">
+            {putWall && (
+              <div className="oi-strip-level put">
+                <div className="oi-strip-label">Put Wall</div>
+                <div className="oi-strip-val">{fmt2(putWall)}</div>
+                {spxPrice > 0 && <div className="oi-strip-dist">{(spxPrice - putWall).toFixed(0)} pts</div>}
+              </div>
+            )}
+            {putWall && callWall && (
+              <div className="oi-strip-bar-wrap">
+                <div className="oi-strip-track">
+                  {(() => {
+                    const range = callWall - putWall
+                    const flip = gexFlip ?? (putWall + range / 2)
+                    const putFill = range > 0 ? ((flip - putWall) / range * 100) : 50
+                    const cursorPct = range > 0 ? ((spxPrice - putWall) / range * 100) : 50
+                    return <>
+                      <div className="oi-strip-fill-put" style={{ width: `${putFill}%` }} />
+                      <div className="oi-strip-fill-call" style={{ width: `${100 - putFill}%` }} />
+                      <div className="oi-strip-cursor" style={{ left: `${Math.max(0, Math.min(100, cursorPct))}%` }} />
+                    </>
+                  })()}
+                </div>
+                <div className="oi-strip-price">{fmt2(spxPrice)}</div>
+              </div>
+            )}
+            {gexFlip && (
+              <div className="oi-strip-level flip">
+                <div className="oi-strip-label">GEX Flip</div>
+                <div className="oi-strip-val">{fmt2(gexFlip)}</div>
+                {spxPrice > 0 && <div className="oi-strip-dist">{Math.abs(spxPrice - gexFlip).toFixed(0)} pts</div>}
+              </div>
+            )}
+            {callWall && (
+              <div className="oi-strip-level call">
+                <div className="oi-strip-label">Call Wall</div>
+                <div className="oi-strip-val">{fmt2(callWall)}</div>
+                {spxPrice > 0 && <div className="oi-strip-dist">{(callWall - spxPrice).toFixed(0)} pts</div>}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
