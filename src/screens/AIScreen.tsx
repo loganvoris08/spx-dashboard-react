@@ -4,10 +4,10 @@ import { postAiRead, getMacro } from '../hooks/useLadders'
 
 type ReadKey = 'gex' | 'oi' | 'macro'
 
-const READS: { key: ReadKey; label: string; endpoint: string; icon: string }[] = [
-  { key: 'gex',   label: 'Dealer / GEX Read', endpoint: '/api/gex-read', icon: '⚡' },
-  { key: 'oi',    label: 'OI Read',            endpoint: '/api/oi-read',  icon: '📊' },
-  { key: 'macro', label: 'Macro Read',         endpoint: '/macro',        icon: '🌐' },
+const READS: { key: ReadKey; label: string; endpoint: string }[] = [
+  { key: 'gex',   label: 'Dealer / GEX Read', endpoint: '/api/gex-read' },
+  { key: 'oi',    label: 'OI Read',            endpoint: '/api/oi-read'  },
+  { key: 'macro', label: 'Macro Read',         endpoint: '/macro'        },
 ]
 
 export default function AIScreen() {
@@ -41,30 +41,26 @@ export default function AIScreen() {
   ].filter(r => r.value)
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-
+    <>
       {/* ── Primary AI read ── */}
       {data?.ai_read && (
-        <div className="card" style={{ padding: '10px 14px' }}>
-          <div className="card-title">AI Market Read</div>
-          <p style={{ color: '#bbb', fontSize: 12, lineHeight: 1.75 }}>{data.ai_read}</p>
+        <div className="panel">
+          <div className="panel-title">AI Market Read</div>
+          <div style={{ color: 'var(--text2)', fontSize: 11, lineHeight: 1.75 }}>{data.ai_read}</div>
         </div>
       )}
 
       {/* ── On-demand reads ── */}
       {READS.map(r => (
-        <div key={r.key} className="card" style={{ padding: '10px 14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: texts[r.key] ? 10 : 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>{r.icon}</span>
-              <span className="card-title" style={{ margin: 0 }}>{r.label}</span>
-            </div>
+        <div key={r.key} className="panel">
+          <div className="panel-title">
+            {r.label}
             <button
               onClick={() => load(r.key, r.endpoint)}
               disabled={loading[r.key]}
               style={{
-                fontSize: 9, fontFamily: 'var(--mono)', padding: '3px 10px', borderRadius: 4,
-                border: '1px solid var(--green)', background: loading[r.key] ? 'var(--green-bg)' : 'none',
+                fontSize: 8, fontFamily: 'var(--mono)', padding: '2px 8px', borderRadius: 3,
+                border: '1px solid var(--green)', background: 'none',
                 color: 'var(--green)', cursor: loading[r.key] ? 'default' : 'pointer',
                 letterSpacing: '0.08em', fontWeight: 700,
               }}
@@ -73,28 +69,25 @@ export default function AIScreen() {
             </button>
           </div>
           {texts[r.key] && (
-            <div style={{ paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-              <p style={{ color: '#bbb', fontSize: 12, lineHeight: 1.75 }}>{texts[r.key]}</p>
-            </div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.75 }}>{texts[r.key]}</div>
           )}
         </div>
       ))}
 
       {/* ── Market state recap ── */}
       {stateRows.length > 0 && (
-        <div className="card" style={{ padding: '10px 14px' }}>
-          <div className="card-title">Market State Recap</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+        <div className="panel">
+          <div className="panel-title">Market State Recap</div>
+          <div className="stat-grid">
             {stateRows.map((r, i) => (
-              <div key={i} className="data-row">
-                <span className="data-label">{r.label}</span>
-                <span className="data-val" style={{ fontSize: 10, textAlign: 'right', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.value}</span>
+              <div key={i} className="stat">
+                <div className="stat-label">{r.label}</div>
+                <div className="stat-val" style={{ fontSize: 10 }}>{r.value}</div>
               </div>
             ))}
           </div>
         </div>
       )}
-
-    </div>
+    </>
   )
 }

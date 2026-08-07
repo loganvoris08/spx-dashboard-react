@@ -38,7 +38,7 @@ function FlowItem({ item }: { item: any }) {
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color }}>
             {item.ticker || item.symbol || 'SPX'}
           </span>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text2)' }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted2)' }}>
             {item.strike ?? '—'} {type.toUpperCase()} {item.expiry ?? item.exp ?? ''}
           </span>
           {isBlock && (
@@ -47,7 +47,7 @@ function FlowItem({ item }: { item: any }) {
             </span>
           )}
         </div>
-        <div style={{ color: 'var(--muted)', fontSize: 9, marginTop: 1 }}>
+        <div style={{ color: 'var(--muted2)', fontSize: 9, marginTop: 1 }}>
           {item.time ?? ''}{item.time ? ' · ' : ''}{fmtPrem(prem)} prem
           {(item.size || item.volume) ? ` · ${(item.size ?? item.volume).toLocaleString()} vol` : ''}
         </div>
@@ -66,14 +66,14 @@ export default function FlowScreen() {
   const timer = useRef<any>(null)
 
   const nd       = data?.ndx ?? {}
-  const callPct  = isNdx ? (nd.flow_call_pct ?? data?.ndx_flow_call_pct ?? 50) : (data?.flow_call_pct ?? 50)
-  const putPct   = isNdx ? (nd.flow_put_pct  ?? data?.ndx_flow_put_pct  ?? 50) : (data?.flow_put_pct  ?? 50)
-  const flowBias = isNdx ? (nd.flow_bias ?? data?.ndx_flow_bias ?? 'BALANCED') : (data?.flow_bias ?? 'BALANCED')
-  const flowState= isNdx ? (nd.flow_state ?? data?.flow_state) : data?.flow_state
-  const oisState = isNdx ? nd.oi_state : data?.oi_state
+  const callPct  = isNdx ? (nd.flow_call_pct ?? 50) : (data?.flow_call_pct ?? 50)
+  const putPct   = isNdx ? (nd.flow_put_pct  ?? 50) : (data?.flow_put_pct  ?? 50)
+  const flowBias = isNdx ? (nd.flow_bias ?? 'BALANCED') : (data?.flow_bias ?? 'BALANCED')
+  const flowState= isNdx ? nd.flow_state : data?.flow_state
+  const oisState = isNdx ? nd.oi_state   : data?.oi_state
   const pcr      = !isNdx ? data?.put_call_ratio : null
 
-  const biasColor = (flowBias || '').includes('CALL') ? 'var(--green)' : (flowBias || '').includes('PUT') ? 'var(--red)' : 'var(--muted)'
+  const biasColor = (flowBias || '').includes('CALL') ? 'var(--green)' : (flowBias || '').includes('PUT') ? 'var(--red)' : 'var(--muted2)'
 
   const loadFlow = useCallback(async () => {
     try {
@@ -94,48 +94,45 @@ export default function FlowScreen() {
   }, [loadFlow])
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-      {/* ── Bias header ── */}
-      <div className="card" style={{ padding: '10px 14px', border: `1px solid ${biasColor}22` }}>
-        <div className="card-title">Options Flow Bias — {isNdx ? 'NDX' : 'SPX'}</div>
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--green)' }}>CALL {callPct.toFixed(0)}%</span>
-            <span style={{ fontSize: 9, fontWeight: 700, color: biasColor, letterSpacing: '0.08em' }}>{flowBias || 'BALANCED'}</span>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--red)' }}>PUT {putPct.toFixed(0)}%</span>
+    <>
+      {/* ── Flow Bias ── */}
+      <div className="panel">
+        <div className="panel-title">Options Flow Bias — {isNdx ? 'NDX' : 'SPX'}</div>
+        <div className="flow-bar-wrap">
+          <div className="flow-labels">
+            <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 9 }}>CALLS {callPct.toFixed(0)}%</span>
+            <span style={{ color: biasColor, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em' }}>{flowBias || 'BALANCED'}</span>
+            <span style={{ color: 'var(--red)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 9 }}>{putPct.toFixed(0)}% PUTS</span>
           </div>
-          <div style={{ height: 6, background: 'var(--surface3)', borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
-            <div style={{ width: `${callPct}%`, background: 'var(--green)', borderRadius: '3px 0 0 3px', transition: 'width 0.4s' }} />
-            <div style={{ width: `${putPct}%`,  background: 'var(--red)',   borderRadius: '0 3px 3px 0', transition: 'width 0.4s' }} />
+          <div className="flow-bar">
+            <div className="flow-bar-call" style={{ width: `${callPct}%` }} />
+            <div className="flow-bar-put"  style={{ width: `${putPct}%`  }} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 16, paddingTop: 8, borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
-          {flowState && <span style={{ fontSize: 10, color: 'var(--muted)' }}>Flow: <span style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>{flowState}</span></span>}
-          {oisState  && <span style={{ fontSize: 10, color: 'var(--muted)' }}>OI: <span style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>{oisState}</span></span>}
-          {pcr && <span style={{ fontSize: 10, color: 'var(--muted)' }}>P/C: <span style={{ color: parseFloat(pcr) > 1.2 ? 'var(--red)' : parseFloat(pcr) < 0.7 ? 'var(--green)' : 'var(--text)', fontFamily: 'var(--mono)' }}>{parseFloat(pcr).toFixed(2)}</span></span>}
+          {flowState && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>Flow: <span style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>{flowState}</span></span>}
+          {oisState  && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>OI: <span style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>{oisState}</span></span>}
+          {pcr && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>P/C: <span style={{ color: parseFloat(pcr) > 1.2 ? 'var(--red)' : parseFloat(pcr) < 0.7 ? 'var(--green)' : 'var(--text)', fontFamily: 'var(--mono)' }}>{parseFloat(pcr).toFixed(2)}</span></span>}
         </div>
       </div>
 
       {/* ── Flow feed ── */}
-      <div className="card" style={{ padding: '10px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <span className="card-title" style={{ margin: 0 }}>{isNdx ? 'NDX' : 'SPX'} Flow</span>
+      <div className="panel">
+        <div className="panel-title">
+          {isNdx ? 'NDX' : 'SPX'} Flow
           <button onClick={loadFlow} disabled={loading} style={{
             fontSize: 8, fontFamily: 'var(--mono)', padding: '2px 8px', borderRadius: 3,
-            border: '1px solid var(--border2)', background: 'none', color: 'var(--muted)',
+            border: '1px solid var(--border2)', background: 'none', color: 'var(--muted2)',
             cursor: 'pointer', letterSpacing: '0.05em', textTransform: 'uppercase',
           }}>
             {loading ? '...' : '↻ REFRESH'}
           </button>
         </div>
-
         {flowItems.length === 0 && !loading && (
           <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 11, padding: '16px 0' }}>No flow data</div>
         )}
         {flowItems.slice(0, 40).map((item, i) => <FlowItem key={i} item={item} />)}
       </div>
-
-    </div>
+    </>
   )
 }

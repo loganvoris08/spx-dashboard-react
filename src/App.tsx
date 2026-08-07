@@ -13,7 +13,7 @@ import AIScreen from './screens/AIScreen'
 import './index.css'
 
 function Dashboard() {
-  const [tab, setTab] = useState('signal')
+  const [tab, setTab] = useState('levels')
   const { data } = useDashboard()
 
   return (

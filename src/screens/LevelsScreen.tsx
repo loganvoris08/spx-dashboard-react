@@ -8,61 +8,36 @@ function fmtNum(v: any, d = 0) {
   return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 }
 
-function WallChip({ label, value, color }: { label: string; value: any; color: string }) {
-  if (!value || value === '--') return null
+function statValClass(v?: string) {
+  if (!v) return ''
+  const u = v.toUpperCase()
+  if (u.includes('BULL') || u.includes('POS') || u.includes('CALL') || u.includes('LONG') || u.includes('ABOVE')) return 'bull'
+  if (u.includes('BEAR') || u.includes('NEG') || u.includes('PUT') || u.includes('SHORT') || u.includes('BELOW')) return 'bear'
+  if (u.includes('WARN') || u.includes('NEUTRAL') || u.includes('NEUT')) return 'neut'
+  return ''
+}
+
+function Row({ label, value, valClass }: { label: string; value: any; valClass?: string }) {
   return (
-    <div style={{
-      flex: 1, padding: '8px 10px', borderRadius: 5,
-      background: color + '0e', border: `1px solid ${color}33`,
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color }}>{fmtNum(value)}</div>
+    <div className="td-row">
+      <div className="td-label">{label}</div>
+      <div className={`td-val${valClass ? ' ' + valClass : ''}`}>{value ?? '--'}</div>
     </div>
   )
 }
 
-function ZoneBar({ bot, top, mid, current, label }: { bot: number; top: number; mid: number; current: number; label: string }) {
-  if (!bot || !top || !current) return null
-  const range  = top - bot
-  const pct    = Math.min(100, Math.max(0, ((current - bot) / range) * 100))
-  const midPct = ((mid - bot) / range) * 100
-  const inZone = current >= bot && current <= top
-  const state  = inZone ? 'IN ZONE' : current > top ? 'ABOVE' : 'BELOW'
-  const stColor = inZone ? 'var(--green)' : current > top ? 'var(--green)' : 'var(--red2)'
-
+function ZoneBox({ label, bot, top, mid, state }: { label: string; bot?: number; top?: number; mid?: number; state?: string }) {
+  if (!bot || !top) return null
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, alignItems: 'center' }}>
-        <span style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</span>
-        <span style={{ fontSize: 9, color: stColor, fontFamily: 'var(--mono)', fontWeight: 700 }}>{state}</span>
+    <div className="zone-status-box">
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <div className="zone-state-label">{state ?? label}</div>
       </div>
-      <div style={{ position: 'relative', height: 20, background: 'var(--surface3)', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', left: `${midPct}%`, top: 0, bottom: 0, width: 1, background: 'rgba(255,204,0,0.35)' }} />
-        <div style={{
-          position: 'absolute', left: `${pct}%`, top: '15%', bottom: '15%', width: 2,
-          background: 'var(--yellow)', borderRadius: 1, transform: 'translateX(-50%)',
-          boxShadow: '0 0 5px rgba(255,204,0,0.7)',
-        }} />
-        <div style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted)' }}>{fmtNum(bot, 2)}</div>
-        <div style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted)' }}>{fmtNum(top, 2)}</div>
+      <div className="zone-levels">
+        <div className="zl"><div className="zl-label">Zone Bot</div><div className="zl-val">{fmtNum(bot, 2)}</div></div>
+        <div className="zl"><div className="zl-label">Zone Top</div><div className="zl-val">{fmtNum(top, 2)}</div></div>
+        {mid != null && <div className="zl"><div className="zl-label">Mid</div><div className="zl-val">{fmtNum(mid, 2)}</div></div>}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-        <span style={{ fontSize: 8, color: 'var(--muted)', fontFamily: 'var(--mono)' }}>mid {fmtNum(mid, 2)}</span>
-        <span style={{ fontSize: 8, color: 'var(--yellow)', fontFamily: 'var(--mono)' }}>● {fmtNum(current, 2)}</span>
-      </div>
-    </div>
-  )
-}
-
-function Row({ label, value, color, sub }: { label: string; value: any; color?: string; sub?: string }) {
-  return (
-    <div className="data-row">
-      <div>
-        <span className="data-label">{label}</span>
-        {sub && <span style={{ color: 'var(--muted2)', fontSize: 9, marginLeft: 6 }}>{sub}</span>}
-      </div>
-      <span className="data-val" style={{ color: color ?? 'var(--text)' }}>{value ?? '--'}</span>
     </div>
   )
 }
@@ -73,7 +48,19 @@ export default function LevelsScreen() {
   const isNdx = side === 'ndx'
   const nd = data?.ndx ?? {}
 
-  const spxPrice = data?.daily_open ?? data?.spx_zone_mid ?? null
+  const spxFlip = data?.gex_flip_zone_raw || data?.gex_flip_zone
+  const spxCW   = data?.nearest_call_wall || data?.gex_nearest_call_wall
+  const spxPW   = data?.nearest_put_wall  || data?.gex_nearest_put_wall
+  const distCall= data?.dist_to_call
+  const distPut = data?.dist_to_put
+
+  const ndxFlip = nd.gex_flip_zone_raw || data?.ndx_gex_flip_zone
+  const ndxCW   = nd.nearest_call_wall  || nd.gex_nearest_call_wall
+  const ndxPW   = nd.nearest_put_wall   || nd.gex_nearest_put_wall
+
+  const flip  = isNdx ? ndxFlip : spxFlip
+  const cWall = isNdx ? ndxCW   : spxCW
+  const pWall = isNdx ? ndxPW   : spxPW
 
   const spxBot  = data?.spx_zone_bot
   const spxTop  = data?.spx_zone_top
@@ -82,88 +69,147 @@ export default function LevelsScreen() {
   const esDBot  = data?.es_d_zone_bot
   const esDTop  = data?.es_d_zone_top
   const esDMid  = data?.es_d_zone_mid
+  const esDState= data?.es_d_zone_state
   const es10Bot = data?.es_10m_zone_bot
   const es10Top = data?.es_10m_zone_top
   const es10Mid = data?.es_10m_zone_mid
-
-  const spxFlip = data?.gex_flip_zone_raw || data?.gex_flip_zone
-  const spxCW   = data?.nearest_call_wall || data?.gex_nearest_call_wall
-  const spxPW   = data?.nearest_put_wall  || data?.gex_nearest_put_wall
-  const distCall= data?.dist_to_call
-  const distPut = data?.dist_to_put
-
-  const ndxFlip = nd.gex_flip_zone_raw || data?.ndx_gex_flip_zone
-  const ndxCW   = nd.nearest_call_wall  || nd.gex_nearest_call_wall || data?.ndx_nearest_call_wall
-  const ndxPW   = nd.nearest_put_wall   || nd.gex_nearest_put_wall  || data?.ndx_nearest_put_wall
-
-  const flip  = isNdx ? ndxFlip : spxFlip
-  const cWall = isNdx ? ndxCW   : spxCW
-  const pWall = isNdx ? ndxPW   : spxPW
+  const es10State= data?.es_10m_zone_state
 
   const zones: any[] = data?.zones ?? []
 
-  return (
-    <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+  const marketStats = [
+    { label: 'Mode',       value: data?.market_mode ?? data?.mode },
+    { label: 'Break',      value: data?.break_state },
+    { label: 'Bias',       value: data?.bias },
+    { label: 'Day Bias',   value: data?.day_bias },
+    { label: 'Flow',       value: data?.flow_state },
+    { label: 'Gamma',      value: data?.gamma_state },
+    { label: 'OI State',   value: data?.oi_state },
+    { label: 'Trap',       value: data?.trap_state !== 'None' ? data?.trap_state : null },
+    { label: 'Price Loc',  value: data?.price_location_state },
+    { label: 'Structure',  value: data?.structure_state },
+  ].filter(r => r.value)
 
-      {/* ── Wall chips ── */}
-      <div className="card" style={{ padding: '10px 14px' }}>
-        <div className="card-title">Key GEX Levels — {isNdx ? 'NDX' : 'SPX'}</div>
-        <div style={{ display: 'flex', gap: 6, marginBottom: !isNdx && (distCall != null || distPut != null) ? 10 : 0 }}>
-          <WallChip label="Put Wall"  value={pWall} color="var(--red)"    />
-          <WallChip label="GEX Flip"  value={flip}  color="var(--yellow)" />
-          <WallChip label="Call Wall" value={cWall} color="var(--green)"  />
+  return (
+    <>
+      {/* ── GEX Key Levels ── */}
+      <div className="panel">
+        <div className="panel-title">Key GEX Levels — {isNdx ? 'NDX' : 'SPX'}</div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: (!isNdx && (distCall != null || distPut != null)) ? 10 : 0 }}>
+          {pWall && (
+            <div style={{ flex: 1, padding: '8px 10px', borderRadius: 5, background: 'rgba(255,51,68,0.06)', border: '1px solid rgba(255,51,68,0.2)', textAlign: 'center' }}>
+              <div style={{ fontSize: 7, color: 'var(--muted2)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>Put Wall</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: 'var(--red)' }}>{fmtNum(pWall)}</div>
+            </div>
+          )}
+          {flip && (
+            <div style={{ flex: 1, padding: '8px 10px', borderRadius: 5, background: 'rgba(255,204,0,0.06)', border: '1px solid rgba(255,204,0,0.2)', textAlign: 'center' }}>
+              <div style={{ fontSize: 7, color: 'var(--muted2)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>GEX Flip</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: 'var(--yellow)' }}>{fmtNum(flip)}</div>
+            </div>
+          )}
+          {cWall && (
+            <div style={{ flex: 1, padding: '8px 10px', borderRadius: 5, background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.2)', textAlign: 'center' }}>
+              <div style={{ fontSize: 7, color: 'var(--muted2)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>Call Wall</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>{fmtNum(cWall)}</div>
+            </div>
+          )}
         </div>
         {!isNdx && (distCall != null || distPut != null) && (
           <div style={{ display: 'flex', gap: 16, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-            {distPut  != null && <span style={{ fontSize: 10, color: 'var(--muted)' }}>Dist put: <span style={{ color: 'var(--red)',   fontFamily: 'var(--mono)' }}>{distPut}</span></span>}
-            {distCall != null && <span style={{ fontSize: 10, color: 'var(--muted)' }}>Dist call: <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)' }}>{distCall}</span></span>}
+            {distPut  != null && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>Dist put: <span style={{ color: 'var(--red)', fontFamily: 'var(--mono)' }}>{distPut}</span></span>}
+            {distCall != null && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>Dist call: <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)' }}>{distCall}</span></span>}
           </div>
         )}
       </div>
 
-      {/* ── Zone bars ── */}
-      {!isNdx && (spxBot || esDBot || es10Bot) && (
-        <div className="card" style={{ padding: '10px 14px' }}>
-          <div className="card-title">Price Zones</div>
-          {spxBot && spxTop && <ZoneBar bot={spxBot} top={spxTop} mid={spxMid ?? (spxBot + spxTop) / 2} current={spxPrice ?? spxMid} label={spxState ?? 'SPX Zone'} />}
-          {esDBot && esDTop && <ZoneBar bot={esDBot} top={esDTop} mid={esDMid ?? (esDBot + esDTop) / 2} current={spxPrice ?? esDMid} label="ES Daily Zone" />}
-          {es10Bot && es10Top && <ZoneBar bot={es10Bot} top={es10Top} mid={es10Mid ?? (es10Bot + es10Top) / 2} current={spxPrice ?? es10Mid} label="ES 10-Min Zone" />}
+      {/* ── Scalp Signal ── */}
+      {!isNdx && (data?.entry || data?.target || data?.stop_logic) && (
+        <div className="panel">
+          <div className="panel-title">Scalp Signal — 10m Zone to Zone</div>
+          {data.entry     && <Row label="Entry"  value={data.entry} valClass="green" />}
+          {data.target    && <Row label="Target" value={data.target} valClass="yellow" />}
+          {data.stop_logic && <Row label="Stop"  value={data.stop_logic} valClass="red" />}
+          {data.reason && <div style={{ marginTop: 8, fontSize: 10, color: 'var(--muted2)', lineHeight: 1.6, fontStyle: 'italic' }}>{data.reason}</div>}
         </div>
       )}
 
-      {/* ── Level details ── */}
-      <div className="card" style={{ padding: '10px 14px' }}>
-        <div className="card-title">Level Details — {isNdx ? 'NDX' : 'SPX'}</div>
-        {!isNdx ? <>
-          <Row label="Max Pain Strike"     value={fmtNum(data?.max_pain_strike)} sub={data?.max_pain_dte?.toUpperCase()} />
-          <Row label="Net Delta Direction" value={data?.net_delta_dir} color={data?.net_delta_dir === 'LONG' ? 'var(--green)' : data?.net_delta_dir === 'SHORT' ? 'var(--red)' : undefined} />
-          <Row label="Put/Call Ratio"      value={data?.put_call_ratio ? parseFloat(data.put_call_ratio).toFixed(2) : null} />
-          <Row label="Daily Open"          value={fmtNum(data?.daily_open, 2)} />
-          <Row label="Zone State"          value={spxState} />
-        </> : <>
-          <Row label="NDX Flip Zone"    value={fmtNum(ndxFlip)} color="var(--yellow)" />
-          <Row label="NDX Call Wall"    value={fmtNum(ndxCW)}   color="var(--green)" />
-          <Row label="NDX Put Wall"     value={fmtNum(ndxPW)}   color="var(--red)" />
-          <Row label="NDX Net GEX"      value={nd.net_gex_state ?? data?.ndx_net_gex_state} />
-          <Row label="NDX Gamma Regime" value={nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime} />
-        </>}
-      </div>
+      {/* ── Zones ── */}
+      {!isNdx && (es10Bot || esDBot || spxBot) && (
+        <div className="panel">
+          <div className="panel-title">ES 10M Zone — Intraday</div>
+          {es10Bot && es10Top && <ZoneBox label="ES 10M Zone" bot={es10Bot} top={es10Top} mid={es10Mid} state={es10State} />}
+          {esDBot && esDTop && (
+            <>
+              <div className="panel-title" style={{ marginTop: 10 }}>ES Daily Zone — Swing</div>
+              <ZoneBox label="ES Daily" bot={esDBot} top={esDTop} mid={esDMid} state={esDState} />
+            </>
+          )}
+          {spxBot && spxTop && (
+            <>
+              <div className="panel-title" style={{ marginTop: 10 }}>SPX Daily Zone — Context</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <div className="zl" style={{ flex: 1, minWidth: 80 }}><div className="zl-label">Zone Bot</div><div className="zl-val">{fmtNum(spxBot, 2)}</div></div>
+                <div className="zl" style={{ flex: 1, minWidth: 80 }}><div className="zl-label">Zone Top</div><div className="zl-val">{fmtNum(spxTop, 2)}</div></div>
+                <div className="zl" style={{ flex: 1, minWidth: 80 }}><div className="zl-label">State</div><div className="zl-val" style={{ fontSize: 9 }}>{spxState ?? '--'}</div></div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── NDX details ── */}
+      {isNdx && (
+        <div className="panel">
+          <div className="panel-title">NDX Key Levels</div>
+          <Row label="Flip Zone"    value={fmtNum(ndxFlip)} valClass="yellow" />
+          <Row label="Call Wall"    value={fmtNum(ndxCW)}   valClass="green" />
+          <Row label="Put Wall"     value={fmtNum(ndxPW)}   valClass="red" />
+          <Row label="Net GEX"      value={nd.net_gex_state ?? data?.ndx_net_gex_state} />
+          <Row label="Gamma Regime" value={nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime} />
+        </div>
+      )}
+
+      {/* ── Level details (SPX) ── */}
+      {!isNdx && (
+        <div className="panel">
+          <div className="panel-title">Level Details</div>
+          <Row label="Max Pain"     value={fmtNum(data?.max_pain_strike)} />
+          <Row label="Net Delta"    value={data?.net_delta_dir} valClass={data?.net_delta_dir === 'LONG' ? 'green' : data?.net_delta_dir === 'SHORT' ? 'red' : ''} />
+          <Row label="P/C Ratio"    value={data?.put_call_ratio ? parseFloat(data.put_call_ratio).toFixed(2) : null} />
+          <Row label="Daily Open"   value={fmtNum(data?.daily_open, 2)} />
+        </div>
+      )}
+
+      {/* ── Market States ── */}
+      {marketStats.length > 0 && !isNdx && (
+        <div className="panel">
+          <div className="panel-title">Market States</div>
+          <div className="stat-grid">
+            {marketStats.map((s, i) => (
+              <div key={i} className="stat">
+                <div className="stat-label">{s.label}</div>
+                <div className={`stat-val ${statValClass(s.value)}`} style={{ fontSize: 10 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Saved zones ── */}
       {!isNdx && zones.length > 0 && (
-        <div className="card" style={{ padding: '10px 14px' }}>
-          <div className="card-title">Saved Zones</div>
+        <div className="panel">
+          <div className="panel-title">Saved Zones</div>
           {zones.map((z: any, i: number) => (
             <Row
               key={i}
               label={z.label ?? `Zone ${i + 1}`}
               value={z.top && z.bot ? `${fmtNum(z.bot)} – ${fmtNum(z.top)}` : fmtNum(z.level ?? z.price)}
-              color={z.type === 'support' ? 'var(--green)' : z.type === 'resistance' ? 'var(--red)' : undefined}
+              valClass={z.type === 'support' ? 'green' : z.type === 'resistance' ? 'red' : ''}
             />
           ))}
         </div>
       )}
-
-    </div>
+    </>
   )
 }
