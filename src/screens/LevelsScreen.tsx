@@ -56,6 +56,11 @@ function scoreBarColor(score: number | null) {
   return 'var(--yellow)'
 }
 
+function fmtStrike(s: any) {
+  const n = parseFloat(String(s).replace(/,/g, ''))
+  return isNaN(n) ? String(s) : String(Math.round(n))
+}
+
 function OIRow({ row, priceStrike, callWall, putWall, maxVal }: {
   row: any; priceStrike: number; callWall: number; putWall: number; maxVal: number
 }) {
@@ -70,7 +75,7 @@ function OIRow({ row, priceStrike, callWall, putWall, maxVal }: {
   return (
     <div className="hbar-row" style={{ background: bg }}>
       <div className="hbar-strike" style={{ color: isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : 'var(--muted2)', textAlign: 'right', paddingRight: 5 }}>
-        {row.strike}
+        {fmtStrike(row.strike)}
       </div>
       <div className="hbar-left">
         <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: 'rgba(0,255,136,0.7)' }} />
@@ -99,14 +104,14 @@ function GEXRow({ row, priceStrike, flipStrike, maxVal }: {
   const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : 'transparent'
 
   return (
-    <div className="gex-hrow" style={{ background: bg }}>
+    <div className="hbar-row" style={{ background: bg }}>
       <div className="hbar-strike" style={{ color: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--muted2)' }}>
-        {row.strike}
+        {fmtStrike(row.strike)}
       </div>
       <div className="hbar-left">
         <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: cGex >= 0 ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,68,0.75)' }} />
       </div>
-      <div className="hbar-divider" style={{ width: 16, background: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--border2)', height: '100%' }} />
+      <div className="hbar-divider" style={{ background: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--border2)' }} />
       <div className="hbar-right">
         <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.75)' }} />
       </div>

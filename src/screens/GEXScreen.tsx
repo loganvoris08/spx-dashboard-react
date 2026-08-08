@@ -75,14 +75,14 @@ function GEXHBars({ rows, priceStrike, flipStrike }: { rows: any[]; priceStrike:
         const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : 'transparent'
 
         return (
-          <div key={i} className="gex-hrow" style={{ background: bg }}>
+          <div key={i} className="hbar-row" style={{ background: bg }}>
             <div className="hbar-strike" style={{ color: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--muted2)' }}>
-              {row.strike}
+              {Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
             </div>
             <div className="hbar-left">
               <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: cGex >= 0 ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,68,0.75)' }} />
             </div>
-            <div className="hbar-divider" style={{ width: 16, background: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--border2)', height: '100%' }} />
+            <div className="hbar-divider" style={{ background: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--border2)' }} />
             <div className="hbar-right">
               <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.75)' }} />
             </div>

@@ -49,7 +49,7 @@ function OIHBars({ rows, priceStrike, callWall, putWall }: {
         return (
           <div key={i} className="hbar-row" style={{ background: bg }}>
             <div className="hbar-strike" style={{ color: isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : 'var(--muted2)', textAlign: 'right', paddingRight: 6 }}>
-              {isPut ? '▼' : isPrice ? '●' : ''}{row.strike}
+              {isPut ? '▼' : isPrice ? '●' : ''}{Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
             </div>
             <div className="hbar-left">
               <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: 'rgba(0,255,136,0.7)' }} />
