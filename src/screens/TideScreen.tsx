@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { createChart, LineSeries, HistogramSeries, AreaSeries, BaselineSeries } from 'lightweight-charts'
+import { createChart, LineSeries, AreaSeries, BaselineSeries } from 'lightweight-charts'
 import type { IChartApi, ISeriesApi } from 'lightweight-charts'
 import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
@@ -65,10 +65,10 @@ export default function TideScreen() {
   const callLine  = useRef<ISeriesApi<'Area'> | null>(null)
   const putLine   = useRef<ISeriesApi<'Area'> | null>(null)
 
-  // Tide chart 2: Net premium histogram
+  // Tide chart 2: Net premium baseline
   const c2Ref = useRef<HTMLDivElement>(null)
   const c2    = useRef<IChartApi | null>(null)
-  const netHist = useRef<ISeriesApi<'Histogram'> | null>(null)
+  const netHist = useRef<ISeriesApi<'Baseline'> | null>(null)
 
   // Tide chart 3: Flow Acceleration (5-period MA)
   const c3Ref = useRef<HTMLDivElement>(null)
@@ -104,8 +104,11 @@ export default function TideScreen() {
     }
     if (c2Ref.current && !c2.current) {
       c2.current = createChart(c2Ref.current, { ...CHART_BASE, ...FLOW_LOC, height: 160, width: c2Ref.current.clientWidth })
-      netHist.current = c2.current.addSeries(HistogramSeries, {
-        color: 'rgba(0,255,136,0.6)',
+      netHist.current = c2.current.addSeries(BaselineSeries, {
+        baseValue: { type: 'price', price: 0 },
+        topLineColor: 'rgba(0,255,136,0.9)', topFillColor1: 'rgba(0,255,136,0.28)', topFillColor2: 'rgba(0,255,136,0.02)',
+        bottomLineColor: 'rgba(255,51,68,0.9)', bottomFillColor1: 'rgba(255,51,68,0.02)', bottomFillColor2: 'rgba(255,51,68,0.28)',
+        lineWidth: 2,
         priceFormat: { type: 'custom', formatter: (p: number) => { const a = Math.abs(p); return (p>=0?'+':'-')+(a>=1e6?(a/1e6).toFixed(1)+'M':a>=1000?(a/1000).toFixed(0)+'K':a.toFixed(0)) } },
       } as any)
     }
@@ -156,7 +159,7 @@ export default function TideScreen() {
       const putData   = hist.map((h: any) => ({ time: toUnix(h.ts) as any, value: h.put_prem  }))
       const netData   = hist.map((h: any) => {
         const net = h.net_prem ?? (h.call_prem - h.put_prem)
-        return { time: toUnix(h.ts) as any, value: net, color: net >= 0 ? 'rgba(0,255,136,0.6)' : 'rgba(255,51,68,0.6)' }
+        return { time: toUnix(h.ts) as any, value: net }
       })
 
       if (priceData.length) priceLine.current!.setData(priceData)
