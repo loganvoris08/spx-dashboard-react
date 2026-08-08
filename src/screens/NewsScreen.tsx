@@ -29,6 +29,76 @@ function Chip({ label, ok }: { label: string; ok?: boolean }) {
   )
 }
 
+// ── Market significance scoring ────────────────────────────────────────────
+type Impact = 'HIGH' | 'MED' | 'LOW'
+
+const HIGH_KEYWORDS: [RegExp, string][] = [
+  [/\b(fed|fomc|federal reserve|powell|rate (hike|cut|decision|pause)|basis point|bps)\b/i, 'FED'],
+  [/\b(cpi|pce|inflation|core inflation|deflation)\b/i, 'INFLATION'],
+  [/\b(nfp|jobs report|payroll|unemployment|jolts|labor market)\b/i, 'JOBS'],
+  [/\b(gdp|recession|contraction|growth data)\b/i, 'GDP'],
+  [/\b(tariff|trade war|sanction|export ban|china|import duty)\b/i, 'TRADE'],
+  [/\b(war|invasion|conflict|military|geopolit|nuclear|attack|strike)\b/i, 'GEO'],
+  [/\b(bank fail|default|collapse|systemic|contagion|crisis|bailout)\b/i, 'SYSTEMIC'],
+  [/\b(earnings miss|guidance cut|revenue miss|profit warning|lowered outlook)\b/i, 'WARN'],
+]
+const MED_KEYWORDS: [RegExp, string][] = [
+  [/\b(earnings beat|revenue beat|raised guidance|raised outlook|strong quarter)\b/i, 'EARN+'],
+  [/\b(earnings|quarterly results|eps|revenue)\b/i, 'EARN'],
+  [/\b(upgrade|downgrade|price target|analyst|rating)\b/i, 'ANALYST'],
+  [/\b(merger|acquisition|buyout|takeover|deal|m&a)\b/i, 'M&A'],
+  [/\b(ipo|secondary offering|stock split|buyback|dividend)\b/i, 'CORP'],
+  [/\b(pmi|ism|retail sales|consumer confidence|housing|durable goods)\b/i, 'ECON'],
+  [/\b(oil|crude|opec|energy|nat gas|gasoline)\b/i, 'ENERGY'],
+  [/\b(treasury|yield|bond|10-year|2-year|spread|invert)\b/i, 'RATES'],
+  [/\b(vix|volatility spike|options|put|call|gamma|hedge)\b/i, 'VOL'],
+]
+
+function scoreHeadline(h: any): { impact: Impact; tag: string; spxDir: 'bull' | 'bear' | null } {
+  const text = (h.headline || h.title || '').toLowerCase()
+  const sent = (h.sentiment || '').toLowerCase()
+
+  // Check HIGH first
+  if (h.is_major) {
+    for (const [re, tag] of HIGH_KEYWORDS) {
+      if (re.test(text)) return { impact: 'HIGH', tag, spxDir: sent === 'bullish' ? 'bull' : sent === 'bearish' ? 'bear' : null }
+    }
+    return { impact: 'HIGH', tag: 'MAJOR', spxDir: sent === 'bullish' ? 'bull' : sent === 'bearish' ? 'bear' : null }
+  }
+  for (const [re, tag] of HIGH_KEYWORDS) {
+    if (re.test(text)) return { impact: 'HIGH', tag, spxDir: sent === 'bullish' ? 'bull' : sent === 'bearish' ? 'bear' : null }
+  }
+  for (const [re, tag] of MED_KEYWORDS) {
+    if (re.test(text)) return { impact: 'MED', tag, spxDir: sent === 'bullish' ? 'bull' : sent === 'bearish' ? 'bear' : null }
+  }
+  return { impact: 'LOW', tag: '', spxDir: null }
+}
+
+function ImpactBadge({ impact, tag }: { impact: Impact; tag: string }) {
+  const cfg = {
+    HIGH: { color: '#ff3344', bg: 'rgba(255,51,68,0.12)', border: 'rgba(255,51,68,0.35)' },
+    MED:  { color: '#ffcc00', bg: 'rgba(255,204,0,0.10)',  border: 'rgba(255,204,0,0.3)'  },
+    LOW:  { color: '#4b5563', bg: 'transparent',           border: 'rgba(255,255,255,0.08)' },
+  }[impact]
+  if (impact === 'LOW') return null
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 3, padding: '1px 5px', flexShrink: 0 }}>
+      <span style={{ fontSize: 7, fontWeight: 900, color: cfg.color, letterSpacing: '.5px', fontFamily: 'var(--mono)' }}>{impact}</span>
+      {tag && <span style={{ fontSize: 7, color: cfg.color, opacity: 0.75, fontFamily: 'var(--mono)', letterSpacing: '.3px' }}>{tag}</span>}
+    </span>
+  )
+}
+
+function SpxDirBadge({ dir }: { dir: 'bull' | 'bear' | null }) {
+  if (!dir) return null
+  const bull = dir === 'bull'
+  return (
+    <span style={{ fontSize: 8, fontFamily: 'var(--mono)', fontWeight: 700, color: bull ? 'var(--green)' : 'var(--red)', flexShrink: 0 }}>
+      {bull ? '▲ SPX' : '▼ SPX'}
+    </span>
+  )
+}
+
 export default function NewsScreen() {
   const { data } = useDashboard()
   const { on } = useSSE()
@@ -200,12 +270,20 @@ export default function NewsScreen() {
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{ev.event || ev.name || ev.title}</div>
                 {ev.time && <div style={{ fontSize: 9, color: 'var(--muted2)', fontFamily: 'var(--mono)', marginTop: 2 }}>{ev.time}</div>}
               </div>
-              <div style={{ textAlign: 'right', minWidth: 70 }}>
+              <div style={{ textAlign: 'right', minWidth: 80 }}>
+                {ev.importance && (() => {
+                  const imp = (ev.importance || '').toUpperCase()
+                  const cfg = imp === 'HIGH' || imp === '3' || imp === 'HIGH IMPACT'
+                    ? { label: '● HIGH', color: '#ff3344', bg: 'rgba(255,51,68,0.12)', border: 'rgba(255,51,68,0.35)' }
+                    : imp === 'MED' || imp === 'MEDIUM' || imp === '2'
+                    ? { label: '● MED',  color: '#ffcc00', bg: 'rgba(255,204,0,0.10)',  border: 'rgba(255,204,0,0.3)'  }
+                    : { label: '● LOW',  color: '#4b5563', bg: 'transparent',           border: 'rgba(255,255,255,0.08)' }
+                  return (
+                    <span style={{ fontSize: 8, fontFamily: 'var(--mono)', fontWeight: 700, color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 3, padding: '1px 5px', display: 'inline-block', marginBottom: 4 }}>{cfg.label}</span>
+                  )
+                })()}
                 {ev.forecast != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Fcst: {ev.forecast}</div>}
                 {ev.previous != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Prev: {ev.previous}</div>}
-                {ev.importance && (
-                  <span style={{ fontSize: 8, fontFamily: 'var(--mono)', color: ev.importance === 'HIGH' ? 'var(--red)' : ev.importance === 'MED' ? 'var(--yellow)' : 'var(--muted2)' }}>{ev.importance}</span>
-                )}
               </div>
             </div>
           ))}
@@ -219,19 +297,26 @@ export default function NewsScreen() {
           <button onClick={loadHeadlines} style={{ padding: '3px 8px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontFamily: 'var(--mono)', fontSize: 8, cursor: 'pointer' }}>↻</button>
         </div>
         {headlines.length > 0 ? headlines.map((h: any, i: number) => {
+          const { impact, tag, spxDir } = scoreHeadline(h)
           const sent = (h.sentiment || 'neutral').toLowerCase()
-          const sentColor = sent === 'bullish' ? 'var(--green)' : sent === 'bearish' ? 'var(--red)' : 'var(--muted2)'
+          const sentColor = sent === 'bullish' ? 'var(--green)' : sent === 'bearish' ? 'var(--red)' : 'rgba(255,255,255,0.18)'
           const tickers: string[] = (h.tickers || []).slice(0, 3)
+          const leftBorder = impact === 'HIGH' ? '2px solid rgba(255,51,68,0.6)' : impact === 'MED' ? '2px solid rgba(255,204,0,0.4)' : '2px solid transparent'
           return (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '7px 0', borderBottom: i < headlines.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 0 8px 8px', marginLeft: -8, borderBottom: i < headlines.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', borderLeft: leftBorder }}>
+              {/* sentiment dot */}
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: sentColor, flexShrink: 0, marginTop: 4 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, lineHeight: 1.4, color: 'var(--text)', marginBottom: h.is_major ? 2 : 0 }}>
-                  {h.is_major && <span style={{ fontSize: 7, fontWeight: 700, color: 'var(--red)', marginRight: 4 }}>●</span>}
+                {/* badges row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <ImpactBadge impact={impact} tag={tag} />
+                  <SpxDirBadge dir={spxDir} />
+                </div>
+                <div style={{ fontSize: 11, lineHeight: 1.45, color: impact === 'HIGH' ? 'var(--text)' : 'var(--muted)', fontWeight: impact === 'HIGH' ? 500 : 400 }}>
                   {h.headline || h.title}
                 </div>
                 {tickers.length > 0 && (
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
                     {tickers.map((t, j) => (
                       <span key={j} style={{ fontSize: 8, fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--yellow)', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.2)', borderRadius: 3, padding: '1px 4px' }}>{t}</span>
                     ))}
