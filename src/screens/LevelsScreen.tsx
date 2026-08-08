@@ -263,11 +263,12 @@ export default function LevelsScreen() {
     priceHistory.current = priceHistory.current.filter(p => now - p.ts < 1200000)
   })
 
-  // Draw sparkline from today's price history in flipChSeries
+  // Draw sparkline: price deviation from flip zone, flip always centered
   useEffect(() => {
     const canvas = sparkCanvasRef.current
     if (!canvas) return
     const priceData = flipChSeries[0]?.data ?? []
+    const flipData  = flipChSeries[1]?.data ?? []
     if (!priceData.length) return
     const dpr = window.devicePixelRatio || 1
     const W = canvas.clientWidth, H = canvas.clientHeight
@@ -278,46 +279,54 @@ export default function LevelsScreen() {
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, W, H)
 
-    // Normalize around flip zone — flip sits at exact center, price moves above/below
+    // Build time→flip map; fall back to current flipNum_e for any missing point
+    const flipMap = new Map(flipData.map((d: any) => [d.time, d.value as number]))
+    const fallbackFlip = flipNum_e > 0 ? flipNum_e : null
+
+    // Compute price − flip_zone for each historical point
+    const devPoints: { x: number; dev: number }[] = []
+    priceData.forEach((d: any, i: number) => {
+      const fz = flipMap.get(d.time) ?? fallbackFlip
+      if (fz == null) return
+      devPoints.push({ x: (i / (priceData.length - 1)) * W, dev: d.value - fz })
+    })
+    if (devPoints.length < 2) return
+
     const midY = H / 2
-    const flipBase = flipNum_e > 0 ? flipNum_e : (priceData[priceData.length - 1]?.value ?? 0)
-    const deviations = priceData.map((d: any) => Math.abs(d.value - flipBase))
-    const maxDev = Math.max(...deviations, 5)
-    const py = (v: number) => midY - ((v - flipBase) / maxDev) * (midY - 3)
+    const maxDev = Math.max(...devPoints.map(p => Math.abs(p.dev)), 3)
+    const py = (dev: number) => midY - (dev / maxDev) * (midY - 3)
 
-    const lastPrice = priceData[priceData.length - 1]?.value ?? flipBase
-    const isAboveFlip = lastPrice >= flipBase
-    const lineColor = isAboveFlip ? '#00ff88' : '#ff3344'
-    const fillColor = isAboveFlip ? 'rgba(0,255,136,0.12)' : 'rgba(255,51,68,0.15)'
+    const lastDev = devPoints[devPoints.length - 1].dev
+    const lineColor = lastDev >= 0 ? '#00ff88' : '#ff3344'
 
-    // Flip zone center line (always at midY)
+    // Flip zone center line (always at midY = zero deviation)
     ctx.setLineDash([3, 3])
     ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(W, midY)
     ctx.strokeStyle = 'rgba(168,85,247,0.7)'; ctx.lineWidth = 1; ctx.stroke()
     ctx.setLineDash([])
 
-    if (priceData.length < 2) return
+    // Fill area between deviation line and center, segment by segment (green above, red below)
+    for (let i = 1; i < devPoints.length; i++) {
+      const a = devPoints[i - 1], b = devPoints[i]
+      const above = a.dev >= 0
+      ctx.beginPath()
+      ctx.moveTo(a.x, py(a.dev))
+      ctx.lineTo(b.x, py(b.dev))
+      ctx.lineTo(b.x, midY)
+      ctx.lineTo(a.x, midY)
+      ctx.closePath()
+      ctx.fillStyle = above ? 'rgba(0,255,136,0.15)' : 'rgba(255,51,68,0.15)'
+      ctx.fill()
+    }
 
-    // Fill area between price line and flip center
+    // Deviation line (color by last position)
     ctx.beginPath()
-    priceData.forEach((d: any, i: number) => {
-      const x = (i / (priceData.length - 1)) * W
-      if (i === 0) ctx.moveTo(x, py(d.value)); else ctx.lineTo(x, py(d.value))
-    })
-    ctx.lineTo(W, midY); ctx.lineTo(0, midY); ctx.closePath()
-    ctx.fillStyle = fillColor; ctx.fill()
-
-    // Price line
-    ctx.beginPath()
-    priceData.forEach((d: any, i: number) => {
-      const x = (i / (priceData.length - 1)) * W
-      if (i === 0) ctx.moveTo(x, py(d.value)); else ctx.lineTo(x, py(d.value))
-    })
+    devPoints.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, py(p.dev)); else ctx.lineTo(p.x, py(p.dev)) })
     ctx.strokeStyle = lineColor; ctx.lineWidth = 1.5; ctx.stroke()
 
     // Current price dot
-    const last = priceData[priceData.length - 1]
-    ctx.beginPath(); ctx.arc(W - 2, py(last.value), 2.5, 0, Math.PI * 2)
+    const last = devPoints[devPoints.length - 1]
+    ctx.beginPath(); ctx.arc(last.x, py(last.dev), 2.5, 0, Math.PI * 2)
     ctx.fillStyle = lineColor; ctx.fill()
   }, [flipChSeries, regime, flipNum_e])
 
