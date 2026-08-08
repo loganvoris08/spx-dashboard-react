@@ -47,34 +47,7 @@ function regimeClass(r?: string) {
   return 'gex-neut'
 }
 
-function pillClass(s: string) {
-  const u = s.toUpperCase()
-  if (u.includes('LONG') || u.includes('BULL') || u.includes('BUY'))   return 'long'
-  if (u.includes('SHORT') || u.includes('BEAR') || u.includes('SELL')) return 'short'
-  if (u.includes('LEAN') || u.includes('WATCH') || u.includes('TRAP')) return 'watch'
-  return 'wait'
-}
 
-function swingClass(s?: string) {
-  if (!s) return 'none'
-  return pillClass(s)
-}
-
-function sessionClass(s?: string) {
-  if (!s) return ''
-  const u = s.toLowerCase()
-  if (u.includes('morning') || u.includes('open') || u.includes('rth')) return 'rth-open'
-  if (u.includes('afternoon') || u.includes('pm')) return 'afternoon'
-  return ''
-}
-
-function zoneClass(state?: string) {
-  if (!state) return ''
-  const u = state.toUpperCase()
-  if (u.includes('ABOVE')) return 'above'
-  if (u.includes('BELOW')) return 'below'
-  return 'current'
-}
 
 function fmt2(v: any) {
   if (v == null) return '--'
@@ -139,17 +112,6 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   const spxPrice = spxNum ?? 0
   const flipDist = gexFlip && spxPrice ? Math.abs(spxPrice - gexFlip) : null
   const showFlipAlert = flipDist != null && flipDist < 5
-
-  // Signal
-  const signal   = data?.trade_signal ?? data?.signal ?? 'WAIT'
-  const sc       = pillClass(signal)
-  const score    = data?.score
-  const maxScore = data?.max_score
-  const session  = data?.session
-  const swing    = data?.swing_signal?.signal ?? data?.swing_history?.[0]?.signal
-
-  // Zone chip
-  const zoneState = data?.spx_zone_state
 
   // Regime
   const regime = data?.uw_gamma_regime ?? data?.gamma_state ?? data?.net_gex_state
