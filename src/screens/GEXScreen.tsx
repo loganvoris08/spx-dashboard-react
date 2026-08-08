@@ -117,6 +117,199 @@ function GEXHBars({ rows, priceStrike, flipStrike, hotScores }: { rows: any[]; p
   )
 }
 
+function GammaGravityCanvas({ strikes, priceNum }: { strikes: any[]; priceNum: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const animRef   = useRef<number>(0)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !strikes.length || !priceNum) return
+
+    const dpr  = window.devicePixelRatio || 1
+    const W    = canvas.offsetWidth || 320
+    const H    = 210
+    canvas.width  = W * dpr
+    canvas.height = H * dpr
+    const ctx  = canvas.getContext('2d')!
+    ctx.scale(dpr, dpr)
+
+    const nearby = strikes
+      .filter((s: any) => Math.abs((s.strike ?? s.level ?? 0) - priceNum) <= 175)
+      .sort((a: any, b: any) => (a.strike ?? a.level) - (b.strike ?? b.level))
+    if (!nearby.length) return
+
+    const allGex = nearby.map((s: any) => Math.abs(s.net_gex ?? ((s.call_gex ?? 0) - (s.put_gex ?? 0))))
+    const maxGex = Math.max(...allGex, 1)
+
+    const strikes_ = nearby.map((s: any) => s.strike ?? s.level)
+    const minS = Math.min(...strikes_)
+    const maxS = Math.max(...strikes_)
+    const sRange = maxS - minS || 1
+    const pad  = { l: 10, r: 10, t: 32, b: 26 }
+    const cW   = W - pad.l - pad.r
+    const cH   = H - pad.t - pad.b
+    const sxOf = (s: number) => pad.l + ((s - minS) / sRange) * cW
+    const priceX = sxOf(priceNum)
+    const midY   = pad.t + cH / 2
+
+    let phase = 0
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H)
+      ctx.fillStyle = '#080a10'
+      ctx.fillRect(0, 0, W, H)
+
+      // ── gravity halos ──────────────────────────────────────────────
+      nearby.forEach((s: any) => {
+        const netGex = s.net_gex ?? ((s.call_gex ?? 0) - (s.put_gex ?? 0))
+        const t = Math.abs(netGex) / maxGex
+        if (t < 0.08) return
+        const sx  = sxOf(s.strike ?? s.level)
+        const r   = cW * 0.11 * t
+        const osc = 0.9 + 0.1 * Math.sin(phase + sx * 0.05)
+        const col = netGex > 0 ? `rgba(0,255,136,${t * 0.13 * osc})` : `rgba(255,51,68,${t * 0.13 * osc})`
+        const grad = ctx.createRadialGradient(sx, midY, 0, sx, midY, r)
+        grad.addColorStop(0, col)
+        grad.addColorStop(1, 'rgba(0,0,0,0)')
+        ctx.fillStyle = grad
+        ctx.beginPath()
+        ctx.arc(sx, midY, r, 0, Math.PI * 2)
+        ctx.fill()
+      })
+
+      // ── zero line ──────────────────────────────────────────────────
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 4])
+      ctx.beginPath(); ctx.moveTo(pad.l, midY); ctx.lineTo(W - pad.r, midY); ctx.stroke()
+      ctx.setLineDash([])
+
+      // ── strike pillars ──────────────────────────────────────────────
+      nearby.forEach((s: any) => {
+        const netGex = s.net_gex ?? ((s.call_gex ?? 0) - (s.put_gex ?? 0))
+        const t    = Math.abs(netGex) / maxGex
+        if (t < 0.02) return
+        const sx   = sxOf(s.strike ?? s.level)
+        const pulse = 1 + 0.05 * Math.sin(phase * 1.4 + sx * 0.08)
+        const barH = cH * 0.55 * t * pulse
+        const isCall = netGex > 0
+        const alpha  = 0.28 + t * 0.55
+
+        ctx.save()
+        ctx.shadowColor = isCall ? `rgba(0,255,136,${t * 0.85})` : `rgba(255,51,68,${t * 0.85})`
+        ctx.shadowBlur  = 10 * t
+        ctx.fillStyle   = isCall ? `rgba(0,255,136,${alpha})` : `rgba(255,51,68,${alpha})`
+        // Symmetric bar centered on midY
+        ctx.fillRect(sx - 2.5, midY - barH / 2, 5, barH)
+        ctx.restore()
+      })
+
+      // ── compute net force at price ──────────────────────────────────
+      let totalForce = 0
+      nearby.forEach((s: any) => {
+        const netGex = s.net_gex ?? ((s.call_gex ?? 0) - (s.put_gex ?? 0))
+        const dist   = (s.strike ?? s.level) - priceNum
+        if (Math.abs(dist) < 0.5) return
+        totalForce  += netGex / (dist * dist) * Math.sign(dist)
+      })
+
+      // ── force arrow above price ─────────────────────────────────────
+      if (Math.abs(totalForce) > 0.0005) {
+        const dir     = totalForce > 0 ? 1 : -1
+        const arrowLen = Math.min(44, 10 + Math.abs(totalForce) * 600)
+        const arrowY   = midY - cH * 0.38
+        const forceCol = totalForce > 0 ? 'rgba(0,255,136,0.95)' : 'rgba(255,51,68,0.95)'
+        ctx.save()
+        ctx.strokeStyle = forceCol
+        ctx.shadowColor = forceCol
+        ctx.shadowBlur  = 8
+        ctx.lineWidth   = 2.5
+        ctx.lineCap     = 'round'
+        ctx.beginPath()
+        ctx.moveTo(priceX - dir * arrowLen, arrowY)
+        ctx.lineTo(priceX + dir * 4, arrowY)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(priceX + dir * 4, arrowY - 5)
+        ctx.lineTo(priceX + dir * 12, arrowY)
+        ctx.lineTo(priceX + dir * 4, arrowY + 5)
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      // ── price particle ─────────────────────────────────────────────
+      const pulseSz = 7 + 2.5 * Math.sin(phase * 2.4)
+      ctx.save()
+      ctx.shadowColor = 'rgba(255,220,0,1)'
+      ctx.shadowBlur  = 20
+      ctx.beginPath()
+      ctx.arc(priceX, midY, pulseSz, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(255,210,0,0.92)'
+      ctx.fill()
+      ctx.restore()
+      ctx.beginPath()
+      ctx.arc(priceX, midY, 3, 0, Math.PI * 2)
+      ctx.fillStyle = '#fff'
+      ctx.fill()
+
+      // ── strike labels ──────────────────────────────────────────────
+      ctx.fillStyle = 'rgba(140,150,170,0.45)'
+      ctx.font = '7.5px monospace'
+      ctx.textAlign = 'center'
+      nearby.forEach((s: any) => {
+        const strike = s.strike ?? s.level
+        if (strike % 25 !== 0) return
+        const sx = sxOf(strike)
+        if (Math.abs(sx - priceX) < 18) return
+        ctx.fillText(String(strike), sx, H - 8)
+      })
+
+      // ── price label ────────────────────────────────────────────────
+      ctx.fillStyle = 'rgba(255,210,0,0.9)'
+      ctx.font = 'bold 9px monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText(priceNum.toFixed(0), priceX, H - 8)
+
+      // ── top labels ─────────────────────────────────────────────────
+      ctx.fillStyle = 'rgba(130,140,160,0.55)'
+      ctx.font = '7px monospace'
+      ctx.textAlign = 'left'
+      ctx.fillText('GAMMA GRAVITY FIELD', pad.l, 12)
+
+      const forceLabel = Math.abs(totalForce) < 0.0005 ? 'BALANCED'
+        : totalForce > 0 ? '→ CALL PULL' : '← PUT PULL'
+      ctx.fillStyle = Math.abs(totalForce) < 0.0005
+        ? 'rgba(200,200,80,0.7)'
+        : totalForce > 0 ? 'rgba(0,255,136,0.85)' : 'rgba(255,51,68,0.85)'
+      ctx.textAlign = 'right'
+      ctx.fillText(forceLabel, W - pad.r, 12)
+
+      // ── max GEX strike label ────────────────────────────────────────
+      const topStrike = nearby.reduce((best: any, s: any) =>
+        Math.abs(s.net_gex ?? 0) > Math.abs(best?.net_gex ?? 0) ? s : best, nearby[0])
+      if (topStrike) {
+        const tStrike = topStrike.strike ?? topStrike.level
+        const tsx = sxOf(tStrike)
+        ctx.fillStyle = 'rgba(150,160,200,0.55)'
+        ctx.font = '7px monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText(`MAX ${tStrike}`, tsx, pad.t - 6)
+      }
+
+      phase += 0.022
+      animRef.current = requestAnimationFrame(draw)
+    }
+
+    animRef.current = requestAnimationFrame(draw)
+    return () => cancelAnimationFrame(animRef.current)
+  }, [strikes, priceNum])
+
+  if (!strikes.length || !priceNum) return (
+    <div style={{ color: 'var(--muted2)', fontSize: 10, textAlign: 'center', padding: 20 }}>No GEX data</div>
+  )
+  return <canvas ref={canvasRef} style={{ width: '100%', display: 'block', borderRadius: 4 }} height={210} />
+}
+
 function GEXTerrainMap({ strikes, priceNum, flipNum, callWall, putWall }: {
   strikes: any[]; priceNum: number; flipNum: number; callWall?: number; putWall?: number
 }) {
@@ -579,6 +772,13 @@ export default function GEXScreen() {
           </div>
         )
       })()}
+
+      {/* ── Gamma Gravity Field ── */}
+      {(bucketData.length > 0 && priceNum > 0) && (
+        <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+          <GammaGravityCanvas strikes={bucketData} priceNum={priceNum} />
+        </div>
+      )}
 
       {/* ── GEX Terrain Map ── */}
       <GEXTerrainMap

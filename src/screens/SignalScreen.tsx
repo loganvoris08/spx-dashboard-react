@@ -1,5 +1,15 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
+import { useSSE } from '../lib/SSEContext'
+
+const BASE = import.meta.env.VITE_API_URL ?? ''
+function token() { return localStorage.getItem('dash_token') ?? '' }
+async function apiFetch(path: string) {
+  const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token()}` } })
+  if (!res.ok) throw new Error(`${path} ${res.status}`)
+  return res.json()
+}
 
 function sigClass(s?: string) {
   if (!s) return 'wait'
@@ -53,7 +63,20 @@ function ZoneBox({ label, bot, top, mid, state, pct, nextBot, nextTop, prevBot, 
 export default function SignalScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
+  const { on }   = useSSE()
   const isNdx = side === 'ndx'
+
+  const [patternData, setPatternData] = useState<any>(null)
+
+  const loadPattern = useCallback(async () => {
+    try { setPatternData(await apiFetch('/api/pattern-match')) } catch {}
+  }, [])
+
+  useEffect(() => {
+    loadPattern()
+    const off = on('update', loadPattern)
+    return off
+  }, [loadPattern, on])
 
   const signal    = data?.signal ?? 'WAIT'
   const score     = data?.score
@@ -415,6 +438,88 @@ export default function SignalScreen() {
           </div>
         </div>
       )}
+
+      {/* ── Pattern Match Engine ── */}
+      {!isNdx && patternData && (() => {
+        const c = patternData.current ?? {}
+        const s = patternData.stats ?? {}
+        const total = patternData.total_history ?? 0
+
+        const regimeLabel = (() => {
+          const gex  = String(c.gex_regime ?? '').toUpperCase()
+          const flow = String(c.flow_bias  ?? '').toUpperCase()
+          const vix  = String(c.vix_level  ?? '').toUpperCase()
+          if (gex.includes('POSITIVE') && vix === 'LOW'    && flow.includes('CALL')) return { label: 'PIN REGIME',        sub: 'Positive GEX + calm vol + call flow → price magnetic', color: 'var(--green)' }
+          if (gex.includes('POSITIVE') && vix === 'NORMAL')                          return { label: 'STABILIZING',       sub: 'Dealer gamma absorbing moves, range likely', color: 'var(--green)' }
+          if (gex.includes('NEGATIVE') && vix === 'HIGH')                            return { label: 'VOLATILITY REGIME', sub: 'Negative GEX + elevated vol → amplified moves', color: 'var(--red)' }
+          if (gex.includes('NEGATIVE') && vix === 'EXTREME')                         return { label: 'DANGER ZONE',       sub: 'Max negative GEX + fear spike → trend acceleration', color: 'var(--red)' }
+          if (flow.includes('PUT'))                                                   return { label: 'DEFENSIVE FLOW',    sub: 'Put premium dominant — institutional hedging active', color: 'var(--yellow)' }
+          if (flow.includes('CALL'))                                                  return { label: 'OFFENSIVE FLOW',    sub: 'Call premium dominant — risk-on positioning', color: 'var(--green)' }
+          return { label: 'MIXED REGIME', sub: 'Conflicting signals — reduce size', color: 'var(--muted2)' }
+        })()
+
+        const chips = [
+          { label: 'GEX',   val: c.gex_regime ?? '--',  color: String(c.gex_regime ?? '').includes('POSITIVE') ? 'var(--green)' : String(c.gex_regime ?? '').includes('NEGATIVE') ? 'var(--red)' : 'var(--muted2)' },
+          { label: 'VIX',   val: c.vix_level  ?? '--',  color: c.vix_level === 'LOW' ? 'var(--green)' : c.vix_level === 'EXTREME' ? 'var(--red)' : c.vix_level === 'HIGH' ? 'var(--yellow)' : 'var(--muted2)' },
+          { label: 'IV',    val: c.iv_regime  ?? '--',  color: c.iv_regime === 'LOW' ? 'var(--green)' : c.iv_regime === 'EXTREME' || c.iv_regime === 'HIGH' ? 'var(--red)' : 'var(--muted2)' },
+          { label: 'FLOW',  val: c.flow_bias  ?? '--',  color: String(c.flow_bias ?? '').includes('CALL') ? 'var(--green)' : String(c.flow_bias ?? '').includes('PUT') ? 'var(--red)' : 'var(--muted2)' },
+          { label: 'TIME',  val: c.time_bucket ?? '--', color: 'var(--muted2)' },
+        ]
+
+        return (
+          <div className="panel">
+            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              Pattern Match Engine
+              <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--yellow)', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.2)', borderRadius: 3, padding: '1px 5px' }}>LIVE</span>
+            </div>
+
+            {/* Regime chips */}
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
+              {chips.map(ch => (
+                <div key={ch.label} style={{ background: 'var(--surface)', border: `1px solid ${ch.color}33`, borderRadius: 4, padding: '3px 7px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 6, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{ch.label}</div>
+                  <div style={{ fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 700, color: ch.color }}>{ch.val}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Regime label */}
+            <div style={{ background: 'var(--surface)', border: `1px solid ${regimeLabel.color}44`, borderRadius: 5, padding: '7px 10px', marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: regimeLabel.color }}>{regimeLabel.label}</div>
+              <div style={{ fontSize: 9, color: 'var(--muted2)', marginTop: 3 }}>{regimeLabel.sub}</div>
+            </div>
+
+            {/* Historical stats */}
+            {s.count >= 5 ? (
+              <>
+                <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 6 }}>
+                  {s.count} matching setups in {total} session snapshots · 4h forward return
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5, marginBottom: 6 }}>
+                  {[
+                    { label: '↑ Up',   val: s.up_pct   + '%', color: 'var(--green)' },
+                    { label: '— Flat', val: s.flat_pct + '%', color: 'var(--muted2)' },
+                    { label: '↓ Down', val: s.down_pct + '%', color: 'var(--red)' },
+                  ].map(b => (
+                    <div key={b.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '5px 6px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 7, color: 'var(--muted2)' }}>{b.label}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--mono)', color: b.color }}>{b.val}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 9, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>
+                  Avg 4h move: <span style={{ color: s.avg_move > 0 ? 'var(--green)' : s.avg_move < 0 ? 'var(--red)' : 'var(--muted2)', fontWeight: 700 }}>{s.avg_move > 0 ? '+' : ''}{s.avg_move} pts</span>
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 9, color: 'var(--muted2)', textAlign: 'center', padding: '6px 0' }}>
+                Collecting data — {total} session{total !== 1 ? 's' : ''} recorded so far
+                {s.count > 0 && s.count < 5 && ` (${s.count} match${s.count !== 1 ? 'es' : ''}, need 5+)`}
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </>
   )
 }

@@ -119,6 +119,7 @@ export default function VolScreen() {
   const [ivCurve,    setIvCurve]    = useState<any[]>([])
   const [volStats,   setVolStats]   = useState<any>(null)
   const [skewTermData, setSkewTermData] = useState<{ term_structure: any[]; atm_iv: number; skew: number; iv_rank: number; iv_regime: string } | null>(null)
+  const [sectorData,   setSectorData]   = useState<any[]>([])
   const [volRead,    setVolRead]    = useState('')
   const [loadingVol, setLoadingVol] = useState(false)
 
@@ -190,17 +191,29 @@ export default function VolScreen() {
     } catch {}
   }, [])
 
+  const loadSectorFlow = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/sector-tide')
+      const rows: any[] = (d.data || [])
+        .map((r: any) => ({ ...r, net_flow: (r.net_call_premium ?? 0) - (r.net_put_premium ?? 0) }))
+        .sort((a: any, b: any) => Math.abs(b.net_flow) - Math.abs(a.net_flow))
+      setSectorData(rows)
+    } catch {}
+  }, [])
+
   useEffect(() => {
     loadTermStructure()
     loadRrSkew()
     loadIvCurve()
     loadSkewTerm()
+    loadSectorFlow()
     const off1 = on('update', () => loadTermStructure())
     const off2 = on('update', () => loadRrSkew())
     const off3 = on('update', () => loadIvCurve())
     const off4 = on('update', () => loadSkewTerm())
-    return () => { off1(); off2(); off3(); off4() }
-  }, [loadTermStructure, loadRrSkew, loadIvCurve, loadSkewTerm, on])
+    const off5 = on('update', () => loadSectorFlow())
+    return () => { off1(); off2(); off3(); off4(); off5() }
+  }, [loadTermStructure, loadRrSkew, loadIvCurve, loadSkewTerm, loadSectorFlow, on])
 
   // vol_stats comes from the main /data endpoint via useDashboard
   useEffect(() => {
@@ -412,6 +425,40 @@ export default function VolScreen() {
               {volStats.rv_low != null && <span style={{ marginLeft: 'auto' }}>RV range: {volStats.rv_low.toFixed(1)}–{(volStats.rv_high ?? 0).toFixed(1)}%</span>}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Sector Options Flow ── */}
+      {sectorData.length > 0 && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            Sector Options Flow
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+          </div>
+          <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 8 }}>Net call − put premium per sector. Shows where institutional options money is flowing.</div>
+          {sectorData.slice(0, 8).map((r: any, i: number) => {
+            const flow  = r.net_flow ?? 0
+            const maxF  = Math.max(...sectorData.slice(0, 8).map((x: any) => Math.abs(x.net_flow ?? 0)), 1)
+            const pct   = Math.round(Math.abs(flow) / maxF * 85) + 5
+            const isPos = flow >= 0
+            const fmtFlow = (v: number) => {
+              const a = Math.abs(v)
+              return (v >= 0 ? '+' : '-') + (a >= 1e9 ? (a / 1e9).toFixed(1) + 'B' : a >= 1e6 ? (a / 1e6).toFixed(0) + 'M' : a >= 1e3 ? (a / 1e3).toFixed(0) + 'K' : a.toFixed(0))
+            }
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', minWidth: 130, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r.sector}
+                </span>
+                <div style={{ flex: 1, height: 7, background: 'var(--surface)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: isPos ? 'var(--green)' : 'var(--red)', borderRadius: 3, opacity: 0.8 }} />
+                </div>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: isPos ? 'var(--green)' : 'var(--red)', minWidth: 48, textAlign: 'right' }}>
+                  {fmtFlow(flow)}
+                </span>
+              </div>
+            )
+          })}
         </div>
       )}
 
