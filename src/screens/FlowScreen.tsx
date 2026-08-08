@@ -141,6 +141,7 @@ export default function FlowScreen() {
   const [sectorTide,   setSectorTide]   = useState<any[]>([])
   const [sectorFlow,   setSectorFlow]   = useState<any[]>([])
   const [velocitySeries, setVelocitySeries] = useState<CCSeries[]>([])
+  const [divergenceData, setDivergenceData] = useState<any>(null)
   const [loadingUnusual, setLoadingUnusual] = useState(false)
   const [loadingDp,    setLoadingDp]    = useState(false)
   const [loadingFlow,  setLoadingFlow]  = useState(false)
@@ -248,19 +249,43 @@ export default function FlowScreen() {
     }
   }, [isNdx, blockItems, tickerItems])
 
-  /* ── Flow Velocity (from spx/ndx-uw-flow velocity array) ── */
+  /* ── Flow Velocity + Smart Money Divergence (from spx/ndx-uw-flow) ── */
   const loadVelocity = useCallback(async () => {
     try {
       const ep = isNdx ? '/api/ndx-uw-flow' : '/api/spx-uw-flow'
       const d = await apiFetch(ep)
       const vel: any[] = d.velocity || []
-      if (!vel.length) return
-      const toUnix = (ts: any) => typeof ts === 'number' ? ts : Math.floor(new Date(ts).getTime() / 1000)
-      setVelocitySeries([{
-        data:  vel.map((v: any) => ({ time: toUnix(v.ts), value: v.value })),
-        color: '#f59e0b', rgb: '245,158,11',
-        fill:  true,
-      }])
+      if (vel.length) {
+        const toUnix = (ts: any) => typeof ts === 'number' ? ts : Math.floor(new Date(ts).getTime() / 1000)
+        setVelocitySeries([{
+          data:  vel.map((v: any) => ({ time: toUnix(v.ts), value: v.value })),
+          color: '#f59e0b', rgb: '245,158,11',
+          fill:  true,
+        }])
+      }
+      // Compute smart money divergence from same payload
+      if (!isNdx) {
+        const divRaw = d.divergence ?? {}
+        const priceBars: any[] = d.price_bars ?? []
+        let priceDir = 'NEUTRAL'
+        if (priceBars.length >= 5) {
+          const p0 = parseFloat(priceBars[0]?.close ?? priceBars[0]?.c ?? 0)
+          const pN = parseFloat(priceBars[priceBars.length - 1]?.close ?? priceBars[priceBars.length - 1]?.c ?? 0)
+          if (p0 > 0 && pN > p0 * 1.0005)      priceDir = 'BULLISH'
+          else if (p0 > 0 && pN < p0 * 0.9995) priceDir = 'BEARISH'
+        }
+        const flowLabel = (divRaw.label ?? '').toUpperCase()
+        const flowDir = flowLabel.includes('CALL') ? 'BULLISH' : flowLabel.includes('PUT') ? 'BEARISH' : 'NEUTRAL'
+        setDivergenceData((prev: any) => ({ ...prev, priceDir, flowDir, flowDetail: divRaw.detail ?? '' }))
+      }
+    } catch {}
+  }, [isNdx])
+
+  const loadSmartDivergence = useCallback(async () => {
+    if (isNdx) return
+    try {
+      const d = await apiFetch('/api/smart-divergence')
+      setDivergenceData(d)
     } catch {}
   }, [isNdx])
 
@@ -290,6 +315,7 @@ export default function FlowScreen() {
     loadExpiry()
     loadSector()
     loadVelocity()
+    loadSmartDivergence()
 
     // Refresh on every SSE update event (backend publishes when data changes)
     const off1 = on('update', () => loadBlocks())
@@ -297,9 +323,10 @@ export default function FlowScreen() {
     const off3 = on('update', () => loadAnalytics())
     const off4 = on('update', () => loadExpiry())
     const off5 = on('update', () => loadVelocity())
+    const off6 = on('update', () => loadSmartDivergence())
 
-    return () => { off1(); off2(); off3(); off4(); off5() }
-  }, [isNdx, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector, loadVelocity, on])
+    return () => { off1(); off2(); off3(); off4(); off5(); off6() }
+  }, [isNdx, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector, loadVelocity, loadSmartDivergence, on])
 
   /* ── 0DTE computed values ── */
   const dteCallPrem = dteStats?.net_call_prem ?? dteStats?.call_premium
@@ -375,6 +402,58 @@ export default function FlowScreen() {
           <div style={{ fontSize: 8, color: 'var(--muted2)', marginTop: 4 }}>
             Rate of change in net premium flow — positive = flow accelerating bullish · negative = bearish momentum
           </div>
+        </div>
+      )}
+
+      {/* ── Smart Money Divergence ── */}
+      {!isNdx && divergenceData && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            Smart Money Divergence
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
+          </div>
+          {/* 3-way signal grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
+            {[
+              { label: 'Price Trend', dir: divergenceData.price_dir, icon: '📈' },
+              { label: 'Options Flow', dir: divergenceData.flow_dir, icon: '🌊' },
+              { label: 'Block Trades', dir: divergenceData.block_dir, icon: '🔷' },
+            ].map(({ label, dir, icon }) => {
+              const col = dir === 'BULLISH' ? 'var(--green)' : dir === 'BEARISH' ? 'var(--red)' : 'var(--yellow)'
+              const bg  = dir === 'BULLISH' ? 'rgba(0,255,136,0.06)' : dir === 'BEARISH' ? 'rgba(255,51,68,0.06)' : 'rgba(234,179,8,0.06)'
+              return (
+                <div key={label} style={{ background: bg, border: `1px solid ${col}22`, borderRadius: 5, padding: '7px 6px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: col }}>{dir ?? '--'}</div>
+                </div>
+              )
+            })}
+          </div>
+          {/* Composite divergence badge */}
+          {(() => {
+            const lbl = divergenceData.divergence_label ?? 'NEUTRAL'
+            const col = divergenceData.divergence_color
+            const bCol = col === 'green' ? 'var(--green)' : col === 'red' ? 'var(--red)' : 'var(--yellow)'
+            const bg   = col === 'green' ? 'rgba(0,255,136,0.08)' : col === 'red' ? 'rgba(255,51,68,0.08)' : 'rgba(234,179,8,0.08)'
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: bg, border: `1px solid ${bCol}33`, borderRadius: 6 }}>
+                <div>
+                  <div style={{ fontSize: 7, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 2 }}>Composite Signal</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: bCol }}>{lbl}</div>
+                </div>
+                {(divergenceData.block_call_prem > 0 || divergenceData.block_put_prem > 0) && (
+                  <div style={{ textAlign: 'right', fontSize: 9, fontFamily: 'var(--mono)' }}>
+                    <div style={{ color: 'var(--green)' }}>C ${divergenceData.block_call_prem >= 1e6 ? (divergenceData.block_call_prem/1e6).toFixed(1)+'M' : divergenceData.block_call_prem >= 1e3 ? (divergenceData.block_call_prem/1e3).toFixed(0)+'K' : divergenceData.block_call_prem}</div>
+                    <div style={{ color: 'var(--red)' }}>P ${divergenceData.block_put_prem >= 1e6 ? (divergenceData.block_put_prem/1e6).toFixed(1)+'M' : divergenceData.block_put_prem >= 1e3 ? (divergenceData.block_put_prem/1e3).toFixed(0)+'K' : divergenceData.block_put_prem}</div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+          {divergenceData.flow_detail && (
+            <div style={{ fontSize: 9, color: 'var(--muted2)', marginTop: 6 }}>{divergenceData.flow_detail}</div>
+          )}
+          <div style={{ fontSize: 8, color: 'var(--muted2)', marginTop: 4 }}>Compares price direction, net options flow bias, and large block trade sentiment. CONVERGENT = all signals agree.</div>
         </div>
       )}
 

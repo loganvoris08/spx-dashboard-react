@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders, postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
@@ -113,6 +113,124 @@ function GEXHBars({ rows, priceStrike, flipStrike, hotScores }: { rows: any[]; p
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function GEXTerrainMap({ strikes, priceNum, flipNum, callWall, putWall }: {
+  strikes: any[]; priceNum: number; flipNum: number; callWall?: number; putWall?: number
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !strikes.length) return
+    const dpr = window.devicePixelRatio || 1
+    const W = canvas.offsetWidth
+    const ROW_H = 12
+    const rows = [...strikes].sort((a: any, b: any) =>
+      parseFloat(String(b.strike)) - parseFloat(String(a.strike)))
+    const H = rows.length * ROW_H
+    canvas.width  = W * dpr
+    canvas.height = H * dpr
+    canvas.style.height = H + 'px'
+    const ctx = canvas.getContext('2d')!
+    ctx.scale(dpr, dpr)
+    const maxGex = Math.max(...rows.map((r: any) => Math.abs(r.net_gex ?? 0)), 1)
+    const cx = W / 2
+    rows.forEach((r: any, i: number) => {
+      const s   = parseFloat(String(r.strike))
+      const net = r.net_gex ?? 0
+      const t   = Math.min(1, Math.abs(net) / maxGex)
+      const y   = i * ROW_H
+      // Background
+      ctx.fillStyle = 'rgba(255,255,255,0.02)'
+      ctx.fillRect(0, y, W, ROW_H - 1)
+      // GEX bar — positive = right (green), negative = left (red)
+      const barW = t * (W * 0.45)
+      if (net >= 0) {
+        const alpha = 0.35 + t * 0.5
+        ctx.fillStyle = `rgba(0,255,136,${alpha.toFixed(2)})`
+        ctx.fillRect(cx, y + 2, barW, ROW_H - 4)
+      } else {
+        const alpha = 0.35 + t * 0.5
+        ctx.fillStyle = `rgba(255,51,68,${alpha.toFixed(2)})`
+        ctx.fillRect(cx - barW, y + 2, barW, ROW_H - 4)
+      }
+      // Strike label
+      ctx.fillStyle = `rgba(180,180,200,${0.5 + t * 0.4})`
+      ctx.font = `${Math.max(8, 9 - (rows.length > 30 ? 1 : 0))}px monospace`
+      ctx.textAlign = 'right'
+      ctx.fillText(String(Math.round(s)), cx - 4, y + ROW_H - 3)
+    })
+    // Center zero line
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+    ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke()
+    // ATM price line
+    if (priceNum > 0) {
+      const priceY = rows.findIndex((r: any) => parseFloat(String(r.strike)) <= priceNum) * ROW_H
+      if (priceY >= 0) {
+        ctx.strokeStyle = 'rgba(255,204,0,0.85)'
+        ctx.lineWidth = 1.5
+        ctx.setLineDash([])
+        ctx.shadowColor = 'rgba(255,204,0,0.6)'
+        ctx.shadowBlur = 4
+        ctx.beginPath(); ctx.moveTo(0, priceY); ctx.lineTo(W, priceY); ctx.stroke()
+        ctx.shadowBlur = 0
+      }
+    }
+    // Flip zone line
+    if (flipNum > 0) {
+      const flipY = rows.findIndex((r: any) => parseFloat(String(r.strike)) <= flipNum) * ROW_H
+      if (flipY >= 0) {
+        ctx.strokeStyle = 'rgba(180,0,255,0.7)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([4, 3])
+        ctx.beginPath(); ctx.moveTo(0, flipY); ctx.lineTo(W, flipY); ctx.stroke()
+        ctx.setLineDash([])
+      }
+    }
+    // Call wall
+    if (callWall) {
+      const cWY = rows.findIndex((r: any) => parseFloat(String(r.strike)) <= callWall) * ROW_H
+      if (cWY >= 0) {
+        ctx.strokeStyle = 'rgba(0,255,136,0.5)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([2, 4])
+        ctx.beginPath(); ctx.moveTo(0, cWY); ctx.lineTo(W, cWY); ctx.stroke()
+        ctx.setLineDash([])
+      }
+    }
+    // Put wall
+    if (putWall) {
+      const pWY = rows.findIndex((r: any) => parseFloat(String(r.strike)) <= putWall) * ROW_H
+      if (pWY >= 0) {
+        ctx.strokeStyle = 'rgba(255,51,68,0.5)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([2, 4])
+        ctx.beginPath(); ctx.moveTo(0, pWY); ctx.lineTo(W, pWY); ctx.stroke()
+        ctx.setLineDash([])
+      }
+    }
+  }, [strikes, priceNum, flipNum, callWall, putWall])
+
+  if (!strikes.length) return null
+  return (
+    <div className="panel">
+      <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        GEX Terrain Map
+        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--yellow)', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.2)', borderRadius: 3, padding: '1px 5px' }}>SURFACE</span>
+      </div>
+      <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6, display: 'flex', gap: 12 }}>
+        <span><span style={{ color: 'var(--green)' }}>■</span> Call GEX</span>
+        <span><span style={{ color: 'var(--red)' }}>■</span> Put GEX</span>
+        <span><span style={{ color: 'var(--yellow)' }}>—</span> ATM</span>
+        <span><span style={{ color: '#b400ff' }}>- -</span> Flip</span>
+      </div>
+      <div style={{ overflowY: 'auto', maxHeight: 360 }}>
+        <canvas ref={canvasRef} style={{ width: '100%', display: 'block' }} />
+      </div>
     </div>
   )
 }
@@ -461,6 +579,15 @@ export default function GEXScreen() {
           </div>
         )
       })()}
+
+      {/* ── GEX Terrain Map ── */}
+      <GEXTerrainMap
+        strikes={bucketData}
+        priceNum={priceNum}
+        flipNum={flipNum}
+        callWall={cWall ? parseFloat(String(cWall).replace(/,/g, '')) : undefined}
+        putWall={pWall  ? parseFloat(String(pWall).replace(/,/g, ''))  : undefined}
+      />
 
       {/* ── Top Gamma Strikes ── */}
       {topGamma.length > 0 && (
