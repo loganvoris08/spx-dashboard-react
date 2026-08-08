@@ -4,7 +4,7 @@
 /* ─── Exact copy of old dashboard CSS ─────────────────────────────────────── */
 :root {
   color-scheme: dark;
-  --bg:#000;--surface:#0a0a0a;--panel:#111;--border:#1f1f1f;--border2:#2a2a2a;
+  --bg:#020509;--surface:#07090f;--panel:#0c1018;--border:#182030;--border2:#243040;
   --text:#fff;--muted:#555;--muted2:#888;
   --green:#00ff88;--red:#ff3344;--yellow:#e4ff00;
   --call:#00ff88;--put:#ff3344;--price:#e4ff00;
@@ -88,14 +88,14 @@ html,body,#root{height:100%;-webkit-font-smoothing:antialiased;}
 
 .tabbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none;position:relative;}
 .tabbar::-webkit-scrollbar{display:none;}
-.tab{flex:0 0 auto;padding:9px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;user-select:none;white-space:nowrap;}
+.tab{flex:0 0 auto;padding:9px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s,text-shadow .15s;user-select:none;white-space:nowrap;}
 .tab:hover{color:var(--text);}
-.tab.active{color:var(--green);border-bottom-color:var(--green);}
+.tab.active{color:var(--green);border-bottom-color:var(--green);text-shadow:0 0 10px rgba(0,255,136,0.6);}
 
 /* Tab content — React controls visibility, not CSS */
 .tab-content{overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;overscroll-behavior:contain;padding-bottom:calc(70px + env(safe-area-inset-bottom,0px));max-width:100vw;background:var(--bg);}
 
-.panel{border-bottom:1px solid var(--border);padding:12px 14px;}
+.panel{border-bottom:1px solid var(--border);padding:12px 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02);}
 .panel-title{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted2);margin-bottom:10px;font-weight:700;}
 
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}

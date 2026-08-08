@@ -16,10 +16,11 @@ interface Props {
   zonesEndpoint?: string
   timeVisible?: boolean
   livePrice?: number | null
+  liveBar?: { time: number; open: number; high: number; low: number; close: number; volume?: number } | null
   height?: number
 }
 
-export default function CandleChart({ title, candleEndpoint, zonesEndpoint, timeVisible = false, livePrice, height = 0 }: Props) {
+export default function CandleChart({ title, candleEndpoint, zonesEndpoint, timeVisible = false, livePrice, liveBar, height = 0 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef     = useRef<IChartApi | null>(null)
   const seriesRef    = useRef<ISeriesApi<'Candlestick'> | null>(null)
@@ -112,7 +113,7 @@ export default function CandleChart({ title, candleEndpoint, zonesEndpoint, time
     }
   }, [candleEndpoint, timeVisible, title, drawZones])
 
-  // Update live candle when livePrice prop changes
+  // Update live candle when livePrice prop changes (indices / fallback)
   useEffect(() => {
     if (!seriesRef.current || !liveCandleRef.current || livePrice == null) return
     const updated = {
@@ -126,6 +127,17 @@ export default function CandleChart({ title, candleEndpoint, zonesEndpoint, time
     seriesRef.current.update(updated)
     if (statusRef.current) statusRef.current.textContent = `${title} ${livePrice.toFixed(2)}`
   }, [livePrice, title])
+
+  // Update/push bar from live futures WebSocket second aggregates
+  useEffect(() => {
+    if (!seriesRef.current || !liveBar) return
+    // lightweight-charts: update() adds a new bar if time > last, or updates if time === last
+    try {
+      seriesRef.current.update(liveBar as any)
+      liveCandleRef.current = liveBar
+      if (statusRef.current) statusRef.current.textContent = `${title} ${liveBar.close.toFixed(2)}`
+    } catch {}
+  }, [liveBar, title])
 
   useEffect(() => {
     load()
