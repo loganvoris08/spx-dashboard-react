@@ -89,11 +89,11 @@ export default function OIScreen() {
   const ivRegime  = !isNdx ? (data?.spx_iv_regime ?? data?.iv_regime) : null
   const ivRank    = ivRankVal != null ? `${parseFloat(String(ivRankVal)).toFixed(0)}% · ${ivRegime ?? '--'}` : null
   const spxPrice= !isNdx ? (data?.spx ?? data?.daily_open) : null
-  const callWallsAbove = isNdx ? (data?.ndx_call_walls_above ?? []) : (data?.gex_call_walls_above ?? data?.top_call_walls_above ?? [])
-  const putWallsBelow  = isNdx ? (data?.ndx_put_walls_below  ?? []) : (data?.gex_put_walls_below  ?? data?.top_put_walls_below  ?? [])
-  const hotStrikes     = isNdx ? (data?.ndx_hot_strikes ?? []) : (data?.hot_strikes ?? [])
+  const callWallsAbove = isNdx ? (nd.gex_call_walls_above ?? []) : (data?.gex_call_walls_above ?? data?.top_call_walls_above ?? [])
+  const putWallsBelow  = isNdx ? (nd.gex_put_walls_below  ?? []) : (data?.gex_put_walls_below  ?? data?.top_put_walls_below  ?? [])
+  const hotStrikes     = isNdx ? (nd.hot_strikes ?? []) : (data?.hot_strikes ?? [])
 
-  const priceNum = data?.daily_open ?? 0
+  const priceNum = isNdx ? 0 : (typeof data?.spx === 'string' ? parseFloat(String(data.spx).replace(/,/g, '')) : data?.spx ?? 0)
   const ndxNum   = typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0
   const priceRef = isNdx ? ndxNum : priceNum
   const cwNum    = parseFloat(String(cWall).replace(/,/g, '')) || 0

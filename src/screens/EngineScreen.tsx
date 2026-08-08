@@ -41,8 +41,8 @@ export default function EngineScreen() {
 
         <Row label="Zone State"       value={data?.spx_zone_state} />
         <Row label="Current Zone"     value={data?.spx_zone_label ?? data?.zone_label} />
-        <Row label="Next Zone"        value={fmtN(data?.es_10m_next_zone)} />
-        <Row label="Prev Zone"        value={fmtN(data?.es_10m_prev_zone)} />
+        <Row label="Next Zone"        value={data?.es_10m_zone_next_bot != null ? `${fmtN(data.es_10m_zone_next_bot)} – ${fmtN(data?.es_10m_zone_next_top)}` : null} />
+        <Row label="Prev Zone"        value={data?.es_10m_zone_prev_bot != null ? `${fmtN(data.es_10m_zone_prev_bot)} – ${fmtN(data?.es_10m_zone_prev_top)}` : null} />
         <Divider />
         <Row label="OI Room"          value={data?.oi_room} />
         <Row label="OI Pin"           value={data?.oi_pin} />

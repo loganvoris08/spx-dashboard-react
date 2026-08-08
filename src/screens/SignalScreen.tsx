@@ -11,12 +11,6 @@ function sigClass(s?: string) {
   return 'wait'
 }
 
-function sigColor(cls: string) {
-  if (cls === 'long')  return 'var(--green)'
-  if (cls === 'short') return 'var(--red)'
-  if (cls === 'watch') return 'var(--yellow)'
-  return 'var(--muted2)'
-}
 
 function fmtN(v: any, d = 0) {
   if (v == null || v === '' || v === '--') return '--'
@@ -75,7 +69,6 @@ export default function SignalScreen() {
   const swing     = data?.swing_signal?.signal ?? data?.swing_history?.[0]?.signal
 
   const cls   = sigClass(signal)
-  const color = sigColor(cls)
   const swCls = sigClass(swing)
 
   // Session stats — session_stats is a nested object

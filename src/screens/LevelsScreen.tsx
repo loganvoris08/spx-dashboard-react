@@ -51,8 +51,8 @@ function fmtNum(v: any, d = 0) {
 
 function scoreBarColor(score: number | null) {
   if (score == null) return 'var(--yellow)'
-  if (score > 0) return 'var(--green)'
-  if (score < 0) return 'var(--red)'
+  if (score >= 65) return 'var(--green)'
+  if (score <= 35) return 'var(--red)'
   return 'var(--yellow)'
 }
 
@@ -246,20 +246,59 @@ export default function LevelsScreen() {
   const dhPressure  = !isNdx ? data?.delta_hedging_pressure : null
   const gammaDollar = !isNdx ? data?.dealer_gamma_dollar_per_pct : null
 
-  // Scorecard — read from ndx bucket when on NDX side
-  const score     = isNdx ? (nd.dealer_score ?? nd.scorecard_score ?? null) : (data?.dealer_score ?? data?.scorecard_score ?? null)
-  const scoreLabel= isNdx ? (nd.dealer_label ?? nd.scorecard_label ?? null) : (data?.dealer_label ?? data?.scorecard_label ?? null)
-  const scGamma   = isNdx ? (nd.scf_gamma   ?? nd.charm_flow   ?? null) : (data?.scf_gamma   ?? data?.charm_flow)
-  const scDelta   = isNdx ? (nd.scf_delta   ?? nd.delta_hedging_pressure ?? null) : (data?.scf_delta   ?? data?.delta_hedging_pressure)
-  const scFlip    = isNdx ? (nd.scf_flip    ?? (nd.gex_flip_zone_raw ? 'ABOVE' : null)) : (data?.scf_flip ?? (data?.gex_flip_zone_raw ? 'ABOVE' : null))
-  const scFlow    = isNdx ? (nd.scf_flow    ?? nd.flow_bias    ?? null) : (data?.scf_flow    ?? data?.flow_bias)
-  const scCharm   = isNdx ? (nd.scf_charm   ?? null)           : (data?.scf_charm   ?? data?.charm_flow)
-  const scVanna   = isNdx ? (nd.scf_vanna   ?? null)           : (data?.scf_vanna   ?? data?.vanna_flow)
+  // Compute dealer score client-side (mirrors _updateScorecard in old dashboard)
+  type ScFactor = { label: string; val: string; cls: string }
+  const dealerScore = (() => {
+    const src = isNdx ? nd : (data ?? {})
+    if (!data) return null
+    let sc = 50
+    const factors: ScFactor[] = []
+    const fmtD = (v: number) => { const a = Math.abs(v); if (a >= 1e9) return (a/1e9).toFixed(2)+'B'; if (a >= 1e6) return (a/1e6).toFixed(1)+'M'; if (a >= 1e3) return (a/1e3).toFixed(0)+'K'; return a.toFixed(1) }
+    const gamma = isNdx ? String(src.net_gex_state ?? '') : String(src.uw_gamma_regime ?? '')
+    if (gamma.includes('Positive')) { sc -= 15; factors.push({ label: 'Gamma', val: 'POSITIVE GAMMA', cls: 'bull' }) }
+    else if (gamma.includes('Negative')) { sc += 15; factors.push({ label: 'Gamma', val: 'NEGATIVE GAMMA', cls: 'bear' }) }
+    else { factors.push({ label: 'Gamma', val: 'NEUTRAL GAMMA', cls: 'warn' }) }
+    const dh = src.delta_hedging_pressure ?? 'NEUTRAL'
+    const ndVal = parseFloat(src.net_delta_val ?? 0) || 0
+    if (dh === 'BULLISH') { sc += 15; factors.push({ label: 'Delta', val: `BUYING +$${fmtD(ndVal)}`, cls: 'bull' }) }
+    else if (dh === 'BEARISH') { sc -= 15; factors.push({ label: 'Delta', val: `SELLING -$${fmtD(ndVal)}`, cls: 'bear' }) }
+    else { factors.push({ label: 'Delta', val: 'NEUTRAL', cls: 'warn' }) }
+    const flipR = parseFloat(src.gex_flip_zone_raw ?? 0) || 0
+    const prN = isNdx
+      ? (typeof src.price === 'string' ? parseFloat(String(src.price).replace(/,/g, '')) : src.price ?? 0)
+      : (typeof data?.spx === 'string' ? parseFloat(String(data.spx).replace(/,/g, '')) : data?.spx ?? 0)
+    if (flipR > 0 && prN > 0) {
+      const dist = prN - flipR
+      if (dist > 5) { sc += 12; factors.push({ label: 'Flip', val: `ABOVE +${dist.toFixed(0)}pts`, cls: 'bull' }) }
+      else if (dist < -5) { sc -= 12; factors.push({ label: 'Flip', val: `BELOW ${dist.toFixed(0)}pts`, cls: 'bear' }) }
+      else { factors.push({ label: 'Flip', val: 'AT FLIP', cls: 'warn' }) }
+    } else { factors.push({ label: 'Flip', val: '--', cls: 'neut' }) }
+    const flow = src.flow_bias ?? 'BALANCED'
+    if (flow === 'CALL HEAVY') { sc += 10; factors.push({ label: 'Flow', val: 'CALL HEAVY', cls: 'bull' }) }
+    else if (flow === 'PUT HEAVY') { sc -= 10; factors.push({ label: 'Flow', val: 'PUT HEAVY', cls: 'bear' }) }
+    else { factors.push({ label: 'Flow', val: 'BALANCED', cls: 'warn' }) }
+    const charm = src.charm_flow ?? 'NEUTRAL'
+    if (charm === 'BUYING') { sc += 5; factors.push({ label: 'Charm', val: 'BUYING', cls: 'bull' }) }
+    else if (charm === 'SELLING') { sc -= 5; factors.push({ label: 'Charm', val: 'SELLING', cls: 'bear' }) }
+    else { factors.push({ label: 'Charm', val: 'NEUTRAL', cls: 'warn' }) }
+    const vanna = src.vanna_flow ?? 'NEUTRAL'
+    if (vanna === 'AMPLIFIED') { sc -= 3; factors.push({ label: 'Vanna', val: 'AMPLIFIED⚠', cls: 'bear' }) }
+    else if (vanna === 'ELEVATED') { factors.push({ label: 'Vanna', val: 'ELEVATED', cls: 'warn' }) }
+    else { factors.push({ label: 'Vanna', val: 'MUTED', cls: 'bull' }) }
+    sc = Math.max(0, Math.min(100, sc))
+    let label = 'DEALER NEUTRAL'
+    if (sc >= 65) label = 'BULLISH TAILWIND'
+    else if (sc <= 35) label = 'BEARISH HEADWIND'
+    return { score: sc, label, factors }
+  })()
+  const score      = dealerScore?.score ?? null
+  const scoreLabel = dealerScore?.label ?? null
+  const scFactors  = dealerScore?.factors ?? []
 
-  // Price references
+  // Price references (spx field = current price)
   const priceNum = isNdx
     ? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0)
-    : (data?.daily_open ?? 0)
+    : (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0)
   const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
   const cwNum    = parseFloat(String(cWall ?? '').replace(/,/g, '')) || 0
   const pwNum    = parseFloat(String(pWall ?? '').replace(/,/g, '')) || 0
@@ -281,7 +320,7 @@ export default function LevelsScreen() {
     return 'neut'
   }
 
-  const scoreBarW = score != null ? `${Math.min(100, Math.max(0, (score + 30) / 60 * 100))}%` : '50%'
+  const scoreBarW = score != null ? `${score}%` : '50%'
 
   return (
     <>
@@ -460,36 +499,25 @@ export default function LevelsScreen() {
       </div>
 
       {/* ── Dealer Score ── */}
-      {(score != null || scGamma || scDelta) && (
+      {score != null && (
         <div className="panel">
           <div className="panel-title">Dealer Positioning Score</div>
           <div className="scorecard">
             <div className="scorecard-header">
               <span className="scorecard-title">Dealer Score</span>
               <div style={{ textAlign: 'right' }}>
-                {score != null && <div className={`scorecard-score ${score > 0 ? 'bull' : score < 0 ? 'bear' : 'neut'}`}>{score}</div>}
-                {scoreLabel && <div className={`scorecard-label ${score != null && score > 0 ? 'bull' : score != null && score < 0 ? 'bear' : 'neut'}`}>{scoreLabel}</div>}
+                <div className={`scorecard-score ${score >= 65 ? 'bull' : score <= 35 ? 'bear' : 'neut'}`}>{score}</div>
+                {scoreLabel && <div className={`scorecard-label ${score >= 65 ? 'bull' : score <= 35 ? 'bear' : 'neut'}`}>{scoreLabel}</div>}
               </div>
             </div>
-            {score != null && (
-              <div className="scorecard-bar">
-                <div className="scorecard-bar-fill" style={{ width: scoreBarW, background: scoreBarColor(score) }} />
-              </div>
-            )}
+            <div className="scorecard-bar">
+              <div className="scorecard-bar-fill" style={{ width: scoreBarW, background: scoreBarColor(score) }} />
+            </div>
             <div className="scorecard-factors">
-              {[
-                { label: 'Gamma',  val: scGamma  ?? (isNdx ? nd.gamma_state : data?.gamma_state) },
-                { label: 'Delta',  val: scDelta  ?? (isNdx ? nd.net_delta_dir : data?.net_delta_dir) },
-                { label: 'Flip',   val: scFlip },
-                { label: 'Flow',   val: scFlow   ?? (isNdx ? nd.flow_bias : data?.flow_bias) },
-                { label: 'Charm',  val: scCharm },
-                { label: 'Vanna',  val: scVanna },
-              ].map((f, i) => (
+              {scFactors.map((f, i) => (
                 <div key={i} className="sc-factor">
                   <div className="sc-factor-label">{f.label}</div>
-                  <div className={`sc-factor-val ${f.val && String(f.val).toUpperCase().includes('BULL') ? 'bull' : f.val && String(f.val).toUpperCase().includes('BEAR') ? 'bear' : 'neut'}`}>
-                    {f.val ?? '--'}
-                  </div>
+                  <div className={`sc-factor-val ${f.cls}`}>{f.val}</div>
                 </div>
               ))}
             </div>
