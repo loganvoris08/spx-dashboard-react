@@ -159,7 +159,13 @@ export default function SignalScreen() {
         <div className="sess-bar">
           {prevClose && <div className="sess-item"><div className="sess-label">Prev Close</div><div className="sess-val">{fmtN(prevClose, 2)}</div></div>}
           {dayOpen   && <div className="sess-item"><div className="sess-label">Day Open</div><div className="sess-val">{fmtN(dayOpen, 2)}</div></div>}
-          {gap != null && <div className="sess-item"><div className="sess-label">Gap</div><div className="sess-val warn">{fmtN(gap, 2)}</div></div>}
+          {gap != null && (() => {
+            const g = parseFloat(String(gap))
+            const gPct = data?.session_stats?.gap_pct ?? data?.gap_pct
+            const sign = g >= 0 ? '+' : ''
+            const pctStr = gPct != null ? ` (${g >= 0 ? '+' : ''}${parseFloat(String(gPct)).toFixed(2)}%)` : ''
+            return <div className="sess-item"><div className="sess-label">Gap</div><div className={`sess-val ${g > 0 ? 'pos' : g < 0 ? 'neg' : 'warn'}`}>{sign}{fmtN(gap, 2)}{pctStr}</div></div>
+          })()}
           {dayHigh   && <div className="sess-item"><div className="sess-label">Day High</div><div className="sess-val pos">{fmtN(dayHigh, 2)}</div></div>}
           {dayLow    && <div className="sess-item"><div className="sess-label">Day Low</div><div className="sess-val neg">{fmtN(dayLow, 2)}</div></div>}
           {dayRange  && <div className="sess-item"><div className="sess-label">Range</div><div className="sess-val warn">{fmtN(dayRange, 2)}</div></div>}
@@ -197,8 +203,8 @@ export default function SignalScreen() {
               {(implPts || implPct) && (
                 <div className="mkt-ctx-item">
                   <div className="mkt-ctx-label">Implied Weekly Move</div>
-                  <div className="mkt-ctx-val warn">{implPts ? fmtN(implPts, 0) + ' pts' : '--'}</div>
-                  {implPct && <div className="mkt-ctx-sub">{Number(implPct).toFixed(1)}%</div>}
+                  <div className="mkt-ctx-val warn">{implPts ? '±' + fmtN(implPts, 0) + ' pts' : '--'}</div>
+                  {implPct && <div className="mkt-ctx-sub">±{Number(implPct).toFixed(2)}%</div>}
                 </div>
               )}
               {esBasis != null && (
@@ -211,7 +217,7 @@ export default function SignalScreen() {
               {volSkew != null && (
                 <div className="mkt-ctx-item">
                   <div className="mkt-ctx-label">Vol Skew</div>
-                  <div className="mkt-ctx-val">{Number(volSkew).toFixed(1)}</div>
+                  <div className="mkt-ctx-val">{(() => { const s = Number(volSkew); return (s > 0 ? '+' : '') + s.toFixed(1) + ' vol pts' })()}</div>
                   {volSkewLbl && <div className="mkt-ctx-sub">{volSkewLbl}</div>}
                 </div>
               )}
