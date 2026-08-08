@@ -31,6 +31,7 @@ export default function EngineScreen() {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   }
   const tsStr = fmtTs(data?.last_update ?? data?.last_refresh)
+  const refreshStr = fmtTs(data?.last_options_refresh ?? data?.last_refresh ?? data?.last_update)
   const webhookTs = fmtTs(data?.last_webhook ?? data?.webhook_ts)
 
   return (
@@ -52,13 +53,13 @@ export default function EngineScreen() {
         <Row label="Dealer Regime"    value={data?.uw_gamma_regime ?? data?.gamma_state} />
         <Row label="Dealer Alignment" value={data?.dealer_alignment} />
         <Divider />
-        <Row label="Swing Break"      value={data?.swing_break} />
+        <Row label="Swing Break"      value={data?.swing_break ?? (data?.swing_break_confirmed != null ? (data.swing_break_confirmed ? `Confirmed ${data.swing_break_direction ?? 'UP'}` : 'Not confirmed') : null)} />
         <Row label="Swing Closes"     value={data?.swing_closes} />
         <Row label="Daily Zone"       value={data?.daily_zone ?? data?.es_d_zone_state} />
         <Divider />
         <Row label="Last Webhook"     value={webhookTs} />
         <Row label="Options Status"   value={data?.options_status} />
-        <Row label="Last Refresh"     value={tsStr} />
+        <Row label="Last Refresh"     value={refreshStr} />
         <Row label="Chain Count"      value={data?.chain_count} />
         <Row label="Last Update"      value={tsStr} />
       </div>
