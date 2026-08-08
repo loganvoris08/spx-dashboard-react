@@ -534,13 +534,15 @@ export default function FlowScreen() {
         <div className="panel">
           <div className="panel-title">Flow By Expiry</div>
           {expiryData.map((row: any, i: number) => {
-            const net = (row.call_prem ?? 0) - (row.put_prem ?? 0)
+            const cPrem = row.call_premium ?? row.call_prem ?? 0
+            const pPrem = row.put_premium  ?? row.put_prem  ?? 0
+            const net = cPrem - pPrem
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)', fontSize: 10 }}>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, minWidth: 60 }}>{row.expiry ?? row.date}</span>
-                <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)' }}>{row.call_prem != null ? fmtPrem(row.call_prem) : '--'}</span>
+                <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)' }}>{cPrem ? fmtPrem(cPrem) : '--'}</span>
                 <span style={{ color: 'var(--muted2)', fontSize: 8 }}>C</span>
-                <span style={{ color: 'var(--red)', fontFamily: 'var(--mono)' }}>{row.put_prem != null ? fmtPrem(Math.abs(row.put_prem)) : '--'}</span>
+                <span style={{ color: 'var(--red)', fontFamily: 'var(--mono)' }}>{pPrem ? fmtPrem(Math.abs(pPrem)) : '--'}</span>
                 <span style={{ color: 'var(--muted2)', fontSize: 8 }}>P</span>
                 <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', color: net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'var(--text)', fontWeight: 700 }}>
                   {net > 0 ? '+' : ''}{fmtPrem(net)}
@@ -555,15 +557,25 @@ export default function FlowScreen() {
       {sectorTide.length > 0 && (
         <div className="panel">
           <div className="panel-title">Sector Tide</div>
-          {sectorTide.map((s: any, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: '1px solid var(--border)', fontSize: 10 }}>
-              <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, minWidth: 40 }}>{s.ticker ?? s.symbol}</span>
-              <span style={{ flex: 1, color: 'var(--muted2)' }}>{s.name ?? ''}</span>
-              <span style={{ fontFamily: 'var(--mono)', color: (s.bias || '').includes('BULL') || (s.tide || '').includes('POS') ? 'var(--green)' : (s.bias || '').includes('BEAR') || (s.tide || '').includes('NEG') ? 'var(--red)' : 'var(--text)', fontWeight: 700, fontSize: 9 }}>
-                {s.bias ?? s.tide ?? s.state ?? '--'}
-              </span>
-            </div>
-          ))}
+          {sectorTide.map((s: any, i: number) => {
+            const name = s.sector ?? s.ticker ?? s.symbol ?? '--'
+            const callP = s.net_call_premium ?? s.call_premium ?? 0
+            const putP  = s.net_put_premium  ?? s.put_premium  ?? 0
+            const net   = callP - Math.abs(putP)
+            const bias  = s.bias ?? s.tide ?? s.state ?? (net > 0 ? 'BULL' : net < 0 ? 'BEAR' : 'NEUT')
+            const color = bias.includes('BULL') || net > 0 ? 'var(--green)' : bias.includes('BEAR') || net < 0 ? 'var(--red)' : 'var(--text)'
+            const fmtP  = (v: number) => Math.abs(v) >= 1e6 ? (v/1e6).toFixed(1)+'M' : Math.abs(v) >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0)
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)', fontSize: 10 }}>
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, minWidth: 80, fontSize: 9 }}>{name}</span>
+                <span style={{ flex: 1, display: 'flex', gap: 6, fontSize: 9 }}>
+                  <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)' }}>{callP ? fmtP(callP) : '--'} C</span>
+                  <span style={{ color: 'var(--red)', fontFamily: 'var(--mono)' }}>{putP ? fmtP(Math.abs(putP)) : '--'} P</span>
+                </span>
+                <span style={{ fontFamily: 'var(--mono)', color, fontWeight: 700, fontSize: 9 }}>{bias}</span>
+              </div>
+            )
+          })}
         </div>
       )}
 

@@ -5,6 +5,11 @@ import { useSide } from '../lib/SideContext'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
+async function apiFetch(path: string) {
+  const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token()}` } })
+  if (!res.ok) throw new Error(`${path} ${res.status}`)
+  return res.json()
+}
 
 function TickerRow({ c }: { c: any }) {
   const isCall  = (c.type || '').toLowerCase() === 'call'
@@ -116,8 +121,16 @@ export default function LevelsScreen() {
   const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
   const [ticker, setTicker]       = useState<any[]>([])
   const [tickerCount, setTickerCount] = useState(0)
+  const [gexStrikes, setGexStrikes] = useState<any[]>([])
   const seenRef = useState<Set<string>>(() => new Set())[0]
   const ladders = useLadders(true)
+
+  useEffect(() => {
+    setGexStrikes([])
+    apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
+      .then(d => setGexStrikes(d.strikes ?? []))
+      .catch(() => {})
+  }, [isNdx])
 
   const loadTicker = useCallback(async () => {
     const ep = isNdx ? '/api/ndx-flow' : '/api/spx-flow'
@@ -179,12 +192,10 @@ export default function LevelsScreen() {
   const oiRows = isNdx
     ? (ladders?.ndx?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ndx?.ladder_rows ?? [])
     : (ladders?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ladder_rows ?? [])
-  const gexRows = isNdx
-    ? (ladders?.ndx?.gex_ladder_buckets?.[gexBucket] ?? ladders?.ndx?.gex_ladder_rows ?? [])
-    : (ladders?.gex_ladder_buckets?.[gexBucket] ?? ladders?.gex_ladder_rows ?? [])
+  const gexRows = gexStrikes
 
   const maxOI  = Math.max(...(oiRows.map((r: any) => Math.max(r.call_value || 0, r.put_value || 0))), 1)
-  const maxGEX = Math.max(...(gexRows.map((r: any) => Math.max(Math.abs(r.call_gex || 0), Math.abs(r.put_gex || 0), Math.abs(r.net_gex || 0)))), 1)
+  const maxGEX = Math.max(...(gexRows.map((r: any) => Math.abs(r.net_gex || 0))), 1)
 
   const regimeCls = (r?: string) => {
     if (!r) return 'neut'

@@ -1,7 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
-import { useLadders, postAiRead } from '../hooks/useLadders'
+import { postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
+
+const BASE = import.meta.env.VITE_API_URL ?? ''
+function token() { return localStorage.getItem('dash_token') ?? '' }
+async function apiFetch(path: string) {
+  const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token()}` } })
+  if (!res.ok) throw new Error(`${path} ${res.status}`)
+  return res.json()
+}
 
 type Bucket = '0dte' | 'weekly' | 'monthly' | 'all'
 const BUCKETS: Bucket[] = ['0dte', 'weekly', 'monthly', 'all']
@@ -93,7 +101,13 @@ export default function GEXScreen() {
   const [range, setRange]         = useState(150)
   const [dealerText, setDealerText] = useState('')
   const [loadingDealer, setLoadingDealer] = useState(false)
-  const ladders = useLadders(true)
+  const [gexStrikes, setGexStrikes] = useState<any[]>([])
+  useEffect(() => {
+    setGexStrikes([])
+    apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
+      .then(d => setGexStrikes(d.strikes ?? []))
+      .catch(() => {})
+  }, [isNdx])
 
   const nd = data?.ndx ?? {}
   const regime   = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
@@ -128,17 +142,14 @@ export default function GEXScreen() {
     : (data?.daily_open ?? 0)
   const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
 
-  const allRows = isNdx
-    ? (ladders?.ndx?.gex_ladder_buckets?.[bucket] ?? ladders?.ndx?.gex_ladder_rows ?? [])
-    : (ladders?.gex_ladder_buckets?.[bucket] ?? ladders?.gex_ladder_rows ?? [])
-  const rangeFiltered = allRows.filter((r: any) => {
+  const rangeFiltered = gexStrikes.filter((r: any) => {
     const s = parseFloat(String(r.strike).replace(/,/g, ''))
     return Math.abs(s - priceNum) <= range
   })
-  const bucketData = rangeFiltered.length > 0 ? rangeFiltered : allRows
+  const bucketData = rangeFiltered.length > 0 ? rangeFiltered : gexStrikes
 
   // Top gamma strikes: sort by absolute net_gex
-  const topGamma = [...allRows]
+  const topGamma = [...gexStrikes]
     .sort((a: any, b: any) => Math.abs(b.net_gex ?? 0) - Math.abs(a.net_gex ?? 0))
     .slice(0, 8)
 
@@ -240,7 +251,7 @@ export default function GEXScreen() {
           <span style={{ color: 'var(--green)' }}>CALL GEX ▶</span>
         </div>
         <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} />
-        {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
+        {gexStrikes.length === 0 && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
       </div>
 
       {/* ── Flow Pressure ── */}
