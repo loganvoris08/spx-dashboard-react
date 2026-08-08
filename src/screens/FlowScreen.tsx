@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
 import { useLiveFlow } from '../hooks/useLiveFlow'
@@ -127,7 +127,7 @@ export default function FlowScreen() {
   const { on } = useSSE()
 
   // Live flow ticker via SSE (same feed as LevelsScreen)
-  const { alerts: tickerItems } = useLiveFlow(isNdx ? 'ndx' : 'spx')
+  const { alerts: tickerItems, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
 
   const [blockItems,   setBlockItems]   = useState<any[]>([])
   const [dpItems,      setDpItems]      = useState<any[]>([])
@@ -145,7 +145,6 @@ export default function FlowScreen() {
   const [flowAiText,   setFlowAiText]   = useState('')
   const [loadingFlowAi,setLoadingFlowAi]= useState(false)
 
-  const blockTimer  = useRef<any>(null) // kept for dark pool cancel
 
   const nd        = data?.ndx ?? {}
   const callPct   = isNdx ? (nd.flow_call_pct ?? 50) : (data?.flow_call_pct ?? 50)
@@ -372,7 +371,7 @@ export default function FlowScreen() {
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', animation: 'tkPulse 1.8s ease-in-out infinite' }} />
           </div>
-          <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{tickerSeen.current.size > 0 ? tickerSeen.current.size + ' today' : '—'}</span>
+          <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{tickerCount > 0 ? tickerCount + ' today' : '—'}</span>
         </div>
         <div style={{ display: 'flex', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
           {[
