@@ -101,7 +101,6 @@ export default function FlowScreen() {
   const [dpItems,      setDpItems]      = useState<any[]>([])
   const [unusualItems, setUnusualItems] = useState<any[]>([])
   const [dteStats,     setDteStats]     = useState<any>(null)
-  const [nopeData,     setNopeData]     = useState<any>(null)
   const [greekData,    setGreekData]    = useState<any>(null)
   const [expiryData,   setExpiryData]   = useState<any[]>([])
   const [sectorTide,   setSectorTide]   = useState<any[]>([])
@@ -116,7 +115,6 @@ export default function FlowScreen() {
   const tickerTimer = useRef<any>(null)
   const blockTimer  = useRef<any>(null)
   const dteTimer    = useRef<any>(null)
-  const nopeTimer   = useRef<any>(null)
   const tickerSeen  = useRef(new Set<string>())
 
   const nd        = data?.ndx ?? {}
@@ -179,21 +177,13 @@ export default function FlowScreen() {
     }
   }, [isNdx])
 
-  /* ── NOPE ── */
-  const loadNope = useCallback(async () => {
-    try {
-      const d = await apiFetch('/api/nope')
-      setNopeData(d)
-    } catch {}
-  }, [])
-
   /* ── Greek flow ── */
   const loadGreek = useCallback(async () => {
     try {
       const d = await apiFetch('/api/greek-flow')
       setGreekData(d)
     } catch {
-      // fallback: main data payload may include greek_flow array
+      // data.greek_flow array used as fallback below
     }
   }, [])
 
@@ -264,7 +254,6 @@ export default function FlowScreen() {
     loadBlocks()
     load0dte()
     loadDarkPool()
-    loadNope()
     loadGreek()
     loadExpiry()
     loadSector()
@@ -272,15 +261,13 @@ export default function FlowScreen() {
     tickerTimer.current = setInterval(loadTicker, 17_000)
     blockTimer.current  = setInterval(loadBlocks,  30_000)
     dteTimer.current    = setInterval(load0dte,    60_000)
-    nopeTimer.current   = setInterval(loadNope,    60_000)
 
     return () => {
       clearInterval(tickerTimer.current)
       clearInterval(blockTimer.current)
       clearInterval(dteTimer.current)
-      clearInterval(nopeTimer.current)
     }
-  }, [isNdx, loadTicker, loadBlocks, load0dte, loadDarkPool, loadNope, loadGreek, loadExpiry, loadSector])
+  }, [isNdx, loadTicker, loadBlocks, load0dte, loadDarkPool, loadGreek, loadExpiry, loadSector])
 
   /* ── 0DTE computed values ── */
   const dteCallPrem = dteStats?.net_call_prem ?? dteStats?.call_premium
@@ -458,42 +445,50 @@ export default function FlowScreen() {
       </div>
 
       {/* ── NOPE ── */}
-      <div className="panel">
-        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          NOPE — Net Options Pricing Effect
-          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
-        </div>
-        <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Net dealer delta flow adjusted for options volume. Positive = net bullish hedge pressure. Negative = bearish.</div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-            <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>NOPE</div>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: nopeData?.nope_val != null ? (nopeData.nope_val > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
-              {nopeData?.nope_val != null ? Number(nopeData.nope_val).toFixed(2) : '--'}
+      {(() => {
+        const nopeArr: any[] = data?.nope || []
+        const nopeLast = nopeArr.length ? nopeArr[nopeArr.length - 1] : null
+        const nopeVal  = nopeLast?.nope      ?? nopeLast?.nope_val
+        const nopeFill = nopeLast?.nope_fill ?? nopeLast?.nope_fill_val
+        return (
+          <div className="panel">
+            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              NOPE — Net Options Pricing Effect
+              <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
             </div>
-          </div>
-          <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-            <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>NOPE Fill</div>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: nopeData?.nope_fill_val != null ? (nopeData.nope_fill_val > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
-              {nopeData?.nope_fill_val != null ? Number(nopeData.nope_fill_val).toFixed(2) : '--'}
+            <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Net dealer delta flow adjusted for options volume. Positive = net bullish hedge pressure. Negative = bearish.</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>NOPE</div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: nopeVal != null ? (nopeVal > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
+                  {nopeVal != null ? Number(nopeVal).toFixed(2) : '--'}
+                </div>
+              </div>
+              <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>NOPE Fill</div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: nopeFill != null ? (nopeFill > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
+                  {nopeFill != null ? Number(nopeFill).toFixed(2) : '--'}
+                </div>
+              </div>
             </div>
+            {nopeArr.length > 1 && (
+              <svg width="100%" height="50" viewBox="0 0 300 50" preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }}>
+                {(() => {
+                  const pts = nopeArr.map((r: any) => Number(r.nope ?? r.nope_val ?? 0))
+                  const mn = Math.min(...pts), mx = Math.max(...pts)
+                  const rng = mx - mn || 1
+                  const coords = pts.map((v: number, i: number) => `${(i / (pts.length - 1)) * 300},${50 - ((v - mn) / rng) * 46}`)
+                  const zero = 50 - ((-mn) / rng) * 46
+                  return <>
+                    <line x1="0" y1={zero} x2="300" y2={zero} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                    <polyline points={coords.join(' ')} fill="none" stroke="var(--yellow)" strokeWidth="1.5" />
+                  </>
+                })()}
+              </svg>
+            )}
           </div>
-        </div>
-        {nopeData?.history && Array.isArray(nopeData.history) && nopeData.history.length > 1 && (
-          <svg width="100%" height="50" viewBox="0 0 300 50" preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }}>
-            {(() => {
-              const pts = nopeData.history.map((v: number) => Number(v))
-              const mn = Math.min(...pts), mx = Math.max(...pts)
-              const rng = mx - mn || 1
-              const coords = pts.map((v: number, i: number) => `${(i / (pts.length - 1)) * 300},${50 - ((v - mn) / rng) * 46}`)
-              const zero = 50 - ((-mn) / rng) * 46
-              return <>
-                <line x1="0" y1={zero} x2="300" y2={zero} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-                <polyline points={coords.join(' ')} fill="none" stroke="var(--green)" strokeWidth="1.5" />
-              </>
-            })()}
-          </svg>
-        )}
-      </div>
+        )
+      })()}
 
       {/* ── Greek Flow ── */}
       {(() => {
