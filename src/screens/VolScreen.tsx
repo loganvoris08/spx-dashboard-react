@@ -326,18 +326,6 @@ export default function VolScreen() {
         </div>
       )}
 
-      {/* ── VIX Term Structure data from API ── */}
-      {termData.length > 0 && (
-        <div className="panel">
-          <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}>VIX TERM STRUCTURE</div>
-          {termData.map((row: any, i: number) => (
-            <div key={i} className="td-row">
-              <span className="td-label">{row.tenor ?? row.label ?? row.expiry ?? row.date ?? `Row ${i+1}`}</span>
-              <span className="td-val" style={{ fontFamily: 'var(--mono)' }}>{row.vix ?? row.value ?? row.iv ?? '--'}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ── SPX Risk Reversal Skew ── */}
       {(rrData25.length > 0 || rrData10.length > 0) && (() => {
