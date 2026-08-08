@@ -279,25 +279,36 @@ export default function LevelsScreen() {
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, W, H)
 
-    const prices = priceData.map((d: any) => d.value)
-    const lo = Math.min(...prices), hi = Math.max(...prices)
-    const rng = hi - lo || 1
-    const py = (v: number) => H - ((v - lo) / rng) * (H - 2) - 1
+    // Normalize around flip zone — flip sits at exact center, price moves above/below
+    const midY = H / 2
+    const flipBase = flipNum_e > 0 ? flipNum_e : (priceData[priceData.length - 1]?.value ?? 0)
+    const deviations = priceData.map((d: any) => Math.abs(d.value - flipBase))
+    const maxDev = Math.max(...deviations, 5)
+    const py = (v: number) => midY - ((v - flipBase) / maxDev) * (midY - 3)
 
-    const isNeg = String(regime ?? '').toLowerCase().includes('neg')
-    const lineColor = isNeg ? '#ff3344' : '#00ff88'
-    const fillColor = isNeg ? 'rgba(255,51,68,0.15)' : 'rgba(0,255,136,0.12)'
+    const lastPrice = priceData[priceData.length - 1]?.value ?? flipBase
+    const isAboveFlip = lastPrice >= flipBase
+    const lineColor = isAboveFlip ? '#00ff88' : '#ff3344'
+    const fillColor = isAboveFlip ? 'rgba(0,255,136,0.12)' : 'rgba(255,51,68,0.15)'
 
-    // Fill area
+    // Flip zone center line (always at midY)
+    ctx.setLineDash([3, 3])
+    ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(W, midY)
+    ctx.strokeStyle = 'rgba(168,85,247,0.7)'; ctx.lineWidth = 1; ctx.stroke()
+    ctx.setLineDash([])
+
+    if (priceData.length < 2) return
+
+    // Fill area between price line and flip center
     ctx.beginPath()
     priceData.forEach((d: any, i: number) => {
       const x = (i / (priceData.length - 1)) * W
       if (i === 0) ctx.moveTo(x, py(d.value)); else ctx.lineTo(x, py(d.value))
     })
-    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath()
+    ctx.lineTo(W, midY); ctx.lineTo(0, midY); ctx.closePath()
     ctx.fillStyle = fillColor; ctx.fill()
 
-    // Line
+    // Price line
     ctx.beginPath()
     priceData.forEach((d: any, i: number) => {
       const x = (i / (priceData.length - 1)) * W
@@ -305,22 +316,10 @@ export default function LevelsScreen() {
     })
     ctx.strokeStyle = lineColor; ctx.lineWidth = 1.5; ctx.stroke()
 
-    // Flip zone dashed line
-    if (flipData.length && flipNum_e > 0) {
-      const flipY = py(flipNum_e)
-      ctx.setLineDash([3, 3])
-      ctx.beginPath(); ctx.moveTo(0, flipY); ctx.lineTo(W, flipY)
-      ctx.strokeStyle = 'rgba(168,85,247,0.6)'; ctx.lineWidth = 1; ctx.stroke()
-      ctx.setLineDash([])
-    }
-
     // Current price dot
-    if (priceData.length > 0) {
-      const last = priceData[priceData.length - 1]
-      const x = W, y = py(last.value)
-      ctx.beginPath(); ctx.arc(x - 2, y, 2.5, 0, Math.PI * 2)
-      ctx.fillStyle = lineColor; ctx.fill()
-    }
+    const last = priceData[priceData.length - 1]
+    ctx.beginPath(); ctx.arc(W - 2, py(last.value), 2.5, 0, Math.PI * 2)
+    ctx.fillStyle = lineColor; ctx.fill()
   }, [flipChSeries, regime, flipNum_e])
 
   // Remaining banner stats
