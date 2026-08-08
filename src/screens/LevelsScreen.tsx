@@ -79,12 +79,12 @@ function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut, hotScores
   const pFill     = Math.min(1, (row.put_value  || 0) / maxPut)
   const cFill     = Math.min(1, (row.call_value || 0) / maxCall)
   const sc100 = hotScore != null ? hotScore / 100 : 0
-  const pInt  = Math.max(pFill * 0.52, sc100)
-  const cInt  = Math.max(cFill * 0.52, sc100)
-  const pH    = Math.max(2, pInt * 11)
-  const cH    = Math.max(2, cInt * 11)
-  const pA    = Math.max(0.18, pInt * 0.85)
-  const cA    = Math.max(0.18, cInt * 0.85)
+  const pInt  = Math.max(pFill * 0.80, sc100)
+  const cInt  = Math.max(cFill * 0.80, sc100)
+  const pH    = Math.max(4, pInt * 10)
+  const cH    = Math.max(4, cInt * 10)
+  const pA    = Math.max(0.45, pInt * 0.82)
+  const cA    = Math.max(0.45, cInt * 0.82)
   const pGlow = isHot && pFill >= cFill ? `0 0 ${Math.round(pInt * 14)}px rgba(255,51,68,0.75)` : undefined
   const cGlow = isHot && cFill > pFill  ? `0 0 ${Math.round(cInt * 14)}px rgba(0,255,136,0.75)` : undefined
   const bg = isPrice ? 'rgba(255,204,0,0.07)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)'
@@ -126,12 +126,12 @@ function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut, hotScores }: {
   const pFill = Math.min(1, pGex / maxPut)
   const cFill = Math.min(1, cGex / maxCall)
   const sc100 = hotScore != null ? hotScore / 100 : 0
-  const pInt  = Math.max(pFill * 0.52, sc100)
-  const cInt  = Math.max(cFill * 0.52, sc100)
-  const pH    = Math.max(2, pInt * 11)
-  const cH    = Math.max(2, cInt * 11)
-  const pA    = Math.max(0.18, pInt * 0.85)
-  const cA    = Math.max(0.18, cInt * 0.85)
+  const pInt  = Math.max(pFill * 0.80, sc100)
+  const cInt  = Math.max(cFill * 0.80, sc100)
+  const pH    = Math.max(4, pInt * 10)
+  const cH    = Math.max(4, cInt * 10)
+  const pA    = Math.max(0.45, pInt * 0.82)
+  const cA    = Math.max(0.45, cInt * 0.82)
   const pGlow = isHot && pFill >= cFill ? `0 0 ${Math.round(pInt * 14)}px rgba(255,51,68,0.75)` : undefined
   const cGlow = isHot && cFill > pFill  ? `0 0 ${Math.round(cInt * 14)}px rgba(0,255,136,0.75)` : undefined
   const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)'
