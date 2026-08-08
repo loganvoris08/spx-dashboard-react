@@ -36,7 +36,9 @@ function VixBar({ label, val, maxV }: { label: string; val: number; maxV: number
 export default function VolScreen() {
   const { data } = useDashboard()
   const [termData,   setTermData]   = useState<any[]>([])
-  const [rrData,     setRrData]     = useState<any[]>([])
+  const [rrData25,   setRrData25]   = useState<any[]>([])
+  const [rrData10,   setRrData10]   = useState<any[]>([])
+  const [ivCurve,    setIvCurve]    = useState<any[]>([])
   const [volStats,   setVolStats]   = useState<any>(null)
   const [volRead,    setVolRead]    = useState('')
   const [loadingVol, setLoadingVol] = useState(false)
@@ -84,8 +86,21 @@ export default function VolScreen() {
 
   const loadRrSkew = useCallback(async () => {
     try {
-      const d = await apiFetch('/api/rr-skew')
-      setRrData(d.data || d.rows || [])
+      const d = await apiFetch('/api/spx-skew')
+      setRrData25(d.data_25 || d.data || [])
+      setRrData10(d.data_10 || [])
+    } catch {}
+  }, [])
+
+  const loadIvCurve = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/spx-realized-vol')
+      const rows: any[] = (d.data || []).filter((r: any) => r.days && r.iv > 0)
+      const showDays = [1, 5, 7, 14, 21, 30, 60, 90, 180, 365]
+      const byDay: Record<number, any> = {}
+      rows.forEach((r: any) => { byDay[r.days] = r })
+      const filtered = showDays.map(d => byDay[d]).filter(Boolean)
+      setIvCurve(filtered.length ? filtered : rows.slice(0, 10))
     } catch {}
   }, [])
 
@@ -100,7 +115,8 @@ export default function VolScreen() {
     loadTermStructure()
     loadRrSkew()
     loadVolStats()
-  }, [loadTermStructure, loadRrSkew, loadVolStats])
+    loadIvCurve()
+  }, [loadTermStructure, loadRrSkew, loadVolStats, loadIvCurve])
 
   async function handleVolRead() {
     setLoadingVol(true)
@@ -178,15 +194,61 @@ export default function VolScreen() {
       )}
 
       {/* ── SPX Risk Reversal Skew ── */}
-      {rrData.length > 0 && (
-        <div className="panel">
-          <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}>SPX RISK REVERSAL SKEW (25Δ Put − Call)</div>
-          {rrData.map((row: any, i: number) => (
-            <div key={i} className="td-row">
-              <span className="td-label">{row.label || row.expiry || `Row ${i+1}`}</span>
-              <span className="td-val">{row.value ?? row.rr ?? '--'}</span>
+      {(rrData25.length > 0 || rrData10.length > 0) && (() => {
+        function rrLast(rows: any[]) {
+          for (let i = rows.length - 1; i >= 0; i--) {
+            const v = parseFloat(rows[i].risk_reversal ?? rows[i].skew ?? rows[i].rr ?? rows[i].value ?? '')
+            if (!isNaN(v) && Math.abs(v) >= 0.1) {
+              const scaled = Math.abs(v) < 1 && v !== 0 ? v * 100 : v
+              return scaled
+            }
+          }
+          return null
+        }
+        const last25 = rrLast(rrData25)
+        const last10 = rrLast(rrData10)
+        const rrColor = (v: number) => v <= -3 ? 'var(--green)' : v >= 3 ? 'var(--red)' : 'var(--muted2)'
+        return (
+          <div className="panel">
+            <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}>SPX RISK REVERSAL SKEW (25Δ Put − Call)</div>
+            <div style={{ display: 'flex', gap: 16 }}>
+              {last25 != null && (
+                <div>
+                  <div style={{ fontSize: 8, color: 'var(--muted2)' }}>25Δ RR</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: rrColor(last25) }}>{(last25 >= 0 ? '+' : '') + last25.toFixed(2)} vol pts</div>
+                </div>
+              )}
+              {last10 != null && (
+                <div>
+                  <div style={{ fontSize: 8, color: 'var(--muted2)' }}>10Δ RR</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: rrColor(last10) }}>{(last10 >= 0 ? '+' : '') + last10.toFixed(2)} vol pts</div>
+                </div>
+              )}
             </div>
-          ))}
+          </div>
+        )
+      })()}
+
+      {/* ── IV Term Structure (interpolated) ── */}
+      {ivCurve.length > 0 && (
+        <div className="panel">
+          <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}>IV TERM STRUCTURE</div>
+          {ivCurve.map((r: any, i: number) => {
+            const days = r.days
+            const label = days <= 7 ? `${days}d` : days <= 30 ? `${days}d` : days <= 90 ? `${Math.round(days / 7)}w` : `${Math.round(days / 30)}m`
+            const iv = parseFloat(r.iv) || 0
+            const maxIv = Math.max(...ivCurve.map((x: any) => parseFloat(x.iv) || 0))
+            const pct = maxIv > 0 ? Math.round((iv / maxIv) * 80) + 10 : 50
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted2)', minWidth: 28 }}>{label}</span>
+                <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: iv >= 25 ? 'var(--red)' : iv >= 18 ? 'var(--yellow)' : 'var(--green)', borderRadius: 3 }} />
+                </div>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{iv.toFixed(1)}%</span>
+              </div>
+            )
+          })}
         </div>
       )}
 
