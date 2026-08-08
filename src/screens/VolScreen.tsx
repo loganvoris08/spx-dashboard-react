@@ -104,19 +104,18 @@ export default function VolScreen() {
     } catch {}
   }, [])
 
-  const loadVolStats = useCallback(async () => {
-    try {
-      const d = await apiFetch('/api/vol-stats')
-      setVolStats(d)
-    } catch {}
-  }, [])
-
   useEffect(() => {
     loadTermStructure()
     loadRrSkew()
-    loadVolStats()
     loadIvCurve()
-  }, [loadTermStructure, loadRrSkew, loadVolStats, loadIvCurve])
+  }, [loadTermStructure, loadRrSkew, loadIvCurve])
+
+  // vol_stats comes from the main /data endpoint via useDashboard
+  useEffect(() => {
+    if (data?.vol_stats && Object.keys(data.vol_stats).length > 0) {
+      setVolStats(data.vol_stats)
+    }
+  }, [data])
 
   async function handleVolRead() {
     setLoadingVol(true)
@@ -144,6 +143,9 @@ export default function VolScreen() {
             </div>
           ))}
         </div>
+        {data?.vr_read && (
+          <div style={{ fontSize: 10, color: 'var(--text)', lineHeight: 1.6, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 8 }}>{data.vr_read}</div>
+        )}
       </div>
 
       {/* ── VIX Term Structure bars ── */}
@@ -272,6 +274,12 @@ export default function VolScreen() {
               </div>
             ))}
           </div>
+          {(volStats.iv_low != null || volStats.rv_low != null) && (
+            <div style={{ display: 'flex', gap: 5, marginTop: 5, fontSize: 9, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>
+              {volStats.iv_low != null && <span>IV range: {volStats.iv_low.toFixed(1)}–{(volStats.iv_high ?? 0).toFixed(1)}%</span>}
+              {volStats.rv_low != null && <span style={{ marginLeft: 'auto' }}>RV range: {volStats.rv_low.toFixed(1)}–{(volStats.rv_high ?? 0).toFixed(1)}%</span>}
+            </div>
+          )}
         </div>
       )}
 

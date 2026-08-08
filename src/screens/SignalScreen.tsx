@@ -34,21 +34,24 @@ function Row({ label, value, col }: { label: string; value: any; col?: string })
   )
 }
 
-function ZoneBox({ label, bot, top, mid, state, next, prev }: {
-  label: string; bot?: number; top?: number; mid?: number; state?: string; next?: number; prev?: number
+function ZoneBox({ label, bot, top, mid, state, pct, nextBot, nextTop, prevBot, prevTop }: {
+  label: string; bot?: number; top?: number; mid?: number; state?: string; pct?: number
+  nextBot?: number; nextTop?: number; prevBot?: number; prevTop?: number
 }) {
   if (!bot && !top) return null
+  const fmtRange = (b?: number, t?: number) => b != null && t != null ? `${fmtN(b, 2)} – ${fmtN(t, 2)}` : b != null ? fmtN(b, 2) : '--'
   return (
     <div className="zone-status-box">
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
         <div className="zone-state-label">{state ?? label}</div>
+        {pct != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>{pct.toFixed(1)}% through zone</div>}
       </div>
       <div className="zone-levels">
         {bot  != null && <div className="zl"><div className="zl-label">Zone Bot</div><div className="zl-val">{fmtN(bot, 2)}</div></div>}
         {top  != null && <div className="zl"><div className="zl-label">Zone Top</div><div className="zl-val">{fmtN(top, 2)}</div></div>}
         {mid  != null && <div className="zl"><div className="zl-label">Mid</div><div className="zl-val">{fmtN(mid, 2)}</div></div>}
-        {prev != null && <div className="zl"><div className="zl-label">Prev Zone</div><div className="zl-val put">{fmtN(prev, 2)}</div></div>}
-        {next != null && <div className="zl"><div className="zl-label">Next Zone</div><div className="zl-val call">{fmtN(next, 2)}</div></div>}
+        {prevBot != null && <div className="zl"><div className="zl-label">Prev Zone</div><div className="zl-val put">{fmtRange(prevBot, prevTop)}</div></div>}
+        {nextBot != null && <div className="zl"><div className="zl-label">Next Zone</div><div className="zl-val call">{fmtRange(nextBot, nextTop)}</div></div>}
       </div>
     </div>
   )
@@ -59,7 +62,7 @@ export default function SignalScreen() {
   const { side } = useSide()
   const isNdx = side === 'ndx'
 
-  const signal    = data?.trade_signal ?? data?.signal ?? 'WAIT'
+  const signal    = data?.signal ?? 'WAIT'
   const score     = data?.score
   const maxScore  = data?.max_score
   const quality   = data?.setup_quality
@@ -95,20 +98,26 @@ export default function SignalScreen() {
   const volSkew    = data?.skew ?? data?.vol_skew
   const volSkewLbl = data?.skew_label ?? data?.vol_skew_label
 
-  // Zone data
-  const es10Bot   = data?.es_10m_zone_bot
-  const es10Top   = data?.es_10m_zone_top
-  const es10Mid   = data?.es_10m_zone_mid
-  const es10State = data?.es_10m_zone_state
-  const es10Next  = data?.es_10m_next_zone
-  const es10Prev  = data?.es_10m_prev_zone
+  // Zone data — next/prev are bot–top ranges
+  const es10Bot     = data?.es_10m_zone_bot
+  const es10Top     = data?.es_10m_zone_top
+  const es10Mid     = data?.es_10m_zone_mid
+  const es10State   = data?.es_10m_zone_state
+  const es10Pct     = data?.es_10m_zone_pct
+  const es10NextBot = data?.es_10m_zone_next_bot
+  const es10NextTop = data?.es_10m_zone_next_top
+  const es10PrevBot = data?.es_10m_zone_prev_bot
+  const es10PrevTop = data?.es_10m_zone_prev_top
 
-  const esDBot    = data?.es_d_zone_bot
-  const esDTop    = data?.es_d_zone_top
-  const esDMid    = data?.es_d_zone_mid
-  const esDState  = data?.es_d_zone_state
-  const esDNext   = data?.es_d_next_zone
-  const esDPrev   = data?.es_d_prev_zone
+  const esDBot      = data?.es_d_zone_bot
+  const esDTop      = data?.es_d_zone_top
+  const esDMid      = data?.es_d_zone_mid
+  const esDState    = data?.es_d_zone_state
+  const esDPct      = data?.es_d_zone_pct
+  const esDNextBot  = data?.es_d_zone_next_bot
+  const esDNextTop  = data?.es_d_zone_next_top
+  const esDPrevBot  = data?.es_d_zone_prev_bot
+  const esDPrevTop  = data?.es_d_zone_prev_top
 
   const spxBot    = data?.spx_zone_bot
   const spxTop    = data?.spx_zone_top
@@ -231,6 +240,7 @@ export default function SignalScreen() {
         <div className="brief-panel">
           <div className="brief-header">
             <span className="brief-title">Market Brief</span>
+            <button className="brief-btn" onClick={() => window.location.reload()}>REFRESH</button>
           </div>
           <div className="brief-text">{aiRead}</div>
         </div>
@@ -301,15 +311,40 @@ export default function SignalScreen() {
         {reason && (
           <div style={{ marginTop: 8, fontSize: 10, color: 'var(--muted2)', lineHeight: 1.6, fontStyle: 'italic', borderTop: '1px solid var(--border)', paddingTop: 8 }}>{reason}</div>
         )}
-        {score != null && maxScore != null && (
-          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, borderTop: reason ? 'none' : '1px solid var(--border)', paddingTop: reason ? 0 : 8 }}>
-            <span style={{ fontSize: 9, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{score}/{maxScore}</span>
-            {quality && <span style={{ fontSize: 9, color, fontFamily: 'var(--mono)', fontWeight: 700 }}>{quality}</span>}
-            <div style={{ flex: 1, height: 3, background: 'var(--border2)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ width: `${Math.round((score / maxScore) * 100)}%`, height: '100%', background: color, borderRadius: 2 }} />
-            </div>
-          </div>
-        )}
+        {score != null && maxScore != null && (() => {
+          // Score conditions checklist
+          const oi  = (data?.oi_context  ?? {}) as any
+          const dc  = (data?.dealer_context ?? {}) as any
+          const isLong   = signal.includes('LONG')
+          const isRetest = signal.includes('RETEST')
+          const conds = [
+            { label: 'Break confirmed',  pass: data?.structure_confirmation === 'BREAK_UP' || data?.structure_confirmation === 'BREAK_DOWN', na: !isRetest },
+            { label: 'Retest active',    pass: !!data?.retest_active, na: !isRetest },
+            { label: 'OI room clear',    pass: oi.oi_resistance !== 'STRONG' && oi.oi_room !== 'LOW', na: false },
+            { label: 'GEX favors move',  pass: (data?.gex_context as any)?.gex_mode === 'EXPANSION' || (data?.gex_context as any)?.gex_mode === 'NEUTRAL', na: false },
+            { label: 'Not OI pinned',    pass: !oi.oi_pin, na: false },
+            { label: 'Dealer aligned',   pass: isLong ? !!dc.long_alignment : !!dc.short_alignment, na: false },
+            { label: 'Day bias aligned', pass: (isLong && data?.day_bias === 'BULLISH') || (!isLong && data?.day_bias === 'BEARISH') || data?.day_bias === 'NEUTRAL', na: false },
+          ]
+          const passCount = conds.filter(c => !c.na && c.pass).length
+          const maxCount  = conds.filter(c => !c.na).length
+          return (
+            <details style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+              <summary style={{ cursor: 'pointer', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 5, userSelect: 'none' }}>
+                <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)', fontWeight: 700 }}>Score Conditions · {passCount}/{maxCount} pass</span>
+                <span style={{ fontSize: 11, color: 'var(--muted2)' }}>▸</span>
+              </summary>
+              <div style={{ marginTop: 4, padding: '6px 8px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 5 }}>
+                {conds.map((c, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0' }}>
+                    <span style={{ fontSize: 10, color: c.na ? 'var(--border2)' : c.pass ? 'var(--text)' : 'var(--muted2)' }}>{c.label}</span>
+                    {c.na ? <span style={{ fontSize: 8, color: 'var(--border2)' }}>N/A</span> : <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.pass ? 'var(--green)' : 'var(--red)' }} />}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )
+        })()}
       </div>
 
       {/* ── Swing Signal ── */}
@@ -343,7 +378,8 @@ export default function SignalScreen() {
       {(es10Bot || es10Top) && (
         <div className="panel">
           <div className="panel-title">ES 10M Zone — Intraday</div>
-          <ZoneBox label="ES 10M" bot={es10Bot} top={es10Top} mid={es10Mid} state={es10State} next={es10Next} prev={es10Prev} />
+          <ZoneBox label="ES 10M" bot={es10Bot} top={es10Top} mid={es10Mid} state={es10State} pct={es10Pct}
+            nextBot={es10NextBot} nextTop={es10NextTop} prevBot={es10PrevBot} prevTop={es10PrevTop} />
         </div>
       )}
 
@@ -351,7 +387,8 @@ export default function SignalScreen() {
       {(esDBot || esDTop) && (
         <div className="panel">
           <div className="panel-title">ES Daily Zone — Swing</div>
-          <ZoneBox label="ES Daily" bot={esDBot} top={esDTop} mid={esDMid} state={esDState} next={esDNext} prev={esDPrev} />
+          <ZoneBox label="ES Daily" bot={esDBot} top={esDTop} mid={esDMid} state={esDState} pct={esDPct}
+            nextBot={esDNextBot} nextTop={esDNextTop} prevBot={esDPrevBot} prevTop={esDPrevTop} />
         </div>
       )}
 

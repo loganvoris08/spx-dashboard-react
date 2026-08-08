@@ -92,6 +92,32 @@ function DarkPoolItem({ p }: { p: any }) {
   )
 }
 
+/* ── 0DTE expiry countdown ── */
+function ExpiryCountdown() {
+  const [mins, setMins] = useState<number | null>(null)
+  useEffect(() => {
+    function calc() {
+      const now = new Date()
+      const isDST = (() => { const m = now.getUTCMonth(); return m >= 2 && m <= 10 })()
+      const etH = (now.getUTCHours() + (isDST ? -4 : -5) + 24) % 24
+      const etM = now.getUTCMinutes()
+      const totalMins = etH * 60 + etM
+      const closeMins = 16 * 60  // 4:00 PM ET
+      const remaining = closeMins - totalMins
+      setMins(remaining > 0 && remaining <= 390 ? remaining : null) // only show during RTH
+    }
+    calc()
+    const t = setInterval(calc, 30_000)
+    return () => clearInterval(t)
+  }, [])
+  if (mins == null) return null
+  return (
+    <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: mins < 30 ? 'var(--red)' : 'var(--muted2)' }}>
+      {mins} min to expiry
+    </span>
+  )
+}
+
 export default function FlowScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
@@ -291,6 +317,7 @@ export default function FlowScreen() {
             <span>0DTE Options Pulse</span>
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
           </div>
+          <ExpiryCountdown />
         </div>
         {has0DTE ? (
           <>
