@@ -17,6 +17,7 @@ const CHART_OPTS = {
   rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)', scaleMargins: { top: 0.08, bottom: 0.08 } },
   timeScale:  { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
   crosshair:  { vertLine: { color: 'rgba(255,255,255,0.3)', style: 0 as const }, horzLine: { color: 'rgba(255,255,255,0.2)' } },
+  localization: { priceFormatter: fmtFlow },
   handleScroll: false,
   handleScale:  false,
 }
