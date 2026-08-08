@@ -13,14 +13,15 @@ export interface LiveBar {
 }
 
 export interface FuturesState {
-  esLiveBar:   LiveBar | null   // current building minute bar
-  esCumDelta:  number           // running buy − sell volume today
-  esSessionVol: number          // total ES volume this session
-  connected:   boolean
+  esLiveBar:    LiveBar | null   // current building minute bar
+  esCumDelta:   number           // running buy − sell volume today
+  esSessionVol: number           // total ES volume this session
+  esVwap:       number | null    // session VWAP from trade ticks
+  connected:    boolean
 }
 
 const Ctx = createContext<FuturesState>({
-  esLiveBar: null, esCumDelta: 0, esSessionVol: 0, connected: false,
+  esLiveBar: null, esCumDelta: 0, esSessionVol: 0, esVwap: null, connected: false,
 })
 
 export function useLiveFutures() { return useContext(Ctx) }
@@ -36,23 +37,26 @@ function sessionStartMs(): number {
 
 export function LiveFuturesProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<FuturesState>({
-    esLiveBar: null, esCumDelta: 0, esSessionVol: 0, connected: false,
+    esLiveBar: null, esCumDelta: 0, esSessionVol: 0, esVwap: null, connected: false,
   })
 
-  const ws         = useRef<WebSocket | null>(null)
-  const dead       = useRef(false)
-  const retry      = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const liveBar    = useRef<LiveBar | null>(null)
-  const cumDelta   = useRef(0)
-  const sessionVol = useRef(0)
-  const prevPrice  = useRef<number | null>(null)
-  const sessionTs  = useRef(sessionStartMs())
+  const ws          = useRef<WebSocket | null>(null)
+  const dead        = useRef(false)
+  const retry       = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const liveBar     = useRef<LiveBar | null>(null)
+  const cumDelta    = useRef(0)
+  const sessionVol  = useRef(0)
+  const prevPrice   = useRef<number | null>(null)
+  const sessionTs   = useRef(sessionStartMs())
+  const vwapNum     = useRef(0)   // sum(price × size)
+  const vwapDen     = useRef(0)   // sum(size)
 
   function flush() {
     setState({
       esLiveBar:    liveBar.current ? { ...liveBar.current } : null,
       esCumDelta:   cumDelta.current,
       esSessionVol: sessionVol.current,
+      esVwap:       vwapDen.current > 0 ? vwapNum.current / vwapDen.current : null,
       connected:    true,
     })
   }
@@ -122,10 +126,12 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
             const tMs   = m.t ?? m.timestamp ?? 0
             if (!price) return
 
-            // Reset cum delta at session open
+            // Reset session stats at session open
             if (tMs > 0 && tMs < sessionTs.current) {
               cumDelta.current   = 0
               sessionVol.current = 0
+              vwapNum.current    = 0
+              vwapDen.current    = 0
               sessionTs.current  = sessionStartMs()
             }
 
@@ -134,6 +140,10 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
               else if (price < prevPrice.current) cumDelta.current -= size
             }
             prevPrice.current = price
+
+            // VWAP accumulation
+            vwapNum.current += price * size
+            vwapDen.current += size
             changed = true
           }
         })

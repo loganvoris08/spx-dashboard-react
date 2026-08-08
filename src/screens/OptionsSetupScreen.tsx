@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
+import { useLiveFutures } from '../lib/LiveFuturesContext'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -182,6 +183,7 @@ function SubExtras({ sk, sub }: { sk: string; sub: any }) {
 
 export default function OptionsSetupScreen() {
   const { data } = useDashboard()
+  const { esVwap, connected: futConnected } = useLiveFutures()
   const [snapOpen,    setSnapOpen]    = useState(true)
   const [snapshot,    setSnapshot]    = useState<any>(null)
   const [loading,     setLoading]     = useState(false)
@@ -311,6 +313,13 @@ export default function OptionsSetupScreen() {
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {snap.vwap && <Chip label="VWAP" val={`${snap.vwap}${snap.vwap_dist != null ? ` (${snap.vwap_dist >= 0 ? '+' : ''}${snap.vwap_dist}pts)` : ''}`} color={snap.price_vs_vwap?.includes('ABOVE') ? 'var(--green)' : snap.price_vs_vwap?.includes('BELOW') ? 'var(--red)' : undefined} />}
+                {esVwap != null && (
+                  <Chip
+                    label="ES VWAP"
+                    val={esVwap.toFixed(2) + (futConnected ? ' ●' : '')}
+                    color={futConnected ? 'var(--green)' : 'var(--muted2)'}
+                  />
+                )}}
                 {snap.or_high && <Chip label="OR" val={snap.price_vs_or ?? '—'} color={snap.price_vs_or?.includes('ABOVE') ? 'var(--green)' : snap.price_vs_or?.includes('BELOW') ? 'var(--red)' : undefined} />}
                 {snap.pdh && <Chip label="PDH" val={String(snap.pdh)} />}
                 {snap.pdl && <Chip label="PDL" val={String(snap.pdl)} />}
