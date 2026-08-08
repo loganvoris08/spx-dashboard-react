@@ -422,7 +422,7 @@ export default function LevelsScreen() {
         {/* OI column */}
         <div className="lv-col">
           <div className="lv-col-header">
-            <span className="lv-col-header-label">OI Ladder</span>
+            <span className="lv-col-header-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>OI Ladder <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>LIVE</span></span>
             <div className="lv-bucket-tabs">
               <button className={`lv-bucket${oiBucket === 'all' ? ' active' : ''}`} onClick={() => setOiBucket('all')}>All</button>
               <button className={`lv-bucket${oiBucket === 'week' ? ' active' : ''}`} onClick={() => setOiBucket('week')}>Week</button>
@@ -451,7 +451,7 @@ export default function LevelsScreen() {
         {/* GEX column */}
         <div className="lv-col">
           <div className="lv-col-header">
-            <span className="lv-col-header-label">GEX Ladder</span>
+            <span className="lv-col-header-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>GEX Ladder <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>LIVE</span></span>
             <div className="lv-bucket-tabs">
               <button className={`lv-bucket${gexBucket === '0dte' ? ' active' : ''}`} onClick={() => setGexBucket('0dte')}>0DTE</button>
               <button className={`lv-bucket${gexBucket === 'weekly' ? ' active' : ''}`} onClick={() => setGexBucket('weekly')}>Wk</button>
@@ -526,7 +526,10 @@ export default function LevelsScreen() {
 
       {/* ── Intraday Key Levels Chart ── */}
       <div className="panel">
-        <div className="panel-title">Intraday Key Levels — Today</div>
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Intraday Key Levels — Today
+          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>LIVE</span>
+        </div>
         <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>How key levels (GEX flip zone, call wall, put wall, {isNdx ? 'NDX' : 'SPX'} price) have moved today.</div>
         <CanvasChart series={lvlSeries} height={180} pulse={false} glow yFmt={(v) => Math.round(v).toLocaleString()} />
         <div style={{ display: 'flex', gap: 14, marginTop: 5, padding: '0 2px' }}>
@@ -539,7 +542,10 @@ export default function LevelsScreen() {
 
       {/* ── GEX Flip Zone Chart ── */}
       <div className="panel">
-        <div className="panel-title">Gamma Flip Zone — Intraday</div>
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Gamma Flip Zone — Intraday
+          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>LIVE</span>
+        </div>
         <CanvasChart series={flipChSeries} height={140} pulse={false} glow yFmt={(v) => Math.round(v).toLocaleString()} />
         <div style={{ display: 'flex', gap: 14, marginTop: 5, padding: '0 2px' }}>
           <span style={{ fontSize: 8, color: '#ffcc00', fontFamily: 'var(--mono)' }}>▬ {isNdx ? 'NDX' : 'SPX'}</span>

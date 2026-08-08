@@ -324,7 +324,10 @@ export default function GEXScreen() {
       {/* ── GEX Ladder ── */}
       <div className="panel" style={{ padding: 0 }}>
         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="panel-title" style={{ margin: 0 }}>Gamma Exposure by Strike</span>
+          <span className="panel-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+            Gamma Exposure by Strike
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>LIVE</span>
+          </span>
           <div style={{ display: 'flex', gap: 4 }}>
             {BUCKETS.map(b => (
               <span key={b} className={`expiry-btn${bucket === b ? ' active' : ''}`} onClick={() => setBucket(b)}>{b}</span>

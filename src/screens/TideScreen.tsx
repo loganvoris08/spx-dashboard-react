@@ -58,7 +58,7 @@ export default function TideScreen() {
 
   const loadFlowHistory = useCallback(async () => {
     try {
-      const ep = isNdx ? '/api/ndx-uw-flow' : `/api/flow-history?moneyness=${moneyness}&expiry=${expiry}`
+      const ep = isNdx ? '/api/ndx-uw-flow' : '/api/spx-uw-flow'
       const d = await apiFetch(ep)
       const hist: any[]     = d.history  || []
       const velocity: any[] = d.velocity || []
@@ -202,12 +202,18 @@ export default function TideScreen() {
       </div>
 
       {/* Chart 2: Net Flow */}
-      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)', marginBottom: 4 }}>Net Premium Flow (Call − Put)</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)' }}>Net Premium Flow (Call − Put)</span>
+        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW LIVE</span>
+      </div>
       <CanvasChart series={c2Series} height={160} split pulse glow />
       <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 12, padding: '4px 2px' }}>Green = call dominance · Red = put dominance</div>
 
       {/* Chart 3: Flow Acceleration */}
-      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)', marginBottom: 4 }}>Flow Acceleration (5-period MA)</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)' }}>Flow Acceleration (5-period MA)</span>
+        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW LIVE</span>
+      </div>
       <CanvasChart series={c3Series} height={120} split pulse glow />
       <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 14, padding: '4px 2px' }}>Smoothed rate of change — rising = momentum building · falling = flow decelerating</div>
 

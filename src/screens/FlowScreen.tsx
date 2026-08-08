@@ -344,7 +344,10 @@ export default function FlowScreen() {
 
       {/* ── Flow Bias ── */}
       <div className="panel">
-        <div className="panel-title">Options Flow Bias — {isNdx ? 'NDX' : 'SPX'}</div>
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Options Flow Bias — {isNdx ? 'NDX' : 'SPX'}
+          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
+        </div>
         <div className="flow-bar-wrap">
           <div className="flow-labels">
             <span style={{ color: 'var(--green)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 9 }}>CALLS {callPct.toFixed(0)}%</span>
