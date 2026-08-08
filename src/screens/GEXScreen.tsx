@@ -397,9 +397,11 @@ export default function GEXScreen() {
 
       {/* ── 0DTE Pin Risk Meter ── */}
       {(() => {
-        const dte0Rows: any[] = isNdx
+        // Prefer 0DTE bucket (live market hours); fall back to all gexStrikes (persisted, always available)
+        const dte0Bucket: any[] = isNdx
           ? (ladders?.ndx?.gex_ladder_buckets?.['0dte'] ?? [])
           : (ladders?.gex_ladder_buckets?.['0dte'] ?? [])
+        const dte0Rows: any[] = dte0Bucket.length > 0 ? dte0Bucket : gexStrikes
         if (!dte0Rows.length) return null
 
         // Score each strike: GEX magnitude × proximity to current price
