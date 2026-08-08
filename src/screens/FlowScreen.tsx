@@ -418,7 +418,7 @@ export default function FlowScreen() {
               { label: 'Price Trend', dir: divergenceData.price_dir, icon: '📈' },
               { label: 'Options Flow', dir: divergenceData.flow_dir, icon: '🌊' },
               { label: 'Block Trades', dir: divergenceData.block_dir, icon: '🔷' },
-            ].map(({ label, dir, icon }) => {
+            ].map(({ label, dir }) => {
               const col = dir === 'BULLISH' ? 'var(--green)' : dir === 'BEARISH' ? 'var(--red)' : 'var(--yellow)'
               const bg  = dir === 'BULLISH' ? 'rgba(0,255,136,0.06)' : dir === 'BEARISH' ? 'rgba(255,51,68,0.06)' : 'rgba(234,179,8,0.06)'
               return (

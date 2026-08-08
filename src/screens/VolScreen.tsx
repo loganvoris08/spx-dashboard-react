@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { postAiRead } from '../hooks/useLadders'
 import { useSSE } from '../lib/SSEContext'
@@ -34,6 +34,82 @@ function VixBar({ label, val, maxV }: { label: string; val: number; maxV: number
   )
 }
 
+function TermStructureCanvas({ rows, atm_iv }: { rows: any[]; atm_iv: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !rows.length) return
+    const dpr = window.devicePixelRatio || 1
+    const W = canvas.offsetWidth
+    const H = 90
+    canvas.width  = W * dpr
+    canvas.height = H * dpr
+    const ctx = canvas.getContext('2d')!
+    ctx.scale(dpr, dpr)
+    const sorted = [...rows].filter(r => r.dte > 0 && r.vol > 0).sort((a, b) => a.dte - b.dte)
+    if (sorted.length < 2) return
+    const vols = sorted.map(r => r.vol)
+    const dtes = sorted.map(r => r.dte)
+    const minV = Math.min(...vols) * 0.9
+    const maxV = Math.max(...vols) * 1.05
+    const maxD = Math.max(...dtes)
+    const pad  = { l: 28, r: 8, t: 8, b: 18 }
+    const cW   = W - pad.l - pad.r
+    const cH   = H - pad.t - pad.b
+    const xOf  = (d: number) => pad.l + (d / (maxD || 1)) * cW
+    const yOf  = (v: number) => pad.t + (1 - (v - minV) / (maxV - minV || 1)) * cH
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+    ctx.lineWidth = 1
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + (i / 4) * cH
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke()
+    }
+    const grad = ctx.createLinearGradient(0, pad.t, 0, H)
+    grad.addColorStop(0, 'rgba(0,140,255,0.18)')
+    grad.addColorStop(1, 'rgba(0,140,255,0)')
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.moveTo(xOf(dtes[0]), cH + pad.t)
+    sorted.forEach(r => ctx.lineTo(xOf(r.dte), yOf(r.vol)))
+    ctx.lineTo(xOf(dtes[dtes.length - 1]), cH + pad.t)
+    ctx.closePath(); ctx.fill()
+    ctx.strokeStyle = '#3b82f6'
+    ctx.lineWidth = 1.8
+    ctx.lineJoin = 'round'
+    ctx.setLineDash([])
+    ctx.beginPath()
+    sorted.forEach((r, i) => i === 0 ? ctx.moveTo(xOf(r.dte), yOf(r.vol)) : ctx.lineTo(xOf(r.dte), yOf(r.vol)))
+    ctx.stroke()
+    ctx.fillStyle = '#3b82f6'
+    sorted.forEach(r => {
+      ctx.beginPath()
+      ctx.arc(xOf(r.dte), yOf(r.vol), 3, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = 'rgba(180,190,210,0.8)'
+      ctx.font = '8px monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText(r.dte + 'd', xOf(r.dte), H - 4)
+      ctx.fillStyle = '#3b82f6'
+    })
+    ctx.fillStyle = 'rgba(160,170,190,0.7)'
+    ctx.font = '8px monospace'
+    ctx.textAlign = 'right'
+    ;[minV, (minV + maxV) / 2, maxV].forEach(v => {
+      ctx.fillText(v.toFixed(1) + '%', pad.l - 2, yOf(v) + 3)
+    })
+    if (atm_iv > 0) {
+      const atmY = yOf(atm_iv * 100)
+      ctx.strokeStyle = 'rgba(255,204,0,0.6)'
+      ctx.lineWidth = 1
+      ctx.setLineDash([3, 3])
+      ctx.beginPath(); ctx.moveTo(pad.l, atmY); ctx.lineTo(W - pad.r, atmY); ctx.stroke()
+      ctx.setLineDash([])
+    }
+  }, [rows, atm_iv])
+  if (!rows.length) return <div style={{ color: 'var(--muted2)', fontSize: 10, textAlign: 'center', padding: 12 }}>No term structure data</div>
+  return <canvas ref={canvasRef} style={{ width: '100%', display: 'block' }} height={90} />
+}
+
 export default function VolScreen() {
   const { data } = useDashboard()
   const { on } = useSSE()
@@ -42,6 +118,7 @@ export default function VolScreen() {
   const [rrData10,   setRrData10]   = useState<any[]>([])
   const [ivCurve,    setIvCurve]    = useState<any[]>([])
   const [volStats,   setVolStats]   = useState<any>(null)
+  const [skewTermData, setSkewTermData] = useState<{ term_structure: any[]; atm_iv: number; skew: number; iv_rank: number; iv_regime: string } | null>(null)
   const [volRead,    setVolRead]    = useState('')
   const [loadingVol, setLoadingVol] = useState(false)
 
@@ -106,15 +183,24 @@ export default function VolScreen() {
     } catch {}
   }, [])
 
+  const loadSkewTerm = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/vol-term-structure')
+      if (d.term_structure?.length) setSkewTermData(d)
+    } catch {}
+  }, [])
+
   useEffect(() => {
     loadTermStructure()
     loadRrSkew()
     loadIvCurve()
+    loadSkewTerm()
     const off1 = on('update', () => loadTermStructure())
     const off2 = on('update', () => loadRrSkew())
     const off3 = on('update', () => loadIvCurve())
-    return () => { off1(); off2(); off3() }
-  }, [loadTermStructure, loadRrSkew, loadIvCurve, on])
+    const off4 = on('update', () => loadSkewTerm())
+    return () => { off1(); off2(); off3(); off4() }
+  }, [loadTermStructure, loadRrSkew, loadIvCurve, loadSkewTerm, on])
 
   // vol_stats comes from the main /data endpoint via useDashboard
   useEffect(() => {
@@ -165,6 +251,58 @@ export default function VolScreen() {
         {vix3m > 0 && <VixBar label="VIX 3M" val={vix3m} maxV={maxV} />}
         {tsNote && <div style={{ marginTop: 8, fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted2)', lineHeight: 1.6 }}>{tsNote}</div>}
       </div>
+
+      {/* ── Live Skew Monitor ── */}
+      {skewTermData && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            Live Skew Monitor
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW LIVE</span>
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: '#3b82f6', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 3, padding: '1px 5px' }}>VOL TERM</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>ATM IV</div>
+              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--mono)', color: skewTermData.atm_iv > 0.25 ? 'var(--red)' : skewTermData.atm_iv > 0.15 ? 'var(--yellow)' : 'var(--green)' }}>
+                {skewTermData.atm_iv > 0 ? (skewTermData.atm_iv * 100).toFixed(1) + '%' : '--'}
+              </div>
+            </div>
+            <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>25Δ Skew</div>
+              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--mono)', color: skewTermData.skew > 2 ? 'var(--red)' : skewTermData.skew < -2 ? 'var(--green)' : 'var(--yellow)' }}>
+                {skewTermData.skew != null ? (skewTermData.skew > 0 ? '+' : '') + Number(skewTermData.skew).toFixed(1) : '--'}
+              </div>
+            </div>
+            <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>IV Regime</div>
+              <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: skewTermData.iv_regime === 'EXTREME' || skewTermData.iv_regime === 'HIGH' ? 'var(--red)' : skewTermData.iv_regime === 'ELEVATED' ? 'var(--yellow)' : 'var(--green)' }}>
+                {skewTermData.iv_regime ?? '--'}
+              </div>
+              {skewTermData.iv_rank > 0 && <div style={{ fontSize: 8, color: 'var(--muted2)' }}>IVR {skewTermData.iv_rank.toFixed(0)}</div>}
+            </div>
+          </div>
+          <TermStructureCanvas rows={skewTermData.term_structure} atm_iv={skewTermData.atm_iv} />
+          {(() => {
+            const rows = skewTermData.term_structure
+            if (rows.length < 2) return null
+            const sorted = [...rows].filter(r => r.dte > 0 && r.vol > 0).sort((a, b) => a.dte - b.dte)
+            if (sorted.length < 2) return null
+            const front = sorted[0].vol
+            const back  = sorted[sorted.length - 1].vol
+            const slope = front > back * 1.02 ? 'BACKWARDATION' : back > front * 1.02 ? 'CONTANGO' : 'FLAT'
+            const slopeColor = slope === 'BACKWARDATION' ? 'var(--red)' : slope === 'CONTANGO' ? 'var(--green)' : 'var(--yellow)'
+            return (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 9, color: 'var(--muted2)' }}>
+                <span>Term structure: <span style={{ color: slopeColor, fontWeight: 700, fontFamily: 'var(--mono)' }}>{slope}</span></span>
+                <span style={{ fontFamily: 'var(--mono)', color: 'var(--yellow)' }}>
+                  {sorted[0].dte}d: {front.toFixed(1)}% → {sorted[sorted.length - 1].dte}d: {back.toFixed(1)}%
+                </span>
+              </div>
+            )
+          })()}
+          <div style={{ fontSize: 8, color: 'var(--muted2)', marginTop: 6 }}>IV% by DTE. Backwardation = near-term fear elevated. Contango = term premium normal.</div>
+        </div>
+      )}
 
       {/* ── SPX IV Rank ── */}
       {ivRank != null && (
