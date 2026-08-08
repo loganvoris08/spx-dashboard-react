@@ -190,7 +190,7 @@ export default function GEXScreen() {
         {maxPain != null && (
           <div className="kl-item">
             <div className="kl-label">Max Pain</div>
-            <div className="kl-val">{fmtNum(maxPain)}{maxPainDte != null ? ` (${maxPainDte} DTE)` : ''}</div>
+            <div className="kl-val">{fmtNum(maxPain)}{maxPainDte != null ? ` (${String(maxPainDte).toUpperCase()})` : ''}</div>
           </div>
         )}
         {cWall && (

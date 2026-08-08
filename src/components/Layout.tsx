@@ -104,6 +104,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   const vixNum  = pn(data?.vix)
   const vixChg  = data?.vix_change
     ?? (vixNum != null && vixPrev != null ? vixNum - vixPrev : null)
+  const vixChgPct = vixNum != null && vixPrev != null && vixPrev !== 0 ? (vixNum - vixPrev) / vixPrev * 100 : null
 
   function fmtChg(v: any, pct?: any) {
     if (v == null) return null
@@ -188,8 +189,8 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
           <div className="ticker">
             <div className="ticker-label">VIX</div>
             <div className="ticker-val vix">{vixFmt}</div>
-            {fmtChg(vixChg) && (
-              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (vixChg ?? 0) >= 0 ? 'var(--red)' : 'var(--green)', marginTop: 1 }}>{fmtChg(vixChg)}</div>
+            {fmtChg(vixChg, vixChgPct) && (
+              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (vixChg ?? 0) >= 0 ? 'var(--red)' : 'var(--green)', marginTop: 1 }}>{fmtChg(vixChg, vixChgPct)}</div>
             )}
           </div>
         </div>
@@ -228,7 +229,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
               <div className="oi-strip-level put">
                 <div className="oi-strip-label">Put Wall</div>
                 <div className="oi-strip-val">{fmt2(putWall)}</div>
-                {spxPrice > 0 && <div className="oi-strip-dist">{(spxPrice - putWall).toFixed(0)} pts</div>}
+                {spxPrice > 0 && <div className="oi-strip-dist">{(putWall - spxPrice > 0 ? '+' : '')}{(putWall - spxPrice).toFixed(0)} pts</div>}
               </div>
             )}
             {putWall && callWall && (
@@ -253,14 +254,14 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
               <div className="oi-strip-level flip">
                 <div className="oi-strip-label">GEX Flip</div>
                 <div className="oi-strip-val">{fmt2(gexFlip)}</div>
-                {spxPrice > 0 && <div className="oi-strip-dist">{Math.abs(spxPrice - gexFlip).toFixed(0)} pts</div>}
+                {spxPrice > 0 && <div className="oi-strip-dist">{(gexFlip - spxPrice > 0 ? '+' : '')}{(gexFlip - spxPrice).toFixed(0)} pts</div>}
               </div>
             )}
             {callWall && (
               <div className="oi-strip-level call">
                 <div className="oi-strip-label">Call Wall</div>
                 <div className="oi-strip-val">{fmt2(callWall)}</div>
-                {spxPrice > 0 && <div className="oi-strip-dist">{(callWall - spxPrice).toFixed(0)} pts</div>}
+                {spxPrice > 0 && <div className="oi-strip-dist">{(callWall - spxPrice > 0 ? '+' : '')}{(callWall - spxPrice).toFixed(0)} pts</div>}
               </div>
             )}
           </div>
