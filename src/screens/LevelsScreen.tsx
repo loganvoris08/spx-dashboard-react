@@ -406,13 +406,13 @@ export default function LevelsScreen() {
         {dhPressure && (
           <div className="lv-stat">
             <span className="lv-stat-label">Pressure</span>
-            <span className="lv-stat-val neut">{dhPressure}</span>
+            <span className={`lv-stat-val ${String(dhPressure).toUpperCase().includes('BULL') ? 'bull' : String(dhPressure).toUpperCase().includes('BEAR') ? 'bear' : 'neut'}`}>{dhPressure}</span>
           </div>
         )}
         {gammaDollar != null && (
           <div className="lv-stat">
             <span className="lv-stat-label">Dealer γ/1%</span>
-            <span className="lv-stat-val neut">{fmtNum(gammaDollar)}</span>
+            <span className={`lv-stat-val ${Number(gammaDollar) > 0 ? 'bull' : Number(gammaDollar) < 0 ? 'bear' : 'neut'}`}>{fmtNum(gammaDollar)}</span>
           </div>
         )}
       </div>

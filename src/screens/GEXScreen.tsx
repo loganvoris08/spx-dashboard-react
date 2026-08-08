@@ -275,7 +275,7 @@ export default function GEXScreen() {
         {maxPain != null && (
           <div className="kl-item">
             <div className="kl-label">Max Pain</div>
-            <div className="kl-val">{fmtNum(maxPain)}{maxPainDte != null ? ` (${String(maxPainDte).toUpperCase()})` : ''}</div>
+            <div className="kl-val" style={{ color: 'var(--yellow)' }}>{fmtNum(maxPain)}{maxPainDte != null ? ` (${String(maxPainDte).toUpperCase()})` : ''}</div>
           </div>
         )}
         {cWall && (
@@ -305,7 +305,7 @@ export default function GEXScreen() {
         {pcRatio && (
           <div className="kl-item">
             <div className="kl-label">P/C Ratio</div>
-            <div className="kl-val" style={{ fontSize: 11 }}>{parseFloat(pcRatio).toFixed(2)}</div>
+            <div className="kl-val" style={{ fontSize: 11, color: parseFloat(pcRatio) > 1.1 ? 'var(--red)' : parseFloat(pcRatio) < 0.8 ? 'var(--green)' : 'var(--yellow)' }}>{parseFloat(pcRatio).toFixed(2)}</div>
           </div>
         )}
       </div>
@@ -366,13 +366,13 @@ export default function GEXScreen() {
         {netDeltaDisplay != null && (
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
             <span style={{ fontSize: 9, color: 'var(--muted2)' }}>Net Dealer Delta</span>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700 }}>{fmtNum(netDeltaDisplay)}</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: Number(netDeltaDisplay) > 0 ? 'var(--green)' : Number(netDeltaDisplay) < 0 ? 'var(--red)' : 'var(--muted2)' }}>{fmtNum(netDeltaDisplay)}</span>
           </div>
         )}
         {gammaPerPct != null && (
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
             <span style={{ fontSize: 9, color: 'var(--muted2)' }}>Dealer Gamma / 1% Move</span>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700 }}>{fmtNum(gammaPerPct)}</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: Number(gammaPerPct) > 0 ? 'var(--green)' : Number(gammaPerPct) < 0 ? 'var(--red)' : 'var(--muted2)' }}>{fmtNum(gammaPerPct)}</span>
           </div>
         )}
       </div>
@@ -389,9 +389,9 @@ export default function GEXScreen() {
         </div>
         <div className="stat-grid">
           {netDelta    && <div className="stat"><div className="stat-label">Net Delta</div><div className="stat-val" style={{ fontSize: 10, color: netDelta === 'LONG' ? 'var(--green)' : 'var(--red)' }}>{netDelta}</div></div>}
-          {charm       && <div className="stat"><div className="stat-label">Charm Flow</div><div className="stat-val" style={{ fontSize: 10 }}>{charm}</div></div>}
-          {vanna       && <div className="stat"><div className="stat-label">Vanna</div><div className="stat-val" style={{ fontSize: 10 }}>{vanna}</div></div>}
-          {maxPain != null && <div className="stat"><div className="stat-label">Max Pain</div><div className="stat-val" style={{ fontSize: 10 }}>{fmtNum(maxPain)}</div></div>}
+          {charm       && <div className="stat"><div className="stat-label">Charm Flow</div><div className="stat-val" style={{ fontSize: 10, color: String(charm).toUpperCase() === 'BUYING' ? 'var(--green)' : String(charm).toUpperCase() === 'SELLING' ? 'var(--red)' : 'var(--muted2)' }}>{charm}</div></div>}
+          {vanna       && <div className="stat"><div className="stat-label">Vanna</div><div className="stat-val" style={{ fontSize: 10, color: String(vanna).toUpperCase() === 'AMPLIFIED' ? 'var(--red)' : String(vanna).toUpperCase() === 'ELEVATED' ? 'var(--yellow)' : 'var(--muted2)' }}>{vanna}</div></div>}
+          {maxPain != null && <div className="stat"><div className="stat-label">Max Pain</div><div className="stat-val" style={{ fontSize: 10, color: 'var(--yellow)' }}>{fmtNum(maxPain)}</div></div>}
         </div>
       </div>
 

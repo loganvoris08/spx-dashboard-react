@@ -183,19 +183,19 @@ export default function SignalScreen() {
               {vix9d && (
                 <div className="vix-ts-item">
                   <div className="vix-ts-label">VIX9D</div>
-                  <div className="vix-ts-val" style={{ color: Number(vix9d) > 20 ? 'var(--red)' : 'var(--text)' }}>{Number(vix9d).toFixed(1)}</div>
+                  <div className="vix-ts-val" style={{ color: Number(vix9d) > 20 ? 'var(--red)' : Number(vix9d) < 14 ? 'var(--green)' : 'var(--yellow)' }}>{Number(vix9d).toFixed(1)}</div>
                 </div>
               )}
               {vix && (
                 <div className="vix-ts-item">
                   <div className="vix-ts-label">VIX</div>
-                  <div className="vix-ts-val" style={{ color: Number(vix) > 20 ? 'var(--red)' : 'var(--text)' }}>{Number(vix).toFixed(1)}</div>
+                  <div className="vix-ts-val" style={{ color: Number(vix) > 20 ? 'var(--red)' : Number(vix) < 14 ? 'var(--green)' : 'var(--yellow)' }}>{Number(vix).toFixed(1)}</div>
                 </div>
               )}
               {vix3m && (
                 <div className="vix-ts-item">
                   <div className="vix-ts-label">VIX3M</div>
-                  <div className="vix-ts-val">{Number(vix3m).toFixed(1)}</div>
+                  <div className="vix-ts-val" style={{ color: Number(vix3m) > 22 ? 'var(--red)' : Number(vix3m) < 15 ? 'var(--green)' : 'var(--yellow)' }}>{Number(vix3m).toFixed(1)}</div>
                 </div>
               )}
             </div>
@@ -219,7 +219,7 @@ export default function SignalScreen() {
               {volSkew != null && (
                 <div className="mkt-ctx-item">
                   <div className="mkt-ctx-label">Vol Skew</div>
-                  <div className="mkt-ctx-val">{(() => { const s = Number(volSkew); return (s > 0 ? '+' : '') + s.toFixed(1) + ' vol pts' })()}</div>
+                  <div className="mkt-ctx-val" style={{ color: Number(volSkew) > 2 ? 'var(--red)' : Number(volSkew) < -2 ? 'var(--green)' : 'var(--yellow)' }}>{(() => { const s = Number(volSkew); return (s > 0 ? '+' : '') + s.toFixed(1) + ' vol pts' })()}</div>
                   {volSkewLbl && <div className="mkt-ctx-sub">{volSkewLbl}</div>}
                 </div>
               )}

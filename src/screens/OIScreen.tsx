@@ -213,19 +213,19 @@ export default function OIScreen() {
         {width != null && (
           <div className="kl-item">
             <div className="kl-label">Width</div>
-            <div className="kl-val">{fmtNum(width)} pts</div>
+            <div className="kl-val" style={{ color: 'var(--yellow)' }}>{fmtNum(width)} pts</div>
           </div>
         )}
         {struct && (
           <div className="kl-item">
             <div className="kl-label">Structure</div>
-            <div className="kl-val" style={{ fontSize: 9, color: 'var(--muted2)' }}>{struct}</div>
+            <div className="kl-val" style={{ fontSize: 9, color: String(struct).toUpperCase().includes('BULL') ? 'var(--green)' : String(struct).toUpperCase().includes('BEAR') ? 'var(--red)' : 'var(--muted2)' }}>{struct}</div>
           </div>
         )}
         {ivRank && (
           <div className="kl-item">
             <div className="kl-label">IV Rank</div>
-            <div className="kl-val" style={{ fontSize: 10 }}>{ivRank}</div>
+            <div className="kl-val" style={{ fontSize: 10, color: String(ivRank).toUpperCase().includes('HIGH') || String(ivRank).toUpperCase().includes('EXTREME') ? 'var(--red)' : String(ivRank).toUpperCase().includes('ELEV') ? 'var(--yellow)' : String(ivRank).toUpperCase().includes('LOW') ? 'var(--green)' : 'var(--muted2)' }}>{ivRank}</div>
           </div>
         )}
       </div>
