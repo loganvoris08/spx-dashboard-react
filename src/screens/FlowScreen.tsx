@@ -13,9 +13,10 @@ async function apiFetch(path: string) {
 
 function fmtPrem(v: number) {
   if (!v) return '$0'
-  if (v >= 1_000_000) return '$' + (v / 1_000_000).toFixed(1) + 'M'
-  if (v >= 1_000)     return '$' + (v / 1_000).toFixed(0) + 'K'
-  return '$' + v.toFixed(0)
+  const a = Math.abs(v), sign = v < 0 ? '-' : ''
+  if (a >= 1_000_000) return sign + '$' + (a / 1_000_000).toFixed(1) + 'M'
+  if (a >= 1_000)     return sign + '$' + (a / 1_000).toFixed(0) + 'K'
+  return sign + '$' + a.toFixed(0)
 }
 
 /* ── Live ticker row ── */
