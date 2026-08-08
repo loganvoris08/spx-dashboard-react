@@ -81,6 +81,15 @@ function GEXHBars({ rows, priceStrike, flipStrike, hotScores }: { rows: any[]; p
         const pGex = Math.abs(row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? row.net_gex : 0))
         const pFill = Math.min(1, pGex / maxPut)
         const cFill = Math.min(1, cGex / maxCall)
+        const sc100 = hotScore != null ? hotScore / 100 : 0
+        const pInt  = Math.max(pFill * 0.28, sc100)
+        const cInt  = Math.max(cFill * 0.28, sc100)
+        const pH    = Math.max(1.5, pInt * 12)
+        const cH    = Math.max(1.5, cInt * 12)
+        const pA    = Math.max(0.08, pInt * 0.88)
+        const cA    = Math.max(0.08, cInt * 0.88)
+        const pGlow = isHot && pFill >= cFill ? `0 0 ${Math.round(pInt * 14)}px rgba(255,51,68,0.75)` : undefined
+        const cGlow = isHot && cFill > pFill  ? `0 0 ${Math.round(cInt * 14)}px rgba(0,255,136,0.75)` : undefined
         const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)'
           : isWarm ? 'rgba(234,179,8,0.05)' : 'transparent'
         const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : isHot ? 'var(--red)' : isWarm ? '#eab308' : 'var(--muted2)'
@@ -94,9 +103,9 @@ function GEXHBars({ rows, priceStrike, flipStrike, hotScores }: { rows: any[]; p
               {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
               {skey}
             </div>
-            <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
-              {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
-              {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
+            <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 13, overflow: 'visible' }}>
+              {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: pH, background: `rgba(255,51,68,${pA.toFixed(2)})`, borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0, boxShadow: pGlow }} />}
+              {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: cH, background: `rgba(0,255,136,${cA.toFixed(2)})`, borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0, boxShadow: cGlow }} />}
             </div>
             <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: tagColor, fontSize: 7, fontWeight: 700 }}>
               {tagLabel}
