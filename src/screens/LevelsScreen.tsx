@@ -187,9 +187,9 @@ export default function LevelsScreen() {
       const series: CCSeries[] = [
         { data: priceData,     color: '#ffcc00', rgb: '255,204,0', label: isNdx ? 'NDX' : 'SPX' },
       ]
-      if (flipD.length) series.push({ data: clip(flipD), color: '#aa00ff', rgb: '170,0,255',   fill: false, dash: [4, 4], lw: 1.5 })
-      if (callD.length) series.push({ data: clip(callD), color: '#00ff88', rgb: '0,255,136',   fill: false, dash: [2, 5], lw: 1 })
-      if (putD.length)  series.push({ data: clip(putD),  color: '#ff3344', rgb: '255,51,68',   fill: false, dash: [2, 5], lw: 1 })
+      if (flipD.length) series.push({ data: clip(flipD), color: '#aa00ff', rgb: '170,0,255',   fill: false, lw: 1.5 })
+      if (callD.length) series.push({ data: clip(callD), color: '#00ff88', rgb: '0,255,136',   fill: false, lw: 1 })
+      if (putD.length)  series.push({ data: clip(putD),  color: '#ff3344', rgb: '255,51,68',   fill: false, lw: 1 })
       setLvlSeries(series)
     }).catch(() => {})
   }, [isNdx])
@@ -208,7 +208,7 @@ export default function LevelsScreen() {
       const priceData = priceBars.length ? priceBars : spxD
       const series: CCSeries[] = []
       if (priceData.length) series.push({ data: priceData, color: '#ffcc00', rgb: '255,204,0', label: isNdx ? 'NDX' : 'SPX' })
-      if (flipD.length) series.push({ data: flipD, color: '#a855f7', rgb: '168,85,247', fill: false, dash: [4, 4], lw: 2 })
+      if (flipD.length) series.push({ data: flipD, color: '#a855f7', rgb: '168,85,247', fill: false, lw: 2 })
       setFlipChSeries(series)
     }).catch(() => {})
   }, [isNdx])
