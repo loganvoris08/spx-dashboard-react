@@ -170,15 +170,15 @@ export default function LevelsScreen() {
   const dhPressure  = !isNdx ? data?.delta_hedging_pressure : null
   const gammaDollar = !isNdx ? data?.dealer_gamma_dollar_per_pct : null
 
-  // Scorecard
-  const score     = data?.dealer_score ?? data?.scorecard_score
-  const scoreLabel= data?.dealer_label ?? data?.scorecard_label
-  const scGamma   = data?.scf_gamma   ?? data?.charm_flow
-  const scDelta   = data?.scf_delta   ?? data?.delta_hedging_pressure
-  const scFlip    = data?.scf_flip    ?? (data?.gex_flip_zone_raw ? 'ABOVE' : null)
-  const scFlow    = data?.scf_flow    ?? data?.flow_bias
-  const scCharm   = data?.scf_charm   ?? data?.charm_flow
-  const scVanna   = data?.scf_vanna   ?? data?.vanna_flow
+  // Scorecard — read from ndx bucket when on NDX side
+  const score     = isNdx ? (nd.dealer_score ?? nd.scorecard_score ?? null) : (data?.dealer_score ?? data?.scorecard_score ?? null)
+  const scoreLabel= isNdx ? (nd.dealer_label ?? nd.scorecard_label ?? null) : (data?.dealer_label ?? data?.scorecard_label ?? null)
+  const scGamma   = isNdx ? (nd.scf_gamma   ?? nd.charm_flow   ?? null) : (data?.scf_gamma   ?? data?.charm_flow)
+  const scDelta   = isNdx ? (nd.scf_delta   ?? nd.delta_hedging_pressure ?? null) : (data?.scf_delta   ?? data?.delta_hedging_pressure)
+  const scFlip    = isNdx ? (nd.scf_flip    ?? (nd.gex_flip_zone_raw ? 'ABOVE' : null)) : (data?.scf_flip ?? (data?.gex_flip_zone_raw ? 'ABOVE' : null))
+  const scFlow    = isNdx ? (nd.scf_flow    ?? nd.flow_bias    ?? null) : (data?.scf_flow    ?? data?.flow_bias)
+  const scCharm   = isNdx ? (nd.scf_charm   ?? null)           : (data?.scf_charm   ?? data?.charm_flow)
+  const scVanna   = isNdx ? (nd.scf_vanna   ?? null)           : (data?.scf_vanna   ?? data?.vanna_flow)
 
   // Price references
   const priceNum = isNdx
@@ -347,10 +347,10 @@ export default function LevelsScreen() {
             )}
             <div className="scorecard-factors">
               {[
-                { label: 'Gamma',  val: scGamma  ?? data?.gamma_state },
-                { label: 'Delta',  val: scDelta  ?? data?.net_delta_dir },
+                { label: 'Gamma',  val: scGamma  ?? (isNdx ? nd.gamma_state : data?.gamma_state) },
+                { label: 'Delta',  val: scDelta  ?? (isNdx ? nd.net_delta_dir : data?.net_delta_dir) },
                 { label: 'Flip',   val: scFlip },
-                { label: 'Flow',   val: scFlow   ?? data?.flow_bias },
+                { label: 'Flow',   val: scFlow   ?? (isNdx ? nd.flow_bias : data?.flow_bias) },
                 { label: 'Charm',  val: scCharm },
                 { label: 'Vanna',  val: scVanna },
               ].map((f, i) => (

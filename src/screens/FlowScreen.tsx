@@ -587,7 +587,7 @@ export default function FlowScreen() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginTop: 8 }}>
             {sectorFlow.map((s: any, i: number) => {
-              const bullPct = s.bull_pct ?? s.call_pct ?? 50
+              const bullPct = s.bull_pct ?? s.call_pct ?? s.bull_ratio ?? 50
               return (
                 <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '6px 8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
