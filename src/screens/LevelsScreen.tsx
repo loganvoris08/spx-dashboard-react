@@ -73,11 +73,11 @@ function OIRow({ row, priceStrike, callWall, putWall, maxVal }: {
         {row.strike}
       </div>
       <div className="hbar-left">
-        <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.7)' }} />
+        <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: 'rgba(0,255,136,0.7)' }} />
       </div>
       <div className="hbar-divider" style={{ background: isPrice ? 'var(--yellow)' : 'var(--border2)' }} />
       <div className="hbar-right">
-        <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: 'rgba(0,255,136,0.7)', position: 'absolute', left: 0, borderRadius: '0 2px 2px 0' }} />
+        <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.7)' }} />
       </div>
       <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, paddingRight: 0, color: isCall ? 'var(--green)' : isPrice ? 'var(--yellow)' : 'var(--muted2)', fontSize: 7 }}>
         {isCall ? '▲' : isPut ? '▼' : ''}
@@ -104,11 +104,11 @@ function GEXRow({ row, priceStrike, flipStrike, maxVal }: {
         {row.strike}
       </div>
       <div className="hbar-left">
-        <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.75)' }} />
+        <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: cGex >= 0 ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,68,0.75)' }} />
       </div>
       <div className="hbar-divider" style={{ width: 16, background: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--border2)', height: '100%' }} />
       <div className="hbar-right">
-        <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: cGex >= 0 ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,68,0.75)', position: 'absolute', left: 0, borderRadius: '0 2px 2px 0' }} />
+        <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.75)' }} />
       </div>
     </div>
   )
@@ -120,6 +120,7 @@ export default function LevelsScreen() {
   const isNdx = side === 'ndx'
   const [oiBucket, setOiBucket]   = useState<OIBucket>('all')
   const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
+  const [lvRange, setLvRange]     = useState(150)
   const [ticker, setTicker]       = useState<any[]>([])
   const [tickerCount, setTickerCount] = useState(0)
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
@@ -136,6 +137,8 @@ export default function LevelsScreen() {
       .then(d => setGexStrikes(d.strikes ?? []))
       .catch(() => {})
   }, [isNdx])
+
+  useEffect(() => { setLvRange(isNdx ? 1000 : 150) }, [isNdx])
 
   const loadTicker = useCallback(async () => {
     const ep = isNdx ? '/api/ndx-flow' : '/api/spx-flow'
@@ -307,11 +310,18 @@ export default function LevelsScreen() {
   const cwNum    = parseFloat(String(cWall ?? '').replace(/,/g, '')) || 0
   const pwNum    = parseFloat(String(pWall ?? '').replace(/,/g, '')) || 0
 
-  // Ladder data
-  const oiRows = isNdx
+  // Ladder data — filtered to ±lvRange pts from current price
+  const allOiRows = isNdx
     ? (ladders?.ndx?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ndx?.ladder_rows ?? [])
     : (ladders?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ladder_rows ?? [])
-  const gexRows = gexStrikes
+  const allGexRows = gexStrikes
+
+  const filterByRange = (rows: any[]) => priceNum > 0
+    ? rows.filter((r: any) => Math.abs(parseFloat(String(r.strike).replace(/,/g, '')) - priceNum) <= lvRange)
+    : rows
+
+  const oiRows  = filterByRange(allOiRows)
+  const gexRows = filterByRange(allGexRows)
 
   const maxOI  = Math.max(...(oiRows.map((r: any) => Math.max(r.call_value || 0, r.put_value || 0))), 1)
   const maxGEX = Math.max(...(gexRows.map((r: any) => Math.abs(r.net_gex || 0))), 1)
@@ -386,10 +396,14 @@ export default function LevelsScreen() {
               <button className={`lv-bucket${oiBucket === 'all' ? ' active' : ''}`} onClick={() => setOiBucket('all')}>All</button>
               <button className={`lv-bucket${oiBucket === 'week' ? ' active' : ''}`} onClick={() => setOiBucket('week')}>Week</button>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="range" className="ladder-slider" style={{ width: 56 }} min={isNdx ? 250 : 50} max={isNdx ? 3000 : 500} step={isNdx ? 250 : 50} value={lvRange} onChange={e => setLvRange(Number(e.target.value))} />
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--green)', whiteSpace: 'nowrap' }}>±{lvRange}</span>
+            </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 12, padding: '3px 8px', background: 'var(--surface)', borderBottom: '0.5px solid var(--border)', fontSize: 7, fontWeight: 700, fontFamily: 'var(--mono)', flexShrink: 0 }}>
-            <span style={{ color: 'var(--red)' }}>◀ PUTS</span>
-            <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
+            <span style={{ color: 'var(--green)' }}>◀ CALLS</span>
+            <span style={{ color: 'var(--red)' }}>PUTS ▶</span>
           </div>
           <div className="lv-col-scroll">
             {oiRows.length > 0
@@ -413,8 +427,8 @@ export default function LevelsScreen() {
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 12, padding: '3px 8px', background: 'var(--surface)', borderBottom: '0.5px solid var(--border)', fontSize: 7, fontWeight: 700, fontFamily: 'var(--mono)', flexShrink: 0 }}>
-            <span style={{ color: 'var(--red)' }}>◀ PUT γ</span>
-            <span style={{ color: 'var(--green)' }}>CALL γ ▶</span>
+            <span style={{ color: 'var(--green)' }}>◀ CALL γ</span>
+            <span style={{ color: 'var(--red)' }}>PUT γ ▶</span>
           </div>
           <div className="lv-col-scroll">
             {gexRows.length > 0

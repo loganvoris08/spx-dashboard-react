@@ -52,11 +52,11 @@ function OIHBars({ rows, priceStrike, callWall, putWall }: {
               {isPut ? '▼' : isPrice ? '●' : ''}{row.strike}
             </div>
             <div className="hbar-left">
-              <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.7)' }} />
+              <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: 'rgba(0,255,136,0.7)' }} />
             </div>
             <div className="hbar-divider" style={{ background: isPrice ? 'var(--yellow)' : 'var(--border2)' }} />
             <div className="hbar-right">
-              <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: 'rgba(0,255,136,0.7)', position: 'absolute', left: 0, right: 'auto', borderRadius: '0 2px 2px 0' }} />
+              <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.7)' }} />
             </div>
             <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: isCall ? 'var(--green)' : isPrice ? 'var(--yellow)' : 'var(--muted2)' }}>
               {isCall ? '▲' : ''}
@@ -204,9 +204,9 @@ export default function OIScreen() {
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 16, padding: '4px 14px', borderBottom: '1px solid var(--border)', fontSize: 8, fontWeight: 700, fontFamily: 'var(--mono)' }}>
-          <span style={{ color: 'var(--red)' }}>◀ PUTS</span>
+          <span style={{ color: 'var(--green)' }}>◀ CALLS</span>
           <span style={{ color: 'var(--muted2)' }}>|</span>
-          <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
+          <span style={{ color: 'var(--red)' }}>PUTS ▶</span>
         </div>
         <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} />
         {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
