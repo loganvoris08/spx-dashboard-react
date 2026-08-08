@@ -4,6 +4,8 @@ import { useSide } from '../lib/SideContext'
 import { useLiveFlow } from '../hooks/useLiveFlow'
 import { useSSE } from '../lib/SSEContext'
 import FlowChart from '../components/FlowChart'
+import CanvasChart from '../components/CanvasChart'
+import type { CCSeries } from '../components/CanvasChart'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -138,6 +140,7 @@ export default function FlowScreen() {
   const [expiryData,   setExpiryData]   = useState<any[]>([])
   const [sectorTide,   setSectorTide]   = useState<any[]>([])
   const [sectorFlow,   setSectorFlow]   = useState<any[]>([])
+  const [velocitySeries, setVelocitySeries] = useState<CCSeries[]>([])
   const [loadingUnusual, setLoadingUnusual] = useState(false)
   const [loadingDp,    setLoadingDp]    = useState(false)
   const [loadingFlow,  setLoadingFlow]  = useState(false)
@@ -245,6 +248,22 @@ export default function FlowScreen() {
     }
   }, [isNdx, blockItems, tickerItems])
 
+  /* ── Flow Velocity (from spx/ndx-uw-flow velocity array) ── */
+  const loadVelocity = useCallback(async () => {
+    try {
+      const ep = isNdx ? '/api/ndx-uw-flow' : '/api/spx-uw-flow'
+      const d = await apiFetch(ep)
+      const vel: any[] = d.velocity || []
+      if (!vel.length) return
+      const toUnix = (ts: any) => typeof ts === 'number' ? ts : Math.floor(new Date(ts).getTime() / 1000)
+      setVelocitySeries([{
+        data:  vel.map((v: any) => ({ time: toUnix(v.ts), value: v.value })),
+        color: '#f59e0b', rgb: '245,158,11',
+        fill:  true,
+      }])
+    } catch {}
+  }, [isNdx])
+
   /* ── Unusual alerts (on demand) ── */
   const loadUnusual = useCallback(async () => {
     setLoadingUnusual(true)
@@ -270,15 +289,17 @@ export default function FlowScreen() {
     loadAnalytics()
     loadExpiry()
     loadSector()
+    loadVelocity()
 
     // Refresh on every SSE update event (backend publishes when data changes)
     const off1 = on('update', () => loadBlocks())
     const off2 = on('update', () => load0dte())
     const off3 = on('update', () => loadAnalytics())
     const off4 = on('update', () => loadExpiry())
+    const off5 = on('update', () => loadVelocity())
 
-    return () => { off1(); off2(); off3(); off4() }
-  }, [isNdx, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector, on])
+    return () => { off1(); off2(); off3(); off4(); off5() }
+  }, [isNdx, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector, loadVelocity, on])
 
   /* ── 0DTE computed values ── */
   const dteCallPrem = dteStats?.net_call_prem ?? dteStats?.call_premium
@@ -341,6 +362,21 @@ export default function FlowScreen() {
 
       {/* ── Intraday Net Flow Chart ── */}
       <FlowChart />
+
+      {/* ── Flow Velocity ── */}
+      {velocitySeries.length > 0 && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            Flow Velocity
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: '#f59e0b', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>MOMENTUM</span>
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
+          </div>
+          <CanvasChart series={velocitySeries} height={120} split pulse glow />
+          <div style={{ fontSize: 8, color: 'var(--muted2)', marginTop: 4 }}>
+            Rate of change in net premium flow — positive = flow accelerating bullish · negative = bearish momentum
+          </div>
+        </div>
+      )}
 
       {/* ── Flow Bias ── */}
       <div className="panel">

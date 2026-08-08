@@ -395,6 +395,71 @@ export default function GEXScreen() {
         </div>
       </div>
 
+      {/* ── 0DTE Pin Risk Meter ── */}
+      {(() => {
+        const dte0Rows: any[] = isNdx
+          ? (ladders?.ndx?.gex_ladder_buckets?.['0dte'] ?? [])
+          : (ladders?.gex_ladder_buckets?.['0dte'] ?? [])
+        if (!dte0Rows.length) return null
+
+        // Score each strike: GEX magnitude × proximity to current price
+        const DECAY = 30 // pts half-life for proximity weighting
+        const scored = dte0Rows.map((r: any) => {
+          const s   = parseFloat(String(r.strike).replace(/,/g, ''))
+          const gex = Math.abs((r.call_gex ?? 0) - (r.put_gex ?? 0))
+          const prox = Math.exp(-Math.abs(s - priceNum) / DECAY)
+          return { strike: s, gex, score: gex * prox, netGex: (r.call_gex ?? 0) - (r.put_gex ?? 0) }
+        })
+        const maxScore = Math.max(...scored.map(r => r.score), 1)
+        const pinCandidates = [...scored].sort((a, b) => b.score - a.score).slice(0, 5)
+        const topPin = pinCandidates[0]
+        const pinPct = Math.round((topPin?.score / maxScore) * 100)
+        const dist   = topPin ? Math.abs(topPin.strike - priceNum) : 0
+        const pinLabel = dist < 5 ? 'HIGH' : dist < 15 ? 'MODERATE' : 'LOW'
+        const pinColor = dist < 5 ? 'var(--red)' : dist < 15 ? 'var(--yellow)' : 'var(--green)'
+
+        return (
+          <div className="panel">
+            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              0DTE Pin Risk
+              <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: pinColor, background: `rgba(${dist < 5 ? '255,51,68' : dist < 15 ? '234,179,8' : '0,255,136'},0.08)`, border: `1px solid rgba(${dist < 5 ? '255,51,68' : dist < 15 ? '234,179,8' : '0,255,136'},0.25)`, borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>{pinLabel}</span>
+            </div>
+            {topPin && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 9, fontFamily: 'var(--mono)' }}>
+                    <span style={{ color: pinColor, fontWeight: 700 }}>PIN: {Math.round(topPin.strike)}</span>
+                    <span style={{ color: 'var(--muted2)' }}>{dist < 1 ? 'AT PRICE' : `${dist.toFixed(0)}pts away`}</span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pinPct}%`, background: pinColor, borderRadius: 3, transition: 'width 0.4s ease' }} />
+                  </div>
+                </div>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: pinColor, minWidth: 36, textAlign: 'right' }}>{pinPct}</span>
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+              {pinCandidates.map((r, i) => {
+                const pct   = Math.round((r.score / maxScore) * 100)
+                const d     = Math.abs(r.strike - priceNum)
+                const c     = d < 5 ? 'var(--red)' : d < 15 ? 'var(--yellow)' : 'var(--muted2)'
+                const isTop = i === 0
+                return (
+                  <div key={i} style={{ textAlign: 'center', padding: '6px 4px', background: isTop ? `rgba(${d < 5 ? '255,51,68' : d < 15 ? '234,179,8' : '0,255,136'},0.06)` : 'var(--surface)', borderRadius: 4, border: `1px solid ${isTop ? c : 'var(--border)'}` }}>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, color: c }}>{Math.round(r.strike)}</div>
+                    <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, margin: '3px 0', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: c, borderRadius: 2 }} />
+                    </div>
+                    <div style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{pct}%</div>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 8, color: 'var(--muted2)', marginTop: 8 }}>Score = 0DTE gamma magnitude × price proximity. High = likely expiry pin target.</div>
+          </div>
+        )
+      })()}
+
       {/* ── Top Gamma Strikes ── */}
       {topGamma.length > 0 && (
         <div className="panel">

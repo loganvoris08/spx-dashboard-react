@@ -42,6 +42,7 @@ export default function TideScreen() {
   const [c1Series,  setC1Series]  = useState<CCSeries[]>([])
   const [c2Series,  setC2Series]  = useState<CCSeries[]>([])
   const [c3Series,  setC3Series]  = useState<CCSeries[]>([])
+  const [c4Series,  setC4Series]  = useState<CCSeries[]>([])
   const [mktSeries, setMktSeries] = useState<CCSeries[]>([])
 
   const [stats,     setStats]     = useState<any>(null)
@@ -88,6 +89,19 @@ export default function TideScreen() {
     } catch {}
   }, [isNdx, moneyness, expiry])
 
+  const loadVannaCharm = useCallback(async () => {
+    if (isNdx) return  // SPX only — NDX vanna/charm data not tracked
+    try {
+      const d = await apiFetch('/api/vanna-charm')
+      const series: any[] = d.series || []
+      if (!series.length) return
+      setC4Series([
+        { data: series.map((r: any) => ({ time: r.ts, value: r.vanna })), color: '#a855f7', rgb: '168,85,247', label: 'Vanna', fill: false, lw: 1.5 },
+        { data: series.map((r: any) => ({ time: r.ts, value: r.charm })), color: '#22d3ee', rgb: '34,211,238', label: 'Charm', fill: false, lw: 1.5 },
+      ])
+    } catch {}
+  }, [isNdx])
+
   const loadMarketTide = useCallback(async () => {
     try {
       const d = await apiFetch('/api/market-tide')
@@ -110,10 +124,12 @@ export default function TideScreen() {
   useEffect(() => {
     loadFlowHistory()
     loadMarketTide()
+    loadVannaCharm()
     const off1 = on('update', () => loadFlowHistory())
     const off2 = on('update', () => loadMarketTide())
-    return () => { off1(); off2() }
-  }, [loadFlowHistory, loadMarketTide, on])
+    const off3 = on('update', () => loadVannaCharm())
+    return () => { off1(); off2(); off3() }
+  }, [loadFlowHistory, loadMarketTide, loadVannaCharm, on])
 
   async function handleAiRead() {
     setLoadingAi(true)
@@ -216,6 +232,20 @@ export default function TideScreen() {
       </div>
       <CanvasChart series={c3Series} height={120} split pulse glow />
       <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 14, padding: '4px 2px' }}>Smoothed rate of change — rising = momentum building · falling = flow decelerating</div>
+
+      {/* Chart 4: Vanna / Charm Pressure */}
+      {(!isNdx && c4Series.length > 0) && (<>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)' }}>Vanna / Charm Pressure</span>
+          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: '#a855f7', background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 3, padding: '1px 5px' }}>GREEK</span>
+        </div>
+        <CanvasChart series={c4Series} height={110} split pulse={false} glow />
+        <div style={{ display: 'flex', gap: 14, marginBottom: 14, padding: '4px 2px' }}>
+          <span style={{ fontSize: 8, color: '#a855f7', fontFamily: 'var(--mono)' }}>▬ Vanna (IV-driven)</span>
+          <span style={{ fontSize: 8, color: '#22d3ee', fontFamily: 'var(--mono)' }}>▬ Charm (time-decay)</span>
+          <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>· positive = buying pressure</span>
+        </div>
+      </>)}
 
       {/* AI Read */}
       <div onClick={handleAiRead} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', marginBottom: aiRead ? 8 : 0 }}>
