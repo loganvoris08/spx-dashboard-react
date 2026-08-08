@@ -175,7 +175,6 @@ export default function LevelsScreen() {
   const sparkCanvasRef  = useRef<HTMLCanvasElement>(null)
   const prevRegimeRef   = useRef<string | null>(null)
   const prevRegimeLabel = useRef<string | null>(null)
-  const priceHistory    = useRef<{ ts: number; price: number }[]>([])
 
   // Live options flow via SSE WebSocket relay — no polling
   const { alerts: ticker, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
@@ -251,17 +250,6 @@ export default function LevelsScreen() {
     prevRegimeRef.current = regime
   }, [regime])
 
-  // Rolling price history for "last 15m" — priceNum computed further below,
-  // so we read it from a ref that gets updated there
-  const priceNumRef = useRef(0)
-
-  useEffect(() => {
-    if (!priceNumRef.current || priceNumRef.current <= 0) return
-    const now = Date.now()
-    priceHistory.current.push({ ts: now, price: priceNumRef.current })
-    // Keep only last 20 min
-    priceHistory.current = priceHistory.current.filter(p => now - p.ts < 1200000)
-  })
 
   // Draw sparkline: price deviation from flip zone, flip always centered
   useEffect(() => {
@@ -300,10 +288,8 @@ export default function LevelsScreen() {
     const lineColor = lastDev >= 0 ? '#00ff88' : '#ff3344'
 
     // Flip zone center line (always at midY = zero deviation)
-    ctx.setLineDash([3, 3])
     ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(W, midY)
-    ctx.strokeStyle = 'rgba(168,85,247,0.7)'; ctx.lineWidth = 1; ctx.stroke()
-    ctx.setLineDash([])
+    ctx.strokeStyle = 'rgba(168,85,247,0.8)'; ctx.lineWidth = 1.5; ctx.stroke()
 
     // Fill area between deviation line and center, segment by segment (green above, red below)
     for (let i = 1; i < devPoints.length; i++) {
@@ -392,7 +378,6 @@ export default function LevelsScreen() {
   const priceNum = isNdx
     ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
     : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
-  priceNumRef.current = priceNum
   const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
   const cwNum    = parseFloat(String(cWall ?? '').replace(/,/g, '')) || 0
   const pwNum    = parseFloat(String(pWall ?? '').replace(/,/g, '')) || 0
@@ -401,12 +386,13 @@ export default function LevelsScreen() {
   const dayOpen     = parseFloat(String(data?.daily_open ?? 0)) || 0
   const sinceOpen   = dayOpen > 0 && priceNum > 0 ? priceNum - dayOpen : null
   const price15mAgo = useMemo(() => {
-    const target = Date.now() - 15 * 60 * 1000
-    const hist = priceHistory.current
-    if (!hist.length) return null
-    return hist.reduce((best, p) => Math.abs(p.ts - target) < Math.abs(best.ts - target) ? p : best, hist[0]).price
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priceNum])
+    const priceData: { time: number; value: number }[] = flipChSeries[0]?.data ?? []
+    if (!priceData.length) return null
+    const targetSec = Date.now() / 1000 - 15 * 60
+    return priceData.reduce((best, p) =>
+      Math.abs(p.time - targetSec) < Math.abs(best.time - targetSec) ? p : best
+    ).value
+  }, [flipChSeries])
   const last15m     = price15mAgo != null && priceNum > 0 ? priceNum - price15mAgo : null
   const flipDistPts = flipNum > 0 && priceNum > 0 ? priceNum - flipNum : null
   const flipDistPct = flipDistPts != null ? Math.min(100, (Math.abs(flipDistPts) / 80) * 100) : 0

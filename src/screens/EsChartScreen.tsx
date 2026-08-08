@@ -3,6 +3,8 @@ import { useSide } from '../lib/SideContext'
 import { useLiveFutures } from '../lib/LiveFuturesContext'
 import CandleChart from '../components/CandleChart'
 
+const HAS_KEY = !!(import.meta.env.VITE_MASSIVE_KEY as string ?? '').trim()
+
 function fmtDelta(v: number) {
   const a = Math.abs(v)
   const s = v >= 0 ? '+' : '-'
@@ -62,7 +64,7 @@ export default function EsChartScreen() {
               border: `1px solid ${connected ? 'rgba(0,255,136,0.3)' : 'var(--border2)'}`,
               background: connected ? 'rgba(0,255,136,0.06)' : 'transparent',
             }}>
-              {connected ? 'LIVE' : 'NO FEED'}
+              {connected ? 'LIVE' : HAS_KEY ? 'NO FEED' : 'NO KEY'}
             </span>
           </div>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: deltaColor }}>

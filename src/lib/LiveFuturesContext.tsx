@@ -58,7 +58,10 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
   }
 
   function connect() {
-    if (dead.current || !API_KEY) return
+    if (dead.current || !API_KEY) {
+      console.warn('[LiveFutures] No API key — set VITE_MASSIVE_KEY in Vercel env vars')
+      return
+    }
     const sock = new WebSocket(WS_URL)
     ws.current = sock
 
@@ -76,6 +79,10 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
           if (m.ev === 'status' && m.status === 'auth_success') {
             sock.send(JSON.stringify({ action: 'subscribe', params: 'T.ES1!,A.ES1!' }))
             setState(s => ({ ...s, connected: true }))
+          }
+          // Auth failed
+          if (m.ev === 'status' && m.status === 'auth_failed') {
+            console.error('[LiveFutures] Auth failed — check VITE_MASSIVE_KEY and futures subscription')
           }
 
           // Second aggregate — build live minute bar
