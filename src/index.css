@@ -6,12 +6,12 @@
   color-scheme: dark;
   --bg:#000;--surface:#0a0a0a;--panel:#111;--border:#1f1f1f;--border2:#2a2a2a;
   --text:#fff;--muted:#555;--muted2:#888;
-  --green:#00ff88;--red:#ff3344;--yellow:#ffcc00;
-  --call:#00ff88;--put:#ff3344;--price:#ffcc00;
+  --green:#00ff88;--red:#ff3344;--yellow:#e4ff00;
+  --call:#00ff88;--put:#ff3344;--price:#e4ff00;
   --red2:#ff5555;
   --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
   --blue:#40c4ff;--orange:#f97316;
-  --green-bg:rgba(0,255,136,0.07);--red-bg:rgba(255,51,68,0.07);--yellow-bg:rgba(255,204,0,0.07);
+  --green-bg:rgba(0,255,136,0.07);--red-bg:rgba(255,51,68,0.07);--yellow-bg:rgba(228,255,0,0.07);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.4;overflow:hidden;max-width:100vw;overscroll-behavior:none;}
@@ -45,13 +45,13 @@ html,body,#root{height:100%;-webkit-font-smoothing:antialiased;}
 .ticker-strip{display:flex;gap:16px;flex:1;justify-content:center;}
 .ticker{display:flex;flex-direction:column;align-items:center;}
 .ticker-label{font-size:8px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;}
-.ticker-val{font-family:var(--mono);font-size:15px;font-weight:700;transition:color 0.3s;}
+.ticker-val{font-family:var(--mono);font-size:15px;font-weight:700;transition:color 0.15s,text-shadow 0.15s;}
 .ticker-chg{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--muted2);letter-spacing:.3px;line-height:1;margin-top:1px;transition:color 0.3s;}
 .ticker-val.spx{color:var(--price);}
 .ticker-val.es{color:var(--green);}
 .ticker-val.vix{color:#cc88ff;}
-.ticker-val.tick-up{color:var(--green)!important;}
-.ticker-val.tick-down{color:var(--red)!important;}
+.ticker-val.tick-up{color:var(--green)!important;text-shadow:0 0 12px rgba(0,255,136,0.7);}
+.ticker-val.tick-down{color:var(--red)!important;text-shadow:0 0 12px rgba(255,51,68,0.7);}
 .status-bar{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--muted2);white-space:nowrap;}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;animation:pulse 2s ease-in-out infinite;}
 .dot.stale{background:var(--red);}

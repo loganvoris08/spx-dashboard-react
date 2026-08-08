@@ -62,6 +62,14 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
+  // Price flash direction
+  const [spxDir, setSpxDir] = useState<'up'|'down'|null>(null)
+  const [esDir,  setEsDir]  = useState<'up'|'down'|null>(null)
+  const [vixDir, setVixDir] = useState<'up'|'down'|null>(null)
+  const prevSpx = useRef<number|null>(null)
+  const prevEs  = useRef<number|null>(null)
+  const prevVix = useRef<number|null>(null)
+
   // Close menu on outside click
   useEffect(() => {
     if (!menuOpen) return
@@ -126,6 +134,42 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
     return isNaN(n) ? null : n
   }
 
+  // Flash green/red on each tick
+  useEffect(() => {
+    if (displayNum == null) return
+    if (prevSpx.current != null && displayNum !== prevSpx.current) {
+      const d = displayNum > prevSpx.current ? 'up' : 'down'
+      setSpxDir(d)
+      const t = setTimeout(() => setSpxDir(null), 500)
+      return () => clearTimeout(t)
+    }
+    prevSpx.current = displayNum
+  }, [displayNum])
+
+  useEffect(() => {
+    const n = parseNum(esRaw)
+    if (n == null) return
+    if (prevEs.current != null && n !== prevEs.current) {
+      const d = n > prevEs.current ? 'up' : 'down'
+      setEsDir(d)
+      const t = setTimeout(() => setEsDir(null), 500)
+      return () => clearTimeout(t)
+    }
+    prevEs.current = n
+  }, [esRaw])
+
+  useEffect(() => {
+    if (vixNum2 == null) return
+    if (prevVix.current != null && vixNum2 !== prevVix.current) {
+      // VIX up = fear = red; VIX down = calm = green (inverted)
+      const d = vixNum2 > prevVix.current ? 'down' : 'up'
+      setVixDir(d)
+      const t = setTimeout(() => setVixDir(null), 500)
+      return () => clearTimeout(t)
+    }
+    prevVix.current = vixNum2
+  }, [vixNum2])
+
   // OI Strip
   const putWall  = parseNum(data?.nearest_put_wall ?? data?.put_wall)
   const callWall = parseNum(data?.nearest_call_wall ?? data?.call_wall)
@@ -179,21 +223,21 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
         <div className="ticker-strip">
           <div className="ticker">
             <div className="ticker-label">{spxLabel}</div>
-            <div className="ticker-val spx">{spxFmt}</div>
+            <div className={`ticker-val spx${spxDir === 'up' ? ' tick-up' : spxDir === 'down' ? ' tick-down' : ''}`}>{spxFmt}</div>
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
           </div>
           <div className="ticker">
             <div className="ticker-label">{esLabel}</div>
-            <div className="ticker-val es">{esFmt}</div>
+            <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{esFmt}</div>
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
             )}
           </div>
           <div className="ticker">
             <div className="ticker-label">VIX</div>
-            <div className="ticker-val vix">{vixFmt}</div>
+            <div className={`ticker-val vix${vixDir === 'up' ? ' tick-up' : vixDir === 'down' ? ' tick-down' : ''}`}>{vixFmt}</div>
             {fmtChg(vixChg, vixChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (vixChg ?? 0) >= 0 ? 'var(--red)' : 'var(--green)', marginTop: 1 }}>{fmtChg(vixChg, vixChgPct)}</div>
             )}
