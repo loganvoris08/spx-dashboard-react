@@ -46,7 +46,7 @@ export default function NewsScreen() {
   const loadFomc     = useCallback(async () => { try { setFomc(await apiFetch('/fomc')) } catch {} }, [])
   const loadEarnings = useCallback(async () => { try { const d = await apiFetch('/earnings'); setEarnings(d.events || d.earnings || []) } catch {} }, [])
   const loadCalendar = useCallback(async () => { try { const d = await apiFetch('/calendar'); setCalendar(d.events || d.calendar || []) } catch {} }, [])
-  const loadHeadlines= useCallback(async () => { try { const d = await apiFetch('/api/headlines'); setHeadlines(d.headlines || d.articles || []) } catch {} }, [])
+  const loadHeadlines= useCallback(async () => { try { const d = await apiFetch('/api/uw-news'); setHeadlines(d.headlines || d.articles || []) } catch {} }, [])
 
   useEffect(() => {
     loadOpex(); loadFomc(); loadEarnings(); loadCalendar(); loadHeadlines()
@@ -200,14 +200,34 @@ export default function NewsScreen() {
 
       {/* Market Headlines */}
       <div className="panel">
-        <div className="panel-title">Market Headlines</div>
-        {headlines.length > 0 ? headlines.map((h: any, i: number) => (
-          <div key={i} style={{ padding: '8px 0', borderBottom: i < headlines.length - 1 ? '1px solid var(--border)' : 'none' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', lineHeight: 1.4, marginBottom: 2 }}>{h.title || h.headline}</div>
-            {h.source && <span style={{ fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--muted2)' }}>{h.source}</span>}
-            {h.time   && <span style={{ fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--muted2)', marginLeft: 6 }}>{h.time}</span>}
-          </div>
-        )) : (
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Market Headlines</span>
+          <button onClick={loadHeadlines} style={{ padding: '3px 8px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted2)', fontFamily: 'var(--mono)', fontSize: 8, cursor: 'pointer' }}>↻</button>
+        </div>
+        {headlines.length > 0 ? headlines.map((h: any, i: number) => {
+          const sent = (h.sentiment || 'neutral').toLowerCase()
+          const sentColor = sent === 'bullish' ? 'var(--green)' : sent === 'bearish' ? 'var(--red)' : 'var(--muted2)'
+          const tickers: string[] = (h.tickers || []).slice(0, 3)
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '7px 0', borderBottom: i < headlines.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: sentColor, flexShrink: 0, marginTop: 4 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, lineHeight: 1.4, color: 'var(--text)', marginBottom: h.is_major ? 2 : 0 }}>
+                  {h.is_major && <span style={{ fontSize: 7, fontWeight: 700, color: 'var(--red)', marginRight: 4 }}>●</span>}
+                  {h.headline || h.title}
+                </div>
+                {tickers.length > 0 && (
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                    {tickers.map((t, j) => (
+                      <span key={j} style={{ fontSize: 8, fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--yellow)', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.2)', borderRadius: 3, padding: '1px 4px' }}>{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {h.time && <div style={{ fontSize: 8, color: 'var(--muted2)', whiteSpace: 'nowrap', flexShrink: 0, paddingTop: 2 }}>{h.time}</div>}
+            </div>
+          )
+        }) : (
           <div style={{ fontSize: 10, color: 'var(--muted2)' }}>Loading headlines…</div>
         )}
       </div>

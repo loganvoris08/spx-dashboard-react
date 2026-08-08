@@ -126,7 +126,7 @@ export default function SmartMoneyScreen() {
   const loadLate = useCallback(async () => {
     setLoading(l => ({ ...l, late: true }))
     try {
-      const d = await apiFetch('/api/late-filings')
+      const d = await apiFetch('/api/congress-late')
       setLateFiling(d.trades ?? d.data ?? d ?? [])
       setLateTs(tsNow())
     } catch { setLateFiling([]) }
@@ -136,7 +136,8 @@ export default function SmartMoneyScreen() {
   const loadOwnership = useCallback(async (ticker: 'SPY'|'QQQ') => {
     setLoading(l => ({ ...l, own: true }))
     try {
-      const d = await apiFetch(`/api/institution-ownership?ticker=${ticker}`)
+      const endpoint = ticker === 'QQQ' ? '/api/qqq-ownership' : '/api/spy-ownership'
+      const d = await apiFetch(endpoint)
       setOwnership(d.ownership ?? d.data ?? d ?? [])
       setOwnTs(tsNow())
     } catch { setOwnership([]) }
@@ -146,7 +147,7 @@ export default function SmartMoneyScreen() {
   const loadInstitutions = useCallback(async () => {
     setLoading(l => ({ ...l, inst: true }))
     try {
-      const d = await apiFetch('/api/institutions')
+      const d = await apiFetch('/api/institution-trades')
       setInstitutions(d.institutions ?? d.data ?? d ?? [])
       setInstTs(tsNow())
     } catch { setInstitutions([]) }

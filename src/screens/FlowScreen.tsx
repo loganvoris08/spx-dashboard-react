@@ -192,13 +192,15 @@ export default function FlowScreen() {
     try {
       const d = await apiFetch('/api/greek-flow')
       setGreekData(d)
-    } catch {}
+    } catch {
+      // fallback: main data payload may include greek_flow array
+    }
   }, [])
 
   /* ── Flow by expiry ── */
   const loadExpiry = useCallback(async () => {
     try {
-      const d = await apiFetch(isNdx ? '/api/ndx-flow-expiry' : '/api/flow-expiry')
+      const d = await apiFetch(isNdx ? '/api/ndx-flow-expiry' : '/api/net-flow-expiry')
       setExpiryData(d.expiry ?? d.data ?? d ?? [])
     } catch { setExpiryData([]) }
   }, [isNdx])
@@ -494,27 +496,38 @@ export default function FlowScreen() {
       </div>
 
       {/* ── Greek Flow ── */}
-      <div className="panel">
-        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          Greek Flow — Delta &amp; Vega
-          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
-        </div>
-        <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Directional delta flow = net call minus put delta. Directional vega = call vega premium − put vega premium.</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-            <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>Dir. Δ Flow</div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: greekData?.delta_flow != null ? (greekData.delta_flow > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
-              {greekData?.delta_flow != null ? (greekData.delta_flow > 0 ? '+' : '') + Number(greekData.delta_flow).toFixed(0) : '--'}
+      {(() => {
+        // /api/greek-flow returns {delta_flow, vega_flow}
+        // Fallback: main data.greek_flow is array with last row having dir_delta_flow / dir_vega_flow
+        const gfArr: any[] = data?.greek_flow || []
+        const gfLast = gfArr.length ? gfArr[gfArr.length - 1] : null
+        const deltaFlow = greekData?.delta_flow ?? gfLast?.dir_delta_flow ?? null
+        const vegaFlow  = greekData?.vega_flow  ?? gfLast?.dir_vega_flow  ?? null
+        const fmtGf = (v: number | null) => v == null ? '--' : (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0))
+        return (
+          <div className="panel">
+            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              Greek Flow — Delta &amp; Vega
+              <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+            </div>
+            <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Directional delta flow = net call minus put delta. Directional vega = call vega premium − put vega premium.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>Dir. Δ Flow</div>
+                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: deltaFlow != null ? (deltaFlow > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
+                  {deltaFlow != null ? (deltaFlow > 0 ? '+' : '') + fmtGf(deltaFlow) : '--'}
+                </div>
+              </div>
+              <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>Dir. ν Flow</div>
+                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: vegaFlow != null ? (vegaFlow > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
+                  {vegaFlow != null ? (vegaFlow > 0 ? '+' : '') + fmtGf(vegaFlow) : '--'}
+                </div>
+              </div>
             </div>
           </div>
-          <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-            <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>Dir. ν Flow</div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: greekData?.vega_flow != null ? (greekData.vega_flow > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
-              {greekData?.vega_flow != null ? (greekData.vega_flow > 0 ? '+' : '') + Number(greekData.vega_flow).toFixed(0) : '--'}
-            </div>
-          </div>
-        </div>
-      </div>
+        )
+      })()}
 
       {/* ── Flow By Expiry ── */}
       {expiryData.length > 0 && (

@@ -19,6 +19,10 @@ import EngineScreen from './screens/EngineScreen'
 import MMPlaybookScreen from './screens/MMPlaybookScreen'
 import SmartMoneyScreen from './screens/SmartMoneyScreen'
 import LearnScreen from './screens/LearnScreen'
+import JournalScreen from './screens/JournalScreen'
+import AdminScreen from './screens/AdminScreen'
+import OptionsSetupScreen from './screens/OptionsSetupScreen'
+import HotOptionsScreen from './screens/HotOptionsScreen'
 import './index.css'
 
 function Dashboard() {
@@ -42,10 +46,14 @@ function Dashboard() {
         {tab === 'ndx'        && <ChartScreen />}
         {tab === 'nq'         && <EsChartScreen />}
         {tab === 'nq10m'      && <Es10mScreen />}
-        {tab === 'engine'     && <EngineScreen />}
-        {tab === 'playbook'   && <MMPlaybookScreen />}
-        {tab === 'learn'      && <LearnScreen />}
-        {tab === 'smartmoney' && <SmartMoneyScreen />}
+        {tab === 'engine'      && <EngineScreen />}
+        {tab === 'playbook'    && <MMPlaybookScreen />}
+        {tab === 'learn'       && <LearnScreen />}
+        {tab === 'smartmoney'  && <SmartMoneyScreen />}
+        {tab === 'journal'     && <JournalScreen />}
+        {tab === 'admin'       && <AdminScreen />}
+        {tab === 'optionssetup'&& <OptionsSetupScreen />}
+        {tab === 'hotoptions'  && <HotOptionsScreen />}
       </Layout>
     </SideProvider>
   )

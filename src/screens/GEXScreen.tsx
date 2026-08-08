@@ -129,8 +129,8 @@ export default function GEXScreen() {
   const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
 
   const allRows = isNdx
-    ? (ladders?.ndx?.gex_ladder_buckets?.[bucket] ?? ladders?.ndx?.gex_rows ?? [])
-    : (ladders?.gex_ladder_buckets?.[bucket] ?? ladders?.gex_rows ?? [])
+    ? (ladders?.ndx?.gex_ladder_buckets?.[bucket] ?? ladders?.ndx?.gex_ladder_rows ?? [])
+    : (ladders?.gex_ladder_buckets?.[bucket] ?? ladders?.gex_ladder_rows ?? [])
   const rangeFiltered = allRows.filter((r: any) => {
     const s = parseFloat(String(r.strike).replace(/,/g, ''))
     return Math.abs(s - priceNum) <= range

@@ -21,11 +21,15 @@ const NDX_EXTRA = [
 ]
 
 const MENU_ITEMS = [
-  { id: 'signal',   label: 'Signal' },
-  { id: 'engine',   label: 'Engine' },
-  { id: 'playbook', label: 'MM Playbook' },
-  { id: 'learn',    label: 'Learn' },
-  { id: 'smartmoney', label: 'Smart Money' },
+  { id: 'signal',      label: 'Signal' },
+  { id: 'engine',      label: 'Engine' },
+  { id: 'playbook',    label: 'MM Playbook' },
+  { id: 'learn',       label: 'Learn' },
+  { id: 'smartmoney',  label: 'Smart Money' },
+  { id: 'optionssetup',label: 'Options Setup' },
+  { id: 'journal',     label: 'Journal' },
+  { id: 'hotoptions',  label: 'Hot Options' },
+  { id: 'admin',       label: 'Admin' },
 ]
 
 interface Props {
@@ -229,34 +233,6 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
       <div className="mobile-side-row">
         <button className={`side-btn${side === 'spx' ? ' active' : ''}`} onClick={() => setSide('spx')}>SPX</button>
         <button className={`side-btn${side === 'ndx' ? ' active' : ''}`} onClick={() => setSide('ndx')}>NDX</button>
-      </div>
-
-      {/* ── Signal banner ── */}
-      <div className="signal-banner">
-        <span className={`sb-pill ${sc}`}>{signal}</span>
-
-        {zoneState && (
-          <span className={`zn-chip ${zoneClass(zoneState)}`}>{zoneState}</span>
-        )}
-
-        {score != null && maxScore != null && signal !== 'WAIT' && (
-          <>
-            <span className="sb-score-text">{score}/{maxScore}</span>
-            <div className="sb-bar-track">
-              <div className="sb-bar-fill" style={{ width: `${Math.round((score / maxScore) * 100)}%` }} />
-            </div>
-          </>
-        )}
-
-        {swing && !swing.includes('NO ') && (
-          <span className={`sb-swing ${swingClass(swing)}`}>{swing}</span>
-        )}
-
-        <span style={{ flex: 1 }} />
-
-        {session && (
-          <span className={`sb-session ${sessionClass(session)}`}>{session.toUpperCase()}</span>
-        )}
       </div>
 
       {/* ── Flip Alert ── */}

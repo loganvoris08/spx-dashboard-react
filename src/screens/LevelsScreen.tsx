@@ -180,8 +180,8 @@ export default function LevelsScreen() {
     ? (ladders?.ndx?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ndx?.ladder_rows ?? [])
     : (ladders?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ladder_rows ?? [])
   const gexRows = isNdx
-    ? (ladders?.ndx?.gex_ladder_buckets?.[gexBucket] ?? ladders?.ndx?.gex_rows ?? [])
-    : (ladders?.gex_ladder_buckets?.[gexBucket] ?? ladders?.gex_rows ?? [])
+    ? (ladders?.ndx?.gex_ladder_buckets?.[gexBucket] ?? ladders?.ndx?.gex_ladder_rows ?? [])
+    : (ladders?.gex_ladder_buckets?.[gexBucket] ?? ladders?.gex_ladder_rows ?? [])
 
   const maxOI  = Math.max(...(oiRows.map((r: any) => Math.max(r.call_value || 0, r.put_value || 0))), 1)
   const maxGEX = Math.max(...(gexRows.map((r: any) => Math.max(Math.abs(r.call_gex || 0), Math.abs(r.put_gex || 0), Math.abs(r.net_gex || 0)))), 1)
