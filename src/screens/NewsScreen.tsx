@@ -264,29 +264,42 @@ export default function NewsScreen() {
       {calendar.length > 0 && (
         <div className="panel">
           <div className="panel-title">Economic Calendar</div>
-          {calendar.map((ev: any, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < calendar.length - 1 ? '1px solid var(--border)' : 'none' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{ev.event || ev.name || ev.title}</div>
-                {ev.time && <div style={{ fontSize: 9, color: 'var(--muted2)', fontFamily: 'var(--mono)', marginTop: 2 }}>{ev.time}</div>}
+          {calendar.map((ev: any, i: number) => {
+            const evName = (ev.event || ev.name || ev.title || '')
+            // Score the event name for category tag
+            const evScore = scoreHeadline({ headline: evName, sentiment: '' })
+            const imp = (ev.importance || '').toUpperCase()
+            // Importance: prefer backend value, fall back to scored impact
+            const importanceLevel = imp === 'HIGH' || imp === '3' || imp === 'HIGH IMPACT' ? 'HIGH'
+              : imp === 'MED' || imp === 'MEDIUM' || imp === '2' ? 'MED'
+              : imp === 'LOW' || imp === '1' ? 'LOW'
+              : evScore.impact  // keyword fallback when no importance field
+            const impCfg = importanceLevel === 'HIGH'
+              ? { label: '● HIGH', color: '#ff3344', bg: 'rgba(255,51,68,0.12)', border: 'rgba(255,51,68,0.35)' }
+              : importanceLevel === 'MED'
+              ? { label: '● MED',  color: '#ffcc00', bg: 'rgba(255,204,0,0.10)',  border: 'rgba(255,204,0,0.3)'  }
+              : { label: '● LOW',  color: '#4b5563', bg: 'transparent',           border: 'rgba(255,255,255,0.08)' }
+            const leftBorder = importanceLevel === 'HIGH' ? '2px solid rgba(255,51,68,0.5)'
+              : importanceLevel === 'MED' ? '2px solid rgba(255,204,0,0.35)'
+              : '2px solid transparent'
+            const tag = evScore.tag  // category tag from keyword scoring
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '7px 0 7px 8px', marginLeft: -8, borderBottom: i < calendar.length - 1 ? '1px solid var(--border)' : 'none', borderLeft: leftBorder }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 8, fontFamily: 'var(--mono)', fontWeight: 700, color: impCfg.color, background: impCfg.bg, border: `1px solid ${impCfg.border}`, borderRadius: 3, padding: '1px 5px' }}>{impCfg.label}</span>
+                    {tag && <span style={{ fontSize: 7, fontFamily: 'var(--mono)', fontWeight: 700, color: impCfg.color, opacity: 0.8, background: impCfg.bg, border: `1px solid ${impCfg.border}`, borderRadius: 3, padding: '1px 4px' }}>{tag}</span>}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: importanceLevel === 'HIGH' ? 600 : 400, color: importanceLevel === 'HIGH' ? 'var(--text)' : 'var(--muted)' }}>{evName}</div>
+                  {ev.time && <div style={{ fontSize: 9, color: 'var(--muted2)', fontFamily: 'var(--mono)', marginTop: 2 }}>{ev.time}</div>}
+                </div>
+                <div style={{ textAlign: 'right', minWidth: 72, paddingLeft: 8 }}>
+                  {ev.forecast != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Fcst: {ev.forecast}</div>}
+                  {ev.previous != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Prev: {ev.previous}</div>}
+                </div>
               </div>
-              <div style={{ textAlign: 'right', minWidth: 80 }}>
-                {ev.importance && (() => {
-                  const imp = (ev.importance || '').toUpperCase()
-                  const cfg = imp === 'HIGH' || imp === '3' || imp === 'HIGH IMPACT'
-                    ? { label: '● HIGH', color: '#ff3344', bg: 'rgba(255,51,68,0.12)', border: 'rgba(255,51,68,0.35)' }
-                    : imp === 'MED' || imp === 'MEDIUM' || imp === '2'
-                    ? { label: '● MED',  color: '#ffcc00', bg: 'rgba(255,204,0,0.10)',  border: 'rgba(255,204,0,0.3)'  }
-                    : { label: '● LOW',  color: '#4b5563', bg: 'transparent',           border: 'rgba(255,255,255,0.08)' }
-                  return (
-                    <span style={{ fontSize: 8, fontFamily: 'var(--mono)', fontWeight: 700, color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 3, padding: '1px 5px', display: 'inline-block', marginBottom: 4 }}>{cfg.label}</span>
-                  )
-                })()}
-                {ev.forecast != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Fcst: {ev.forecast}</div>}
-                {ev.previous != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Prev: {ev.previous}</div>}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

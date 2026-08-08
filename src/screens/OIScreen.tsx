@@ -46,20 +46,20 @@ function OIHBars({ rows, priceStrike, callWall, putWall, hotSet }: {
         const isHot   = hotSet.has(Math.round(strike))
         const pFill   = Math.min(1, (row.put_value  || 0) / maxPut)
         const cFill   = Math.min(1, (row.call_value || 0) / maxCall)
-        const bg = isPrice ? 'rgba(255,204,0,0.06)' : isHot ? 'rgba(56,189,248,0.06)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
-        const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : isHot ? '#38bdf8' : 'var(--muted2)'
+        const bg = isPrice ? 'rgba(255,204,0,0.06)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
+        const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : isHot ? 'var(--red)' : 'var(--muted2)'
 
         return (
-          <div key={i} className="hbar-row" style={{ background: bg }}>
+          <div key={i} className="hbar-row" style={{ background: isHot && !isPrice && !isCall && !isPut ? undefined : bg, animation: isHot && !isPrice && !isCall && !isPut ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
             <div className="hbar-strike" style={{ color: strikeColor, textAlign: 'right', paddingRight: 6 }}>
-              {isHot && <span style={{ fontSize: 7, marginRight: 1 }}>🔥</span>}
+              {isHot && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
               {Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
             </div>
             <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
               {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
               {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
             </div>
-            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? '#38bdf8' : 'var(--muted2)', fontSize: 7 }}>
+            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? 'var(--red)' : 'var(--muted2)', fontSize: 7 }}>
               {isCall ? 'CW' : isPut ? 'PW' : isHot ? 'HOT' : ''}
             </div>
           </div>
