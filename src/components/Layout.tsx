@@ -1,6 +1,7 @@
 import { useState, type ReactNode, useRef, useEffect } from 'react'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
+import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
 
 const SPX_TABS = [
   { id: 'levels', label: 'Levels' },
@@ -98,6 +99,15 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
     : (data?.es_price ?? data?.es)
   const esFmt   = esRaw != null ? fmt2(parseFloat(String(esRaw).replace(/,/g, ''))) : '--'
   const vixFmt  = vixNum2 != null ? vixNum2.toFixed(2) : '--'
+
+  // Animated display values — smoothly count between price updates
+  const animDisplayNum = useAnimatedNumber(displayNum)
+  const animEsRawNum   = useAnimatedNumber(esRaw != null ? parseFloat(String(esRaw).replace(/,/g,'')) : null)
+  const animVixNum     = useAnimatedNumber(vixNum2)
+  const animSpxFmt  = animDisplayNum != null && !isNaN(animDisplayNum) ? fmt2(animDisplayNum) : spxFmt
+  const animEsFmt   = animEsRawNum  != null ? fmt2(animEsRawNum) : esFmt
+  const animVixFmt  = animVixNum    != null ? animVixNum.toFixed(2) : vixFmt
+
   const spxLabel = isNdx ? 'NDX' : 'SPX'
   const esLabel  = isNdx ? 'NQ'  : 'ES'
 
@@ -223,21 +233,21 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
         <div className="ticker-strip">
           <div className="ticker">
             <div className="ticker-label">{spxLabel}</div>
-            <div className={`ticker-val spx${spxDir === 'up' ? ' tick-up' : spxDir === 'down' ? ' tick-down' : ''}`}>{spxFmt}</div>
+            <div className={`ticker-val spx${spxDir === 'up' ? ' tick-up' : spxDir === 'down' ? ' tick-down' : ''}`}>{animSpxFmt}</div>
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
           </div>
           <div className="ticker">
             <div className="ticker-label">{esLabel}</div>
-            <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{esFmt}</div>
+            <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{animEsFmt}</div>
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
             )}
           </div>
           <div className="ticker">
             <div className="ticker-label">VIX</div>
-            <div className={`ticker-val vix${vixDir === 'up' ? ' tick-up' : vixDir === 'down' ? ' tick-down' : ''}`}>{vixFmt}</div>
+            <div className={`ticker-val vix${vixDir === 'up' ? ' tick-up' : vixDir === 'down' ? ' tick-down' : ''}`}>{animVixFmt}</div>
             {fmtChg(vixChg, vixChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (vixChg ?? 0) >= 0 ? 'var(--red)' : 'var(--green)', marginTop: 1 }}>{fmtChg(vixChg, vixChgPct)}</div>
             )}

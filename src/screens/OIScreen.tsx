@@ -6,6 +6,7 @@ import { useLivePrice } from '../lib/LivePriceContext'
 import { useSSE } from '../lib/SSEContext'
 import LadderPriceLine from '../components/LadderPriceLine'
 import { computeHotScores } from '../lib/hotScores'
+import LiveBadge from '../components/LiveBadge'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -246,7 +247,7 @@ export default function OIScreen() {
         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span className="panel-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
             Open Interest by Strike — {isNdx ? 'NDX' : 'SPX'}
-            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>LIVE</span>
+            <LiveBadge />
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
             {BUCKETS.map(b => (

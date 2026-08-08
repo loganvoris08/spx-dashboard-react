@@ -5,6 +5,7 @@ import { postAiRead } from '../hooks/useLadders'
 import { useSSE } from '../lib/SSEContext'
 import CanvasChart from '../components/CanvasChart'
 import type { CCSeries } from '../components/CanvasChart'
+import LiveBadge from '../components/LiveBadge'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -209,7 +210,7 @@ export default function TideScreen() {
       {/* Chart 1: Call vs Put Premium */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)' }}>Call vs Put Premium Flow</span>
-        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW LIVE</span>
+        <LiveBadge label="UW LIVE" />
       </div>
       <CanvasChart series={c1Series} height={280} glow pulse />
       <div style={{ display: 'flex', gap: 16, marginBottom: 14, padding: '4px 2px' }}>
@@ -220,7 +221,7 @@ export default function TideScreen() {
       {/* Chart 2: Net Flow */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)' }}>Net Premium Flow (Call − Put)</span>
-        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW LIVE</span>
+        <LiveBadge label="UW LIVE" />
       </div>
       <CanvasChart series={c2Series} height={160} split pulse glow />
       <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 12, padding: '4px 2px' }}>Green = call dominance · Red = put dominance</div>
@@ -228,7 +229,7 @@ export default function TideScreen() {
       {/* Chart 3: Flow Acceleration */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--muted2)' }}>Flow Acceleration (5-period MA)</span>
-        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW LIVE</span>
+        <LiveBadge label="UW LIVE" />
       </div>
       <CanvasChart series={c3Series} height={120} split pulse glow />
       <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 14, padding: '4px 2px' }}>Smoothed rate of change — rising = momentum building · falling = flow decelerating</div>
@@ -262,7 +263,7 @@ export default function TideScreen() {
       <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
           <span className="panel-title" style={{ marginBottom: 0 }}>MARKET TIDE (UW)</span>
-          <span style={{ fontSize: 7, color: 'var(--muted2)', fontFamily: 'var(--mono)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', marginLeft: 8 }}>LIVE</span>
+          <LiveBadge />
         </div>
         {mktStats && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10 }}>

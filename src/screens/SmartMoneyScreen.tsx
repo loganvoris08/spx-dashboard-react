@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import LiveBadge from '../components/LiveBadge'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -98,7 +99,7 @@ function Panel({ title, badge, tsStr, children, onRefresh }: { title: string; ba
     <div className="sm-panel">
       <div className="sm-panel-header">
         <span className="sm-panel-title">{title}</span>
-        {badge && <span className="sm-uw-badge">{badge}</span>}
+        {badge && <LiveBadge label={badge} />}
         {tsStr && <span className="sm-ts">{tsStr}</span>}
       </div>
       {children}

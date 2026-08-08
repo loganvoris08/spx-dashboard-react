@@ -6,6 +6,7 @@ import { useSSE } from '../lib/SSEContext'
 import FlowChart from '../components/FlowChart'
 import CanvasChart from '../components/CanvasChart'
 import type { CCSeries } from '../components/CanvasChart'
+import LiveBadge from '../components/LiveBadge'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -396,7 +397,7 @@ export default function FlowScreen() {
           <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             Flow Velocity
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: '#f59e0b', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>MOMENTUM</span>
-            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
+            <LiveBadge label="UW LIVE" />
           </div>
           <CanvasChart series={velocitySeries} height={120} split pulse glow />
           <div style={{ fontSize: 8, color: 'var(--muted2)', marginTop: 4 }}>
@@ -410,7 +411,7 @@ export default function FlowScreen() {
         <div className="panel">
           <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             Smart Money Divergence
-            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
+            <LiveBadge label="UW LIVE" />
           </div>
           {/* 3-way signal grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
@@ -461,7 +462,7 @@ export default function FlowScreen() {
       <div className="panel">
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           Options Flow Bias — {isNdx ? 'NDX' : 'SPX'}
-          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
+          <LiveBadge label="UW LIVE" />
         </div>
         <div className="flow-bar-wrap">
           <div className="flow-labels">
@@ -486,7 +487,7 @@ export default function FlowScreen() {
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>Live Options Ticker</span>
-            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>UW LIVE</span>
+            <LiveBadge label="UW LIVE" />
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', animation: 'tkPulse 1.8s ease-in-out infinite' }} />
           </div>
           <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{tickerCount > 0 ? tickerCount + ' today' : '—'}</span>

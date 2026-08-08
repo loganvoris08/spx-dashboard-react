@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
 import { useSSE } from '../lib/SSEContext'
+import LiveBadge from '../components/LiveBadge'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -470,7 +471,7 @@ export default function SignalScreen() {
           <div className="panel">
             <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               Pattern Match Engine
-              <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--yellow)', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.2)', borderRadius: 3, padding: '1px 5px' }}>LIVE</span>
+              <LiveBadge variant="yellow" />
             </div>
 
             {/* Regime chips */}

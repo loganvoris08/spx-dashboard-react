@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLiveFutures } from '../lib/LiveFuturesContext'
+import { SkeletonLine } from '../components/Skeleton'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -309,8 +310,14 @@ export default function OptionsSetupScreen() {
             {/* Technical */}
             <div style={{ borderTop: '1px solid var(--border)', padding: '7px 0 0', marginTop: 4 }}>
               <div style={{ fontSize: 8, letterSpacing: '.7px', textTransform: 'uppercase', color: 'var(--muted2)', marginBottom: 5 }}>
-                Technical {!snap.vwap && <span style={{ fontWeight: 400, opacity: .6, textTransform: 'none' }}>• loading…</span>}
+                Technical
               </div>
+              {!snapshot && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 4 }}>
+                  <SkeletonLine width="40%" size="sm" />
+                  <SkeletonLine width="70%" />
+                </div>
+              )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {snap.vwap && <Chip label="VWAP" val={`${snap.vwap}${snap.vwap_dist != null ? ` (${snap.vwap_dist >= 0 ? '+' : ''}${snap.vwap_dist}pts)` : ''}`} color={snap.price_vs_vwap?.includes('ABOVE') ? 'var(--green)' : snap.price_vs_vwap?.includes('BELOW') ? 'var(--red)' : undefined} />}
                 {esVwap != null && (

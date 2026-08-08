@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSSE } from '../lib/SSEContext'
+import LiveBadge from '../components/LiveBadge'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -234,7 +235,7 @@ export default function HotOptionsScreen() {
 
       {/* ── Live badge ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 6px', fontWeight: 700 }}>UW LIVE</span>
+        <LiveBadge label="UW LIVE" />
         <span style={{ fontSize: 9, color: 'var(--muted2)' }}>Market-wide · all optionable tickers · {filtered.length} results</span>
       </div>
 
