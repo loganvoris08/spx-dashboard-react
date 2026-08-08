@@ -91,8 +91,13 @@ export default function CandleChart({ title, candleEndpoint, zonesEndpoint, time
     if (statusRef.current) statusRef.current.textContent = 'Loading...'
     try {
       const d = await apiFetch(candleEndpoint)
-      const candles: any[] = d.candles || []
-      if (!candles.length) { if (statusRef.current) statusRef.current.textContent = 'No data'; return }
+      const raw: any[] = d.candles || []
+      if (!raw.length) { if (statusRef.current) statusRef.current.textContent = 'No data'; return }
+      // Sort ascending and deduplicate by time (backend sometimes appends out-of-order live candle)
+      const seen = new Set<string>()
+      const candles = raw
+        .sort((a, b) => String(a.time) < String(b.time) ? -1 : String(a.time) > String(b.time) ? 1 : 0)
+        .filter(c => { const k = String(c.time); if (seen.has(k)) return false; seen.add(k); return true })
       seriesRef.current!.setData(candles)
       liveCandleRef.current = candles[candles.length - 1]
       chartRef.current!.timeScale().fitContent()
