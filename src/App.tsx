@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getToken } from './lib/api'
 import { SideProvider } from './lib/SideContext'
+import { LivePriceProvider } from './lib/LivePriceContext'
 import { useDashboard } from './hooks/useDashboard'
 import Layout from './components/Layout'
 import LoginScreen from './screens/LoginScreen'
@@ -30,6 +31,7 @@ function Dashboard() {
   const { data } = useDashboard()
 
   return (
+    <LivePriceProvider>
     <SideProvider>
       <Layout activeTab={tab} setTab={setTab} data={data}>
         {tab === 'signal'     && <SignalScreen />}
@@ -56,6 +58,7 @@ function Dashboard() {
         {tab === 'hotoptions'  && <HotOptionsScreen />}
       </Layout>
     </SideProvider>
+    </LivePriceProvider>
   )
 }
 

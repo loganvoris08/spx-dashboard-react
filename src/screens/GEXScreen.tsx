@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
+import { useLivePrice } from '../lib/LivePriceContext'
+import LadderPriceLine from '../components/LadderPriceLine'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -96,6 +98,7 @@ function GEXHBars({ rows, priceStrike, flipStrike }: { rows: any[]; priceStrike:
 export default function GEXScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
+  const live = useLivePrice()
   const isNdx = side === 'ndx'
   const [bucket, setBucket]       = useState<Bucket>('all')
   const [range, setRange]         = useState(150)
@@ -178,15 +181,18 @@ export default function GEXScreen() {
   const scFactors  = dealerScore?.factors ?? []
 
   const priceNum = isNdx
-    ? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0)
-    : (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0)
+    ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
+    : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
   const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
 
+  const sortDesc = (rows: any[]) => [...rows].sort((a: any, b: any) =>
+    (parseFloat(String(b.strike).replace(/,/g,''))||0) - (parseFloat(String(a.strike).replace(/,/g,''))||0)
+  )
   const rangeFiltered = gexStrikes.filter((r: any) => {
     const s = parseFloat(String(r.strike).replace(/,/g, ''))
     return Math.abs(s - priceNum) <= range
   })
-  const bucketData = rangeFiltered.length > 0 ? rangeFiltered : gexStrikes
+  const bucketData = sortDesc(rangeFiltered.length > 0 ? rangeFiltered : gexStrikes)
 
   // Top gamma strikes: sort by absolute net_gex
   const topGamma = [...gexStrikes]
@@ -290,7 +296,10 @@ export default function GEXScreen() {
           <span style={{ color: 'var(--muted2)' }}>then</span>
           <span style={{ color: 'var(--green)' }}>CALL GEX ▶</span>
         </div>
-        <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} />
+        <div style={{ position: 'relative' }}>
+          <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} />
+          <LadderPriceLine rows={bucketData} price={priceNum} />
+        </div>
         {gexStrikes.length === 0 && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
       </div>
 

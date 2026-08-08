@@ -1,5 +1,6 @@
 import { useState, type ReactNode, useRef, useEffect } from 'react'
 import { useSide } from '../lib/SideContext'
+import { useLivePrice } from '../lib/LivePriceContext'
 
 const SPX_TABS = [
   { id: 'levels', label: 'Levels' },
@@ -73,18 +74,22 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
   const isNdx = side === 'ndx'
   const tabs = [...SPX_TABS, ...(isNdx ? NDX_EXTRA : [])]
+  const live = useLivePrice()
 
-  // Tickers — swap to NDX/NQ when on NDX side
-  const spxRaw  = isNdx ? (data?.ndx?.price ?? data?.ndx_price) : data?.spx
-  const spxNum  = typeof spxRaw === 'number' ? spxRaw
-    : spxRaw != null ? parseFloat(String(spxRaw).replace(/,/g, ''))
-    : (isNdx ? null : (data?.daily_open ?? null))
-  const spxFmt  = spxNum != null && !isNaN(spxNum) ? fmt2(spxNum) : '--'
+  // Tickers — live WebSocket price takes precedence, fall back to polled data
+  const spxNum  = live.spx ?? (isNdx
+    ? (() => { const r = data?.ndx?.price ?? data?.ndx_price; return r != null ? parseFloat(String(r).replace(/,/g,'')) : null })()
+    : (() => { const r = data?.spx; return r != null ? parseFloat(String(r).replace(/,/g,'')) : data?.daily_open ?? null })())
+  const ndxNum  = live.ndx ?? (() => { const r = data?.ndx?.price ?? data?.ndx_price; return r != null ? parseFloat(String(r).replace(/,/g,'')) : null })()
+  const vixNum2 = live.vix ?? (data?.vix != null ? Number(data.vix) : null)
+
+  const displayNum = isNdx ? ndxNum : spxNum
+  const spxFmt  = displayNum != null && !isNaN(displayNum) ? fmt2(displayNum) : '--'
   const esRaw   = isNdx
     ? (data?.ndx?.nq ?? data?.nq ?? data?.nq_price)
     : (data?.es_price ?? data?.es)
   const esFmt   = esRaw != null ? fmt2(parseFloat(String(esRaw).replace(/,/g, ''))) : '--'
-  const vixFmt  = data?.vix != null ? Number(data.vix).toFixed(2) : '--'
+  const vixFmt  = vixNum2 != null ? vixNum2.toFixed(2) : '--'
   const spxLabel = isNdx ? 'NDX' : 'SPX'
   const esLabel  = isNdx ? 'NQ'  : 'ES'
 

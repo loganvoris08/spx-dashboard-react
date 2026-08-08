@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
+import { useLivePrice } from '../lib/LivePriceContext'
+import LadderPriceLine from '../components/LadderPriceLine'
 import { createChart, LineSeries, LineStyle as LwLineStyle } from 'lightweight-charts'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
@@ -119,6 +121,7 @@ function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut }: {
 export default function LevelsScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
+  const live = useLivePrice()
   const isNdx = side === 'ndx'
   const [oiBucket, setOiBucket]   = useState<OIBucket>('all')
   const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
@@ -304,10 +307,10 @@ export default function LevelsScreen() {
   const scoreLabel = dealerScore?.label ?? null
   const scFactors  = dealerScore?.factors ?? []
 
-  // Price references (spx field = current price)
+  // Price references — live WebSocket first, fall back to polled data
   const priceNum = isNdx
-    ? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0)
-    : (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0)
+    ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
+    : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
   const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
   const cwNum    = parseFloat(String(cWall ?? '').replace(/,/g, '')) || 0
   const pwNum    = parseFloat(String(pWall ?? '').replace(/,/g, '')) || 0
@@ -318,12 +321,15 @@ export default function LevelsScreen() {
     : (ladders?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ladder_rows ?? [])
   const allGexRows = gexStrikes
 
+  const ps = (v: any) => parseFloat(String(v).replace(/,/g, '')) || 0
+  const sortDesc = (rows: any[]) => [...rows].sort((a, b) => ps(b.strike) - ps(a.strike))
+
   const filterByRange = (rows: any[]) => priceNum > 0
-    ? rows.filter((r: any) => Math.abs(parseFloat(String(r.strike).replace(/,/g, '')) - priceNum) <= lvRange)
+    ? rows.filter((r: any) => Math.abs(ps(r.strike) - priceNum) <= lvRange)
     : rows
 
   const oiRows  = filterByRange(allOiRows)
-  const gexRows = filterByRange(allGexRows)
+  const gexRows = sortDesc(filterByRange(allGexRows))
 
   const maxOICall = Math.max(...oiRows.map((r: any) => r.call_value || 0), 1)
   const maxOIPut  = Math.max(...oiRows.map((r: any) => r.put_value  || 0), 1)
@@ -410,13 +416,14 @@ export default function LevelsScreen() {
             <span style={{ color: 'var(--muted2)' }}>then</span>
             <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
           </div>
-          <div className="lv-col-scroll">
+          <div className="lv-col-scroll" style={{ position: 'relative' }}>
             {oiRows.length > 0
               ? oiRows.map((r: any, i: number) => (
                   <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxCall={maxOICall} maxPut={maxOIPut} />
                 ))
               : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
             }
+            <LadderPriceLine rows={oiRows} price={priceNum} />
           </div>
         </div>
 
@@ -436,13 +443,14 @@ export default function LevelsScreen() {
             <span style={{ color: 'var(--muted2)' }}>then</span>
             <span style={{ color: 'var(--green)' }}>CALL γ ▶</span>
           </div>
-          <div className="lv-col-scroll">
+          <div className="lv-col-scroll" style={{ position: 'relative' }}>
             {gexRows.length > 0
               ? gexRows.map((r: any, i: number) => (
                   <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxCall={maxGexCall} maxPut={maxGexPut} />
                 ))
               : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
             }
+            <LadderPriceLine rows={gexRows} price={priceNum} />
           </div>
         </div>
       </div>

@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders, postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
+import { useLivePrice } from '../lib/LivePriceContext'
+import LadderPriceLine from '../components/LadderPriceLine'
 
 type Bucket = 'all' | 'week'
 const BUCKETS: { id: Bucket; label: string }[] = [
@@ -68,6 +70,7 @@ function OIHBars({ rows, priceStrike, callWall, putWall }: {
 export default function OIScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
+  const live = useLivePrice()
   const isNdx = side === 'ndx'
   const [bucket, setBucket] = useState<Bucket>('all')
   const [range, setRange]   = useState(150)
@@ -90,7 +93,7 @@ export default function OIScreen() {
   const putWallsBelow  = isNdx ? (nd.gex_put_walls_below  ?? []) : (data?.gex_put_walls_below  ?? data?.top_put_walls_below  ?? [])
   const hotStrikes     = isNdx ? (nd.hot_strikes ?? []) : (data?.hot_strikes ?? [])
 
-  const priceNum = isNdx ? 0 : (typeof data?.spx === 'string' ? parseFloat(String(data.spx).replace(/,/g, '')) : data?.spx ?? 0)
+  const priceNum = live.spx ?? (isNdx ? 0 : (typeof data?.spx === 'string' ? parseFloat(String(data.spx).replace(/,/g, '')) : data?.spx ?? 0))
   const ndxNum   = typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0
   const priceRef = isNdx ? ndxNum : priceNum
   const cwNum    = parseFloat(String(cWall).replace(/,/g, '')) || 0
@@ -205,7 +208,10 @@ export default function OIScreen() {
           <span style={{ color: 'var(--muted2)' }}>then</span>
           <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
         </div>
-        <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} />
+        <div style={{ position: 'relative' }}>
+          <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} />
+          <LadderPriceLine rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} price={priceRef} />
+        </div>
         {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
       </div>
 
