@@ -19,10 +19,6 @@ function fmtPrem(v: number) {
   if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K'
   return '$' + v.toFixed(0)
 }
-function fmtTime(ts: number) {
-  if (!ts) return ''
-  return new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
 
 const STATUS_CFG: Record<Status, { label: string; color: string; bg: string; border: string }> = {
   SQUEEZE: { label: '⚡ SQUEEZE', color: '#f97316', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.4)' },
@@ -271,8 +267,6 @@ export default function HotOptionsScreen() {
           const sCfg    = STATUS_CFG[status] ?? STATUS_CFG.ACTIVE
           const tCfg    = TIMING_CFG[timing] ?? TIMING_CFG.PRIME
           const isOpen  = expanded === r.ticker
-          const isCallBias = r.call_pct > 50
-
           return (
             <div key={r.ticker}>
               <div

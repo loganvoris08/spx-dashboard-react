@@ -64,69 +64,75 @@ function fmtStrike(s: any) {
   return isNaN(n) ? String(s) : String(Math.round(n))
 }
 
-function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut, hotSet, consensusSet }: {
-  row: any; priceStrike: number; callWall: number; putWall: number; maxCall: number; maxPut: number; hotSet: Set<number>; consensusSet: Set<number>
+function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut, hotScores }: {
+  row: any; priceStrike: number; callWall: number; putWall: number; maxCall: number; maxPut: number; hotScores: Map<number, number>
 }) {
   const strike    = parseFloat(String(row.strike).replace(/,/g, ''))
+  const skey      = Math.round(strike)
   const isPrice   = priceStrike && Math.abs(strike - priceStrike) < 3
   const isCall    = callWall && Math.abs(strike - callWall) < 3
   const isPut     = putWall  && Math.abs(strike - putWall)  < 3
-  const isHot     = hotSet.has(Math.round(strike))
-  const isConsens = consensusSet.has(Math.round(strike))
+  const hotScore  = hotScores.get(skey)
+  const isHot     = hotScore != null && hotScore >= 70
+  const isWarm    = hotScore != null && hotScore >= 50 && hotScore < 70
   const pFill     = Math.min(1, (row.put_value  || 0) / maxPut)
   const cFill     = Math.min(1, (row.call_value || 0) / maxCall)
-  const hotActive = isHot || isConsens
-  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
-  const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : hotActive ? 'var(--red)' : 'var(--muted2)'
-  const tagLabel = isCall ? 'CW' : isPut ? 'PW' : isConsens ? 'BOTH' : isHot ? 'HOT' : ''
-  const tagColor = isCall ? 'var(--green)' : isPut ? 'var(--red)' : hotActive ? 'var(--red)' : 'var(--muted2)'
+  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)'
+    : isWarm ? 'rgba(234,179,8,0.05)' : 'transparent'
+  const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : isHot ? 'var(--red)' : isWarm ? '#eab308' : 'var(--muted2)'
+  const tagLabel = isCall ? 'CW' : isPut ? 'PW' : (isHot || isWarm) ? String(hotScore) : ''
+  const tagColor = isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? 'var(--red)' : isWarm ? 'rgba(234,179,8,0.6)' : 'var(--muted2)'
 
   return (
-    <div className="hbar-row" style={{ background: hotActive && !isPrice && !isCall && !isPut ? undefined : bg, animation: hotActive && !isPrice && !isCall && !isPut ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
+    <div className="hbar-row" style={{ background: isHot && !isPrice && !isCall && !isPut ? undefined : bg, animation: isHot && !isPrice && !isCall && !isPut ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
       <div className="hbar-strike" style={{ color: strikeColor, textAlign: 'right', paddingRight: 5 }}>
-        {hotActive && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
+        {isHot && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
+        {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
         {fmtStrike(row.strike)}
       </div>
       <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
         {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
         {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
       </div>
-      <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, paddingRight: 0, color: tagColor, fontSize: 7, fontWeight: isConsens ? 700 : 400 }}>
+      <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, paddingRight: 0, color: tagColor, fontSize: 7, fontWeight: 700 }}>
         {tagLabel}
       </div>
     </div>
   )
 }
 
-function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut, hotSet, consensusSet }: {
-  row: any; priceStrike: number; flipStrike: number; maxCall: number; maxPut: number; hotSet: Set<number>; consensusSet: Set<number>
+function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut, hotScores }: {
+  row: any; priceStrike: number; flipStrike: number; maxCall: number; maxPut: number; hotScores: Map<number, number>
 }) {
   const strike    = parseFloat(String(row.strike).replace(/,/g, ''))
+  const skey      = Math.round(strike)
   const isPrice   = priceStrike && Math.abs(strike - priceStrike) < 3
   const isFlip    = flipStrike  && Math.abs(strike - flipStrike)  < 3
-  const isHot     = hotSet.has(Math.round(strike))
-  const isConsens = consensusSet.has(Math.round(strike))
+  const hotScore  = hotScores.get(skey)
+  const isHot     = hotScore != null && hotScore >= 70
+  const isWarm    = hotScore != null && hotScore >= 50 && hotScore < 70
   const cGex = Math.abs(row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
   const pGex = Math.abs(row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? Math.abs(row.net_gex) : 0))
   const pFill = Math.min(1, pGex / maxPut)
   const cFill = Math.min(1, cGex / maxCall)
-  const hotActive = isHot || isConsens
-  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : 'transparent'
-  const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : hotActive ? 'var(--red)' : 'var(--muted2)'
-  const tagLabel = isFlip ? 'FLIP' : isConsens ? 'BOTH' : isHot ? 'HOT' : ''
-  const tagColor = isFlip ? '#f0f' : hotActive ? 'var(--red)' : 'var(--muted2)'
+  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)'
+    : isWarm ? 'rgba(234,179,8,0.05)' : 'transparent'
+  const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : isHot ? 'var(--red)' : isWarm ? '#eab308' : 'var(--muted2)'
+  const tagLabel = isFlip ? 'FLIP' : (isHot || isWarm) ? String(hotScore) : ''
+  const tagColor = isFlip ? '#f0f' : isHot ? 'var(--red)' : isWarm ? 'rgba(234,179,8,0.6)' : 'var(--muted2)'
 
   return (
-    <div className="hbar-row" style={{ background: hotActive && !isPrice && !isFlip ? undefined : bg, animation: hotActive && !isPrice && !isFlip ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
+    <div className="hbar-row" style={{ background: isHot && !isPrice && !isFlip ? undefined : bg, animation: isHot && !isPrice && !isFlip ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
       <div className="hbar-strike" style={{ color: strikeColor }}>
-        {hotActive && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
+        {isHot && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
+        {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
         {fmtStrike(row.strike)}
       </div>
       <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
         {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
         {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
       </div>
-      <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: tagColor, fontSize: 7, fontWeight: isConsens ? 700 : 400 }}>
+      <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: tagColor, fontSize: 7, fontWeight: 700 }}>
         {tagLabel}
       </div>
     </div>
@@ -327,23 +333,40 @@ export default function LevelsScreen() {
   const maxGexPut  = Math.max(...gexRows.map((r: any) => Math.abs(r.put_gex  ?? (r.net_gex < 0 ? r.net_gex : 0))), 1)
 
   const hotStrikes = isNdx ? (nd.hot_strikes ?? []) : (data?.hot_strikes ?? [])
-  const hotSet = new Set<number>((hotStrikes as any[]).map((h: any) => Math.round(parseFloat(String(h.strike)))))
-
-  // Consensus = top 12 OI strikes ∩ top 12 GEX strikes (both ladders agree)
   const ps2 = (v: any) => parseFloat(String(v).replace(/,/g, '')) || 0
-  const topOiSet = new Set<number>(
-    [...oiRows].sort((a, b) => ((b.call_value || 0) + (b.put_value || 0)) - ((a.call_value || 0) + (a.put_value || 0)))
-      .slice(0, 12).map((r: any) => Math.round(ps2(r.strike)))
-  )
-  const topGexSet = new Set<number>(
-    [...gexRows].sort((a, b) => Math.abs(b.net_gex ?? 0) - Math.abs(a.net_gex ?? 0))
-      .slice(0, 12).map((r: any) => Math.round(ps2(r.strike)))
-  )
-  const consensusSet = new Set<number>([...topOiSet].filter(s => topGexSet.has(s)))
 
-  // Strikes shown in the hot panel: consensus ∪ UW hot_strikes
+  // Score each strike 0-100:
+  //   OI concentration (0-30) + GEX magnitude (0-30) + price proximity (0-25) + directional conviction (0-15)
+  // Red pulse ≥ 70, dim yellow glow 50–69
+  const maxOITotal  = Math.max(...oiRows.map((r: any) => (r.call_value||0) + (r.put_value||0)), 1)
+  const maxAbsGex   = Math.max(...gexRows.map((r: any) => Math.abs(r.net_gex ?? 0)), 1)
+  const gexByStrike = new Map<number, any>()
+  gexRows.forEach((r: any) => gexByStrike.set(Math.round(ps2(r.strike)), r))
+
+  const strikeScores = new Map<number, number>()
+  oiRows.forEach((r: any) => {
+    const skey     = Math.round(ps2(r.strike))
+    const oi_total = (r.call_value||0) + (r.put_value||0)
+    const gexRow   = gexByStrike.get(skey)
+    const oi_score   = (oi_total / maxOITotal) * 30
+    const gex_score  = gexRow ? (Math.abs(gexRow.net_gex ?? 0) / maxAbsGex) * 30 : 0
+    const dist_pct   = priceNum > 0 ? Math.abs(skey - priceNum) / priceNum * 100 : 99
+    const prox_score = Math.max(0, 25 * (1 - dist_pct / 3))
+    const call_frac  = oi_total > 0 ? (r.call_value||0) / oi_total : 0.5
+    const conv_score = Math.abs(call_frac - 0.5) * 2 * 15
+    const total = Math.min(100, Math.round(oi_score + gex_score + prox_score + conv_score))
+    strikeScores.set(skey, total)
+  })
+
+  // hotScores: score >= 50 (70+ = red, 50-69 = yellow)
+  const hotScores = new Map<number, number>(
+    [...strikeScores.entries()].filter(([, s]) => s >= 50)
+  )
+  // Top hot strikes for the panel (score >= 70), sorted by score desc
   const fmtPrem2 = (v: any) => { const n = parseFloat(v) || 0; if (Math.abs(n) >= 1e6) return '$'+(n/1e6).toFixed(1)+'M'; if (Math.abs(n) >= 1e3) return '$'+(n/1e3).toFixed(0)+'K'; return '$'+n.toFixed(0) }
-  const consensusStrikes = [...consensusSet].sort((a, b) => a - b)
+  const topHotStrikes = [...strikeScores.entries()]
+    .filter(([, s]) => s >= 70)
+    .sort((a, b) => b[1] - a[1])
 
   const regimeCls = (r?: string) => {
     if (!r) return 'neut'
@@ -428,7 +451,7 @@ export default function LevelsScreen() {
           <div className="lv-col-scroll" style={{ position: 'relative' }}>
             {oiRows.length > 0
               ? oiRows.map((r: any, i: number) => (
-                  <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxCall={maxOICall} maxPut={maxOIPut} hotSet={hotSet} consensusSet={consensusSet} />
+                  <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxCall={maxOICall} maxPut={maxOIPut} hotScores={hotScores} />
                 ))
               : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
             }
@@ -455,7 +478,7 @@ export default function LevelsScreen() {
           <div className="lv-col-scroll" style={{ position: 'relative' }}>
             {gexRows.length > 0
               ? gexRows.map((r: any, i: number) => (
-                  <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxCall={maxGexCall} maxPut={maxGexPut} hotSet={hotSet} consensusSet={consensusSet} />
+                  <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxCall={maxGexCall} maxPut={maxGexPut} hotScores={hotScores} />
                 ))
               : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
             }
@@ -465,35 +488,25 @@ export default function LevelsScreen() {
       </div>
 
       {/* ── Hot Strikes Today ── */}
-      {(consensusStrikes.length > 0 || hotStrikes.length > 0) && (
+      {topHotStrikes.length > 0 && (
         <div className="panel" style={{ flexShrink: 0 }}>
           <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ color: 'var(--red)', fontSize: 7, animation: 'pulseHot 1.4s ease-in-out infinite', display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(255,51,68,0.12)', border: '1px solid rgba(255,51,68,0.3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>● HOT</span>
             <span>Hot Strikes — Intraday</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '60px 50px 1fr 1fr', gap: '2px 8px', fontFamily: 'var(--mono)', fontSize: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '60px 32px 1fr 1fr', gap: '2px 8px', fontFamily: 'var(--mono)', fontSize: 8 }}>
             <span style={{ color: 'var(--muted2)', fontWeight: 700 }}>STRIKE</span>
-            <span style={{ color: 'var(--muted2)', fontWeight: 700 }}>SOURCE</span>
+            <span style={{ color: 'var(--muted2)', fontWeight: 700 }}>SCORE</span>
             <span style={{ color: 'var(--green)', fontWeight: 700 }}>CALL $</span>
             <span style={{ color: 'var(--red)', fontWeight: 700 }}>PUT $</span>
-            {/* Consensus strikes first */}
-            {consensusStrikes.map((s, i) => {
+            {topHotStrikes.map(([s, score], i) => {
               const uw = (hotStrikes as any[]).find((h: any) => Math.round(parseFloat(String(h.strike))) === s)
+              const scoreColor = score >= 85 ? '#f97316' : score >= 70 ? 'var(--red)' : '#eab308'
               return [
-                <span key={`s${i}`} style={{ color: 'var(--red)', fontWeight: 700, fontSize: 10 }}>● {s}</span>,
-                <span key={`l${i}`} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, background: 'rgba(255,51,68,0.12)', color: 'var(--red)', fontWeight: 700 }}>OI+GEX</span>,
+                <span key={`s${i}`} style={{ color: scoreColor, fontWeight: 700, fontSize: 10 }}>● {s}</span>,
+                <span key={`sc${i}`} style={{ fontSize: 8, fontWeight: 700, color: scoreColor }}>{score}</span>,
                 <span key={`c${i}`} style={{ color: 'var(--green)' }}>{fmtPrem2(uw?.call_prem ?? 0)}</span>,
                 <span key={`p${i}`} style={{ color: 'var(--red)' }}>{fmtPrem2(uw?.put_prem ?? 0)}</span>,
-              ]
-            })}
-            {/* UW-only hot strikes */}
-            {(hotStrikes as any[]).filter((h: any) => !consensusSet.has(Math.round(parseFloat(String(h.strike))))).map((h: any, i: number) => {
-              const s = Math.round(parseFloat(String(h.strike)))
-              return [
-                <span key={`us${i}`} style={{ color: 'var(--red)', fontWeight: 700, fontSize: 10 }}>● {s}</span>,
-                <span key={`ul${i}`} style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, background: 'rgba(255,51,68,0.08)', color: 'rgba(255,51,68,0.7)', fontWeight: 700 }}>UW</span>,
-                <span key={`uc${i}`} style={{ color: 'var(--green)' }}>{fmtPrem2(h.call_prem ?? 0)}</span>,
-                <span key={`up${i}`} style={{ color: 'var(--red)' }}>{fmtPrem2(h.put_prem ?? 0)}</span>,
               ]
             })}
           </div>
