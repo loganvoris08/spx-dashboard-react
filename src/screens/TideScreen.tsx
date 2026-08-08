@@ -18,6 +18,11 @@ function fmtV(v: number) {
   return s + '$' + (a >= 1e6 ? (a / 1e6).toFixed(1) + 'M' : a >= 1000 ? (a / 1000).toFixed(0) + 'K' : a.toFixed(0))
 }
 
+function fmtFlow(v: number) {
+  const a = Math.abs(v)
+  return (v >= 0 ? '' : '-') + (a >= 1e6 ? (a / 1e6).toFixed(1) + 'M' : a >= 1000 ? (a / 1000).toFixed(0) + 'K' : a.toFixed(0))
+}
+
 const CHART_BASE = {
   layout:     { background: { color: 'transparent' }, textColor: '#777' },
   grid:       { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
@@ -25,6 +30,9 @@ const CHART_BASE = {
   timeScale:  { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
   handleScroll: false, handleScale: false,
 }
+const FLOW_LOC = { localization: { priceFormatter: fmtFlow } }
+// For c1 dual-axis (SPX left ≈7000-8000, premium right ≈millions): route by magnitude
+const DUAL_LOC = { localization: { priceFormatter: (v: number) => v > 10000 || v < -10000 ? fmtFlow(v) : v.toFixed(2) } }
 
 type Moneyness = 'all' | 'atm' | 'itm' | 'otm'
 type Expiry    = 'all' | '0dte' | 'weekly' | 'monthly'
@@ -80,7 +88,7 @@ export default function TideScreen() {
 
   const initCharts = useCallback(() => {
     if (c1Ref.current && !c1.current) {
-      c1.current = createChart(c1Ref.current, { ...CHART_BASE, height: 280, width: c1Ref.current.clientWidth,
+      c1.current = createChart(c1Ref.current, { ...CHART_BASE, ...DUAL_LOC, height: 280, width: c1Ref.current.clientWidth,
         leftPriceScale:  { visible: true, borderColor: 'rgba(255,255,255,0.08)' },
         rightPriceScale: { visible: true, borderColor: 'rgba(255,255,255,0.08)' },
       })
@@ -89,21 +97,21 @@ export default function TideScreen() {
       putLine.current   = c1.current.addSeries(LineSeries, { color: 'rgba(255,51,68,0.85)',  lineWidth: 2, priceScaleId: 'right' } as any)
     }
     if (c2Ref.current && !c2.current) {
-      c2.current = createChart(c2Ref.current, { ...CHART_BASE, height: 160, width: c2Ref.current.clientWidth })
+      c2.current = createChart(c2Ref.current, { ...CHART_BASE, ...FLOW_LOC, height: 160, width: c2Ref.current.clientWidth })
       netHist.current = c2.current.addSeries(HistogramSeries, {
         color: 'rgba(0,255,136,0.6)',
         priceFormat: { type: 'custom', formatter: (p: number) => { const a = Math.abs(p); return (p>=0?'+':'-')+(a>=1e6?(a/1e6).toFixed(1)+'M':a>=1000?(a/1000).toFixed(0)+'K':a.toFixed(0)) } },
       } as any)
     }
     if (c3Ref.current && !c3.current) {
-      c3.current = createChart(c3Ref.current, { ...CHART_BASE, height: 120, width: c3Ref.current.clientWidth })
+      c3.current = createChart(c3Ref.current, { ...CHART_BASE, ...FLOW_LOC, height: 120, width: c3Ref.current.clientWidth })
       accelLine.current = c3.current.addSeries(LineSeries, {
         color: 'rgba(255,204,0,0.75)', lineWidth: 1.5,
         priceFormat: { type: 'custom', formatter: (p: number) => { const a = Math.abs(p); return (p>=0?'+':'-')+(a>=1e6?(a/1e6).toFixed(1)+'M':a>=1000?(a/1000).toFixed(0)+'K':a.toFixed(0)) } },
       } as any)
     }
     if (mktRef.current && !mktC.current) {
-      mktC.current  = createChart(mktRef.current, { ...CHART_BASE, height: 160, width: mktRef.current.clientWidth })
+      mktC.current  = createChart(mktRef.current, { ...CHART_BASE, ...FLOW_LOC, height: 160, width: mktRef.current.clientWidth })
       mktCall.current = mktC.current.addSeries(LineSeries, { color: 'rgba(0,255,136,0.8)',  lineWidth: 1.5 } as any)
       mktPut.current  = mktC.current.addSeries(LineSeries, { color: 'rgba(255,51,68,0.8)',   lineWidth: 1.5 } as any)
       mktNet.current  = mktC.current.addSeries(LineSeries, { color: 'rgba(255,204,0,0.9)',  lineWidth: 2   } as any)
