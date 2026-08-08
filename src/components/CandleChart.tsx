@@ -28,7 +28,7 @@ export default function CandleChart({ title, candleEndpoint, zonesEndpoint, time
   const statusRef    = useRef<HTMLSpanElement>(null)
   const priceLines   = useRef<any[]>([])
 
-  const chartH = () => height > 0 ? height : Math.max(280, window.innerHeight - 160)
+  const chartH = () => height > 0 ? height : 400
 
   const drawZones = useCallback(async () => {
     if (!seriesRef.current || !zonesEndpoint) return
