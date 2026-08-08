@@ -33,6 +33,7 @@ export default function NewsScreen() {
 
   const [brief,    setBrief]    = useState('')
   const [macro,    setMacro]    = useState('')
+  const [fomcRead, setFomcRead] = useState('')
   const [opex,     setOpex]     = useState<any>(null)
   const [fomc,     setFomc]     = useState<any>(null)
   const [earnings, setEarnings] = useState<any[]>([])
@@ -59,6 +60,13 @@ export default function NewsScreen() {
     try { const d = await apiPost('/api/global-brief'); setBrief(d.brief || d.summary || d.content || JSON.stringify(d)) }
     catch (e: any) { setBrief('Error: ' + e.message) }
     finally { setL('brief', false) }
+  }
+
+  async function handleFomcRead() {
+    setL('fomc', true)
+    try { const d = await apiPost('/explain-fomc'); setFomcRead(d.text || d.read || d.content || JSON.stringify(d)) }
+    catch (e: any) { setFomcRead('Error: ' + e.message) }
+    finally { setL('fomc', false) }
   }
 
   async function handleMacro() {
@@ -146,10 +154,14 @@ export default function NewsScreen() {
               <div className="td-row"><span className="td-label">Next Meeting</span><span className="td-val warn">{fmtD(fomc.next_date)}</span></div>
               <div className="td-row"><span className="td-label">Days Away</span><span className="td-val">{fomc.days_away ?? '--'}</span></div>
               {fomc.press_conf != null && <div className="td-row"><span className="td-label">Press Conf</span><span className="td-val" style={{ color: fomc.press_conf ? 'var(--green)' : 'var(--muted2)' }}>{fomc.press_conf ? 'YES' : 'NO'}</span></div>}
-              <div style={{ marginTop: 8, display: 'flex', gap: 4 }}>
+              <div style={{ marginTop: 8, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {fomc.in_blackout && <Chip label="BLACKOUT PERIOD" />}
                 {!fomc.in_blackout && <Chip label="NOT IN BLACKOUT" ok />}
               </div>
+              <button onClick={handleFomcRead} disabled={loading.fomc} style={{ marginTop: 10, width: '100%', background: 'transparent', border: '1px solid var(--border2)', borderRadius: 3, padding: '7px 0', fontFamily: 'var(--mono)', fontSize: 10, color: loading.fomc ? 'var(--muted)' : 'var(--muted2)', cursor: loading.fomc ? 'default' : 'pointer', letterSpacing: '.06em' }}>
+                {loading.fomc ? '...' : fomcRead ? '↻ REFRESH FOMC READ' : '▶ GET FOMC READ FROM CLAUDE'}
+              </button>
+              {fomcRead && <div style={{ marginTop: 8, fontSize: 10, lineHeight: 1.6, color: 'var(--text)' }}>{fomcRead}</div>}
             </>
           ) : (
             <div style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 4 }}>Loading FOMC data…</div>
