@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
+import { useLiveFlow } from '../hooks/useLiveFlow'
 import LadderPriceLine from '../components/LadderPriceLine'
 import { createChart, LineSeries, LineStyle as LwLineStyle } from 'lightweight-charts'
 
@@ -132,15 +133,15 @@ export default function LevelsScreen() {
   const [oiBucket, setOiBucket]   = useState<OIBucket>('all')
   const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
   const [lvRange, setLvRange]     = useState(150)
-  const [ticker, setTicker]       = useState<any[]>([])
-  const [tickerCount, setTickerCount] = useState(0)
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
   const [darkPool, setDarkPool]     = useState<any[]>([])
   const [dpLoaded, setDpLoaded]     = useState(false)
-  const seenRef = useState<Set<string>>(() => new Set())[0]
   const ladders = useLadders(true)
   const lvlChartRef  = useRef<HTMLDivElement>(null)
   const flipChartRef = useRef<HTMLDivElement>(null)
+
+  // Live options flow via SSE WebSocket relay — no polling
+  const { alerts: ticker, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
 
   useEffect(() => {
     setGexStrikes([])
@@ -150,33 +151,6 @@ export default function LevelsScreen() {
   }, [isNdx])
 
   useEffect(() => { setLvRange(isNdx ? 1000 : 150) }, [isNdx])
-
-  const loadTicker = useCallback(async () => {
-    const ep = isNdx ? '/api/ndx-flow' : '/api/spx-flow'
-    try {
-      const res = await fetch(`${BASE}${ep}`, { headers: { Authorization: `Bearer ${token()}` } })
-      if (!res.ok) return
-      const d = await res.json()
-      const contracts: any[] = d.contracts || []
-      const toAdd = contracts.filter(c => {
-        const k = `${c.strike}|${c.type}|${c.expiry}|${c.premium}`
-        if (seenRef.has(k)) return false
-        seenRef.add(k)
-        return true
-      }).slice(0, 20)
-      if (toAdd.length) setTicker(prev => [...toAdd, ...prev].slice(0, 30))
-      setTickerCount(seenRef.size)
-    } catch {}
-  }, [isNdx, seenRef])
-
-  useEffect(() => {
-    seenRef.clear()
-    setTicker([])
-    setTickerCount(0)
-    loadTicker()
-    const t = setInterval(loadTicker, 17_000)
-    return () => clearInterval(t)
-  }, [loadTicker, seenRef])
 
   // Intraday Key Levels chart
   useEffect(() => {
