@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { postAiRead } from '../hooks/useLadders'
+import { useSSE } from '../lib/SSEContext'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -35,6 +36,7 @@ function VixBar({ label, val, maxV }: { label: string; val: number; maxV: number
 
 export default function VolScreen() {
   const { data } = useDashboard()
+  const { on } = useSSE()
   const [termData,   setTermData]   = useState<any[]>([])
   const [rrData25,   setRrData25]   = useState<any[]>([])
   const [rrData10,   setRrData10]   = useState<any[]>([])
@@ -108,7 +110,11 @@ export default function VolScreen() {
     loadTermStructure()
     loadRrSkew()
     loadIvCurve()
-  }, [loadTermStructure, loadRrSkew, loadIvCurve])
+    const off1 = on('update', () => loadTermStructure())
+    const off2 = on('update', () => loadRrSkew())
+    const off3 = on('update', () => loadIvCurve())
+    return () => { off1(); off2(); off3() }
+  }, [loadTermStructure, loadRrSkew, loadIvCurve, on])
 
   // vol_stats comes from the main /data endpoint via useDashboard
   useEffect(() => {

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
+import { useSSE } from '../lib/SSEContext'
 import LadderPriceLine from '../components/LadderPriceLine'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
@@ -103,18 +104,26 @@ export default function GEXScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const live = useLivePrice()
+  const { on } = useSSE()
   const isNdx = side === 'ndx'
   const [bucket, setBucket]       = useState<Bucket>('all')
   const [range, setRange]         = useState(150)
   const [dealerText, setDealerText] = useState('')
   const [loadingDealer, setLoadingDealer] = useState(false)
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
-  useEffect(() => {
-    setGexStrikes([])
+
+  const loadGexStrikes = useCallback(() => {
     apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
       .then(d => setGexStrikes(d.strikes ?? []))
       .catch(() => {})
   }, [isNdx])
+
+  useEffect(() => {
+    setGexStrikes([])
+    loadGexStrikes()
+    const off = on('update', () => loadGexStrikes())
+    return off
+  }, [isNdx, loadGexStrikes, on])
 
   const nd = data?.ndx ?? {}
   const hotStrikes = isNdx ? (nd.hot_strikes ?? []) : (data?.hot_strikes ?? [])

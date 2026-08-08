@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useSSE } from '../lib/SSEContext'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
-const POLL_MS = 30_000
 
 let _token = () => localStorage.getItem('dash_token') ?? ''
 
@@ -15,7 +15,7 @@ async function fetchLadders() {
 
 export function useLadders(active: boolean) {
   const [data, setData] = useState<any>(null)
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const { on } = useSSE()
 
   const refresh = useCallback(async () => {
     try {
@@ -27,9 +27,9 @@ export function useLadders(active: boolean) {
   useEffect(() => {
     if (!active) return
     refresh()
-    timer.current = setInterval(refresh, POLL_MS)
-    return () => { if (timer.current) clearInterval(timer.current) }
-  }, [active, refresh])
+    const off = on('update', () => refresh())
+    return off
+  }, [active, refresh, on])
 
   return data
 }

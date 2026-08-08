@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
+import { useSSE } from '../lib/SSEContext'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -30,6 +31,7 @@ function Chip({ label, ok }: { label: string; ok?: boolean }) {
 
 export default function NewsScreen() {
   const { data } = useDashboard()
+  const { on } = useSSE()
 
   const [brief,    setBrief]    = useState('')
   const [macro,    setMacro]    = useState('')
@@ -51,9 +53,9 @@ export default function NewsScreen() {
 
   useEffect(() => {
     loadOpex(); loadFomc(); loadEarnings(); loadCalendar(); loadHeadlines()
-    const t = setInterval(loadHeadlines, 120_000)
-    return () => clearInterval(t)
-  }, [loadOpex, loadFomc, loadEarnings, loadCalendar, loadHeadlines])
+    const off = on('update', () => loadHeadlines())
+    return off
+  }, [loadOpex, loadFomc, loadEarnings, loadCalendar, loadHeadlines, on])
 
   async function handleBrief() {
     setL('brief', true)

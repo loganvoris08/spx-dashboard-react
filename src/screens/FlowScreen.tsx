@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
+import { useLiveFlow } from '../hooks/useLiveFlow'
+import { useSSE } from '../lib/SSEContext'
 import FlowChart from '../components/FlowChart'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
@@ -122,8 +124,11 @@ export default function FlowScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const isNdx = side === 'ndx'
+  const { on } = useSSE()
 
-  const [tickerItems,  setTickerItems]  = useState<any[]>([])
+  // Live flow ticker via SSE (same feed as LevelsScreen)
+  const { alerts: tickerItems } = useLiveFlow(isNdx ? 'ndx' : 'spx')
+
   const [blockItems,   setBlockItems]   = useState<any[]>([])
   const [dpItems,      setDpItems]      = useState<any[]>([])
   const [unusualItems, setUnusualItems] = useState<any[]>([])
@@ -140,10 +145,7 @@ export default function FlowScreen() {
   const [flowAiText,   setFlowAiText]   = useState('')
   const [loadingFlowAi,setLoadingFlowAi]= useState(false)
 
-  const tickerTimer = useRef<any>(null)
-  const blockTimer  = useRef<any>(null)
-  const dteTimer    = useRef<any>(null)
-  const tickerSeen  = useRef(new Set<string>())
+  const blockTimer  = useRef<any>(null) // kept for dark pool cancel
 
   const nd        = data?.ndx ?? {}
   const callPct   = isNdx ? (nd.flow_call_pct ?? 50) : (data?.flow_call_pct ?? 50)
@@ -153,23 +155,6 @@ export default function FlowScreen() {
   const oisState  = isNdx ? nd.oi_state   : data?.oi_state
   const pcr       = !isNdx ? data?.put_call_ratio : null
   const biasColor = (flowBias || '').includes('CALL') ? 'var(--green)' : (flowBias || '').includes('PUT') ? 'var(--red)' : 'var(--muted2)'
-
-  const tkKey = (c: any) => `${c.ticker||''}|${c.strike||''}|${c.expiry||''}|${c.type||''}|${c.premium||''}`
-
-  /* ── Live ticker ── */
-  const loadTicker = useCallback(async () => {
-    try {
-      const d = await apiFetch(isNdx ? '/api/ndx-flow' : '/api/spx-flow')
-      const contracts: any[] = d.contracts || []
-      const toAdd = contracts.filter(c => {
-        const k = tkKey(c)
-        if (tickerSeen.current.has(k)) return false
-        tickerSeen.current.add(k)
-        return true
-      }).slice(0, 20)
-      if (toAdd.length) setTickerItems(prev => [...toAdd, ...prev].slice(0, 30))
-    } catch {}
-  }, [isNdx])
 
   /* ── Block flow ── */
   const loadBlocks = useCallback(async () => {
@@ -275,14 +260,11 @@ export default function FlowScreen() {
   }, [isNdx])
 
   useEffect(() => {
-    tickerSeen.current.clear()
-    setTickerItems([])
     setBlockItems([])
     setDpItems([])
     setDteStats(null)
     setUnusualItems([])
 
-    loadTicker()
     loadBlocks()
     load0dte()
     loadDarkPool()
@@ -290,18 +272,14 @@ export default function FlowScreen() {
     loadExpiry()
     loadSector()
 
-    tickerTimer.current = setInterval(loadTicker, 17_000)
-    blockTimer.current  = setInterval(loadBlocks,  30_000)
-    dteTimer.current    = setInterval(load0dte,    60_000)
-    const analyticsTimer = setInterval(loadAnalytics, 90_000)
+    // Refresh on every SSE update event (backend publishes when data changes)
+    const off1 = on('update', () => loadBlocks())
+    const off2 = on('update', () => load0dte())
+    const off3 = on('update', () => loadAnalytics())
+    const off4 = on('update', () => loadExpiry())
 
-    return () => {
-      clearInterval(tickerTimer.current)
-      clearInterval(blockTimer.current)
-      clearInterval(dteTimer.current)
-      clearInterval(analyticsTimer)
-    }
-  }, [isNdx, loadTicker, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector])
+    return () => { off1(); off2(); off3(); off4() }
+  }, [isNdx, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector, on])
 
   /* ── 0DTE computed values ── */
   const dteCallPrem = dteStats?.net_call_prem ?? dteStats?.call_premium
