@@ -242,6 +242,7 @@ export default function LevelsScreen() {
   const netDeltaDollar = !isNdx ? (data?.net_dealer_delta ?? data?.net_delta_dollar ?? null) : null
   const dhPressure  = !isNdx ? data?.delta_hedging_pressure : null
   const gammaDollar = !isNdx ? data?.dealer_gamma_dollar_per_pct : null
+  const gammaTrough = !isNdx ? data?.gamma_trough : null
 
   // Compute dealer score client-side (mirrors _updateScorecard in old dashboard)
   type ScFactor = { label: string; val: string; cls: string }
@@ -381,6 +382,12 @@ export default function LevelsScreen() {
           <div className="lv-stat">
             <span className="lv-stat-label">Flip Zone</span>
             <span className="lv-stat-val" style={{ color: 'var(--yellow)' }}>{fmtNum(flip)}</span>
+          </div>
+        )}
+        {gammaTrough != null && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">γ Trough</span>
+            <span className="lv-stat-val bear">{fmtNum(gammaTrough)}</span>
           </div>
         )}
         {cWall && (
