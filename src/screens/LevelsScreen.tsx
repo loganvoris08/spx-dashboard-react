@@ -268,7 +268,6 @@ export default function LevelsScreen() {
     const canvas = sparkCanvasRef.current
     if (!canvas) return
     const priceData = flipChSeries[0]?.data ?? []
-    const flipData  = flipChSeries[1]?.data ?? []
     if (!priceData.length) return
     const dpr = window.devicePixelRatio || 1
     const W = canvas.clientWidth, H = canvas.clientHeight
