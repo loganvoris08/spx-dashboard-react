@@ -129,6 +129,7 @@ export default function FlowScreen() {
   const [unusualItems, setUnusualItems] = useState<any[]>([])
   const [dteStats,     setDteStats]     = useState<any>(null)
   const [greekData,    setGreekData]    = useState<any>(null)
+  const [nopeArr,      setNopeArr]      = useState<any[]>([])
   const [expiryData,   setExpiryData]   = useState<any[]>([])
   const [sectorTide,   setSectorTide]   = useState<any[]>([])
   const [sectorFlow,   setSectorFlow]   = useState<any[]>([])
@@ -204,14 +205,18 @@ export default function FlowScreen() {
     }
   }, [isNdx])
 
-  /* ── Greek flow ── */
-  const loadGreek = useCallback(async () => {
+  /* ── Analytics (NOPE + Greek flow) — from /data/analytics, 90s TTL ── */
+  const loadAnalytics = useCallback(async () => {
     try {
-      const d = await apiFetch('/api/greek-flow')
-      setGreekData(d)
-    } catch {
-      // data.greek_flow array used as fallback below
-    }
+      const a = await apiFetch('/data/analytics')
+      const nopeRows: any[] = a.nope || []
+      const gfRows: any[]   = a.greek_flow || []
+      if (nopeRows.length) setNopeArr(nopeRows)
+      if (gfRows.length) {
+        const last = gfRows[gfRows.length - 1]
+        setGreekData({ delta_flow: last.dir_delta_flow, vega_flow: last.dir_vega_flow })
+      }
+    } catch {}
   }, [])
 
   /* ── Flow by expiry ── */
@@ -281,20 +286,22 @@ export default function FlowScreen() {
     loadBlocks()
     load0dte()
     loadDarkPool()
-    loadGreek()
+    loadAnalytics()
     loadExpiry()
     loadSector()
 
     tickerTimer.current = setInterval(loadTicker, 17_000)
     blockTimer.current  = setInterval(loadBlocks,  30_000)
     dteTimer.current    = setInterval(load0dte,    60_000)
+    const analyticsTimer = setInterval(loadAnalytics, 90_000)
 
     return () => {
       clearInterval(tickerTimer.current)
       clearInterval(blockTimer.current)
       clearInterval(dteTimer.current)
+      clearInterval(analyticsTimer)
     }
-  }, [isNdx, loadTicker, loadBlocks, load0dte, loadDarkPool, loadGreek, loadExpiry, loadSector])
+  }, [isNdx, loadTicker, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector])
 
   /* ── 0DTE computed values ── */
   const dteCallPrem = dteStats?.net_call_prem ?? dteStats?.call_premium
@@ -474,7 +481,6 @@ export default function FlowScreen() {
 
       {/* ── NOPE ── */}
       {(() => {
-        const nopeArr: any[] = data?.nope || []
         const nopeLast = nopeArr.length ? nopeArr[nopeArr.length - 1] : null
         const nopeVal  = nopeLast?.nope      ?? nopeLast?.nope_val
         const nopeFill = nopeLast?.nope_fill ?? nopeLast?.nope_fill_val

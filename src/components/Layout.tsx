@@ -75,13 +75,13 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   const tabs = [...SPX_TABS, ...(isNdx ? NDX_EXTRA : [])]
 
   // Tickers — swap to NDX/NQ when on NDX side
-  const spxRaw  = isNdx ? (data?.ndx ?? data?.ndx_price) : data?.spx
+  const spxRaw  = isNdx ? (data?.ndx?.price ?? data?.ndx_price) : data?.spx
   const spxNum  = typeof spxRaw === 'number' ? spxRaw
     : spxRaw != null ? parseFloat(String(spxRaw).replace(/,/g, ''))
     : (isNdx ? null : (data?.daily_open ?? null))
-  const spxFmt  = spxNum != null ? fmt2(spxNum) : '--'
+  const spxFmt  = spxNum != null && !isNaN(spxNum) ? fmt2(spxNum) : '--'
   const esRaw   = isNdx
-    ? (data?.nq ?? data?.nq_price)
+    ? (data?.ndx?.nq ?? data?.nq ?? data?.nq_price)
     : (data?.es_price ?? data?.es)
   const esFmt   = esRaw != null ? fmt2(parseFloat(String(esRaw).replace(/,/g, ''))) : '--'
   const vixFmt  = data?.vix != null ? Number(data.vix).toFixed(2) : '--'

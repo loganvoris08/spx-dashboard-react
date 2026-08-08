@@ -193,10 +193,14 @@ export default function LevelsScreen() {
         if (h.spx > 0)       spxD.push({ time: h.ts, value: h.spx })
       })
       const priceData = priceBars.length ? priceBars : spxD
-      if (priceData.length) spxS.setData(priceData)
-      if (flipD.length) flipS.setData(flipD)
-      if (callD.length) callS.setData(callD)
-      if (putD.length)  putS.setData(putD)
+      if (!priceData.length) return
+      // Clip wall/flip data to price time range to prevent lines extending past visible area
+      const minT = priceData[0].time, maxT = priceData[priceData.length - 1].time
+      const clip = (arr: any[]) => arr.filter((r: any) => r.time >= minT && r.time <= maxT)
+      spxS.setData(priceData)
+      if (flipD.length) flipS.setData(clip(flipD))
+      if (callD.length) callS.setData(clip(callD))
+      if (putD.length)  putS.setData(clip(putD))
       chart.timeScale().fitContent()
     }).catch(() => {})
     return () => { window.removeEventListener('resize', onResize); chart.remove() }
