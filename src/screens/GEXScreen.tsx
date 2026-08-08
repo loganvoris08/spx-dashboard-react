@@ -58,7 +58,7 @@ function fmtNum(v: any, d = 0) {
   return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 }
 
-function GEXHBars({ rows, priceStrike, flipStrike }: { rows: any[]; priceStrike: number; flipStrike: number }) {
+function GEXHBars({ rows, priceStrike, flipStrike, hotSet }: { rows: any[]; priceStrike: number; flipStrike: number; hotSet: Set<number> }) {
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No ladder data</div>
   )
@@ -71,23 +71,27 @@ function GEXHBars({ rows, priceStrike, flipStrike }: { rows: any[]; priceStrike:
         const strike   = parseFloat(String(row.strike).replace(/,/g, ''))
         const isPrice  = priceStrike && Math.abs(strike - priceStrike) < 3
         const isFlip   = flipStrike  && Math.abs(strike - flipStrike)  < 3
+        const isHot    = hotSet.has(Math.round(strike))
         const cGex = Math.abs(row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
         const pGex = Math.abs(row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? row.net_gex : 0))
         const pFill = Math.min(1, pGex / maxPut)
         const cFill = Math.min(1, cGex / maxCall)
-        const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : 'transparent'
-        const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--muted2)'
+        const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : isHot ? 'rgba(56,189,248,0.06)' : 'transparent'
+        const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : isHot ? '#38bdf8' : 'var(--muted2)'
 
         return (
           <div key={i} className="hbar-row" style={{ background: bg }}>
             <div className="hbar-strike" style={{ color: strikeColor }}>
+              {isHot && <span style={{ fontSize: 7, marginRight: 1 }}>🔥</span>}
               {Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
             </div>
             <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
               {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
               {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
             </div>
-            {isFlip && <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: '#f0f', fontSize: 7 }}>FLIP</div>}
+            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: isFlip ? '#f0f' : isHot ? '#38bdf8' : 'var(--muted2)', fontSize: 7 }}>
+              {isFlip ? 'FLIP' : isHot ? 'HOT' : ''}
+            </div>
           </div>
         )
       })}
@@ -113,6 +117,8 @@ export default function GEXScreen() {
   }, [isNdx])
 
   const nd = data?.ndx ?? {}
+  const hotStrikes = isNdx ? (nd.hot_strikes ?? []) : (data?.hot_strikes ?? [])
+  const hotSet = new Set<number>((hotStrikes as any[]).map((h: any) => Math.round(parseFloat(String(h.strike)))))
   const regime   = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
   const flip     = isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
   const maxPain  = !isNdx ? data?.max_pain_strike : null
@@ -297,7 +303,7 @@ export default function GEXScreen() {
           <span style={{ color: 'var(--green)' }}>CALL GEX ▶</span>
         </div>
         <div style={{ position: 'relative' }}>
-          <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} />
+          <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} hotSet={hotSet} />
           <LadderPriceLine rows={bucketData} price={priceNum} />
         </div>
         {gexStrikes.length === 0 && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}

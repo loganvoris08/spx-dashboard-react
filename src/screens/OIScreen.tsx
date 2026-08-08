@@ -27,8 +27,8 @@ function fmtPrem(v: any) {
   return n.toFixed(2)
 }
 
-function OIHBars({ rows, priceStrike, callWall, putWall }: {
-  rows: any[]; priceStrike: number; callWall: number; putWall: number
+function OIHBars({ rows, priceStrike, callWall, putWall, hotSet }: {
+  rows: any[]; priceStrike: number; callWall: number; putWall: number; hotSet: Set<number>
 }) {
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No data</div>
@@ -43,22 +43,24 @@ function OIHBars({ rows, priceStrike, callWall, putWall }: {
         const isPrice = row.is_price_zone || (priceStrike && Math.abs(strike - priceStrike) < 3)
         const isCall  = callWall && Math.abs(strike - callWall) < 3
         const isPut   = putWall  && Math.abs(strike - putWall)  < 3
+        const isHot   = hotSet.has(Math.round(strike))
         const pFill   = Math.min(1, (row.put_value  || 0) / maxPut)
         const cFill   = Math.min(1, (row.call_value || 0) / maxCall)
-        const bg = isPrice ? 'rgba(255,204,0,0.06)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
-        const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : 'var(--muted2)'
+        const bg = isPrice ? 'rgba(255,204,0,0.06)' : isHot ? 'rgba(56,189,248,0.06)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
+        const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : isHot ? '#38bdf8' : 'var(--muted2)'
 
         return (
           <div key={i} className="hbar-row" style={{ background: bg }}>
             <div className="hbar-strike" style={{ color: strikeColor, textAlign: 'right', paddingRight: 6 }}>
+              {isHot && <span style={{ fontSize: 7, marginRight: 1 }}>🔥</span>}
               {Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
             </div>
             <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
               {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
               {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
             </div>
-            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: isCall ? 'var(--green)' : isPut ? 'var(--red)' : 'var(--muted2)', fontSize: 7 }}>
-              {isCall ? 'CW' : isPut ? 'PW' : ''}
+            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? '#38bdf8' : 'var(--muted2)', fontSize: 7 }}>
+              {isCall ? 'CW' : isPut ? 'PW' : isHot ? 'HOT' : ''}
             </div>
           </div>
         )
@@ -209,7 +211,7 @@ export default function OIScreen() {
           <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
         </div>
         <div style={{ position: 'relative' }}>
-          <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} />
+          <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} hotSet={new Set((hotStrikes as any[]).map((h: any) => Math.round(parseFloat(String(h.strike)))))} />
           <LadderPriceLine rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} price={priceRef} />
         </div>
         {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}

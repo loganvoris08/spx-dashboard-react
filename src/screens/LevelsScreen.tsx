@@ -63,57 +63,63 @@ function fmtStrike(s: any) {
   return isNaN(n) ? String(s) : String(Math.round(n))
 }
 
-function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut }: {
-  row: any; priceStrike: number; callWall: number; putWall: number; maxCall: number; maxPut: number
+function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut, hotSet }: {
+  row: any; priceStrike: number; callWall: number; putWall: number; maxCall: number; maxPut: number; hotSet: Set<number>
 }) {
   const strike  = parseFloat(String(row.strike).replace(/,/g, ''))
   const isPrice = priceStrike && Math.abs(strike - priceStrike) < 3
   const isCall  = callWall && Math.abs(strike - callWall) < 3
   const isPut   = putWall  && Math.abs(strike - putWall)  < 3
+  const isHot   = hotSet.has(Math.round(strike))
   const pFill   = Math.min(1, (row.put_value  || 0) / maxPut)
   const cFill   = Math.min(1, (row.call_value || 0) / maxCall)
-  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
-  const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : 'var(--muted2)'
+  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isHot ? 'rgba(56,189,248,0.06)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
+  const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : isHot ? '#38bdf8' : 'var(--muted2)'
 
   return (
     <div className="hbar-row" style={{ background: bg }}>
       <div className="hbar-strike" style={{ color: strikeColor, textAlign: 'right', paddingRight: 5 }}>
+        {isHot && <span style={{ fontSize: 7, marginRight: 1 }}>🔥</span>}
         {fmtStrike(row.strike)}
       </div>
       <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
         {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
         {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
       </div>
-      <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, paddingRight: 0, color: isCall ? 'var(--green)' : isPut ? 'var(--red)' : 'var(--muted2)', fontSize: 7 }}>
-        {isCall ? 'CW' : isPut ? 'PW' : ''}
+      <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, paddingRight: 0, color: isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? '#38bdf8' : 'var(--muted2)', fontSize: 7 }}>
+        {isCall ? 'CW' : isPut ? 'PW' : isHot ? 'HOT' : ''}
       </div>
     </div>
   )
 }
 
-function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut }: {
-  row: any; priceStrike: number; flipStrike: number; maxCall: number; maxPut: number
+function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut, hotSet }: {
+  row: any; priceStrike: number; flipStrike: number; maxCall: number; maxPut: number; hotSet: Set<number>
 }) {
   const strike  = parseFloat(String(row.strike).replace(/,/g, ''))
   const isPrice = priceStrike && Math.abs(strike - priceStrike) < 3
   const isFlip  = flipStrike  && Math.abs(strike - flipStrike)  < 3
+  const isHot   = hotSet.has(Math.round(strike))
   const cGex = Math.abs(row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
   const pGex = Math.abs(row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? Math.abs(row.net_gex) : 0))
   const pFill = Math.min(1, pGex / maxPut)
   const cFill = Math.min(1, cGex / maxCall)
-  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : 'transparent'
-  const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--muted2)'
+  const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : isHot ? 'rgba(56,189,248,0.06)' : 'transparent'
+  const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : isHot ? '#38bdf8' : 'var(--muted2)'
 
   return (
     <div className="hbar-row" style={{ background: bg }}>
       <div className="hbar-strike" style={{ color: strikeColor }}>
+        {isHot && <span style={{ fontSize: 7, marginRight: 1 }}>🔥</span>}
         {fmtStrike(row.strike)}
       </div>
       <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
         {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
         {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
       </div>
-      {isFlip && <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: '#f0f', fontSize: 7 }}>FLIP</div>}
+      <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: isFlip ? '#f0f' : isHot ? '#38bdf8' : 'var(--muted2)', fontSize: 7 }}>
+        {isFlip ? 'FLIP' : isHot ? 'HOT' : ''}
+      </div>
     </div>
   )
 }
@@ -336,6 +342,9 @@ export default function LevelsScreen() {
   const maxGexCall = Math.max(...gexRows.map((r: any) => Math.abs(r.call_gex ?? (r.net_gex > 0 ? r.net_gex : 0))), 1)
   const maxGexPut  = Math.max(...gexRows.map((r: any) => Math.abs(r.put_gex  ?? (r.net_gex < 0 ? r.net_gex : 0))), 1)
 
+  const hotStrikes = isNdx ? (nd.hot_strikes ?? []) : (data?.hot_strikes ?? [])
+  const hotSet = new Set<number>((hotStrikes as any[]).map((h: any) => Math.round(parseFloat(String(h.strike)))))
+
   const regimeCls = (r?: string) => {
     if (!r) return 'neut'
     const u = r.toUpperCase()
@@ -419,7 +428,7 @@ export default function LevelsScreen() {
           <div className="lv-col-scroll" style={{ position: 'relative' }}>
             {oiRows.length > 0
               ? oiRows.map((r: any, i: number) => (
-                  <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxCall={maxOICall} maxPut={maxOIPut} />
+                  <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxCall={maxOICall} maxPut={maxOIPut} hotSet={hotSet} />
                 ))
               : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
             }
@@ -446,7 +455,7 @@ export default function LevelsScreen() {
           <div className="lv-col-scroll" style={{ position: 'relative' }}>
             {gexRows.length > 0
               ? gexRows.map((r: any, i: number) => (
-                  <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxCall={maxGexCall} maxPut={maxGexPut} />
+                  <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxCall={maxGexCall} maxPut={maxGexPut} hotSet={hotSet} />
                 ))
               : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
             }
