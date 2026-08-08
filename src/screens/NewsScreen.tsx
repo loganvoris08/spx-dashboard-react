@@ -169,7 +169,7 @@ export default function NewsScreen() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 10, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{e.day ?? fmtD(e.date)} {e.time ? `· ${e.time}` : ''}</div>
-                {e.exp_move && <div style={{ fontSize: 11, fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--yellow)' }}>±{e.exp_move}</div>}
+                {e.exp_move && <div style={{ fontSize: 11, fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--yellow)' }}>{String(e.exp_move).startsWith('±') ? e.exp_move : `±${e.exp_move}`}</div>}
               </div>
             </div>
           ))}
