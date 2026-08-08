@@ -42,8 +42,10 @@ export default function VolScreen() {
   const [loadingVol, setLoadingVol] = useState(false)
 
   const vix   = parseFloat(String(data?.vix   ?? 0)) || 0
-  const vix9d = parseFloat(String(data?.vix9d ?? 0)) || 0
-  const vix3m = parseFloat(String(data?.vix3m ?? 0)) || 0
+  const apiVix9d = termData.find((r: any) => r.tenor?.includes('9') || r.label?.includes('9'))?.vix
+  const apiVix3m = termData.find((r: any) => r.tenor?.includes('3M') || r.label?.includes('3M'))?.vix
+  const vix9d = parseFloat(String(data?.vix9d ?? apiVix9d ?? 0)) || 0
+  const vix3m = parseFloat(String(data?.vix3m ?? apiVix3m ?? 0)) || 0
   const skew  = parseFloat(String(data?.skew  ?? 0)) || 0
   const implMove = parseFloat(String(data?.implied_weekly_move ?? 0)) || 0
   const implPct  = parseFloat(String(data?.implied_weekly_pct  ?? 0)) || 0
@@ -168,8 +170,8 @@ export default function VolScreen() {
           <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}>VIX TERM STRUCTURE</div>
           {termData.map((row: any, i: number) => (
             <div key={i} className="td-row">
-              <span className="td-label">{row.label || row.expiry || row.date || `Row ${i+1}`}</span>
-              <span className="td-val" style={{ fontFamily: 'var(--mono)' }}>{row.value ?? row.iv ?? '--'}</span>
+              <span className="td-label">{row.tenor ?? row.label ?? row.expiry ?? row.date ?? `Row ${i+1}`}</span>
+              <span className="td-val" style={{ fontFamily: 'var(--mono)' }}>{row.vix ?? row.value ?? row.iv ?? '--'}</span>
             </div>
           ))}
         </div>
