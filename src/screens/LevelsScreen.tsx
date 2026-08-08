@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
+import { createChart, LineSeries, LineStyle as LwLineStyle } from 'lightweight-charts'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -122,8 +123,12 @@ export default function LevelsScreen() {
   const [ticker, setTicker]       = useState<any[]>([])
   const [tickerCount, setTickerCount] = useState(0)
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
+  const [darkPool, setDarkPool]     = useState<any[]>([])
+  const [dpLoaded, setDpLoaded]     = useState(false)
   const seenRef = useState<Set<string>>(() => new Set())[0]
   const ladders = useLadders(true)
+  const lvlChartRef  = useRef<HTMLDivElement>(null)
+  const flipChartRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setGexStrikes([])
@@ -158,6 +163,76 @@ export default function LevelsScreen() {
     const t = setInterval(loadTicker, 17_000)
     return () => clearInterval(t)
   }, [loadTicker, seenRef])
+
+  // Intraday Key Levels chart
+  useEffect(() => {
+    const el = lvlChartRef.current
+    if (!el) return
+    const chart = createChart(el, {
+      layout: { background: { color: 'transparent' }, textColor: '#777' },
+      grid:   { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)', scaleMargins: { top: 0.06, bottom: 0.06 } },
+      timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
+      width: el.clientWidth, height: 180,
+    })
+    const spxS = chart.addSeries(LineSeries, { color: 'rgba(255,204,0,0.9)', lineWidth: 2 as 2, title: isNdx ? 'NDX' : 'SPX', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
+    const flipS = chart.addSeries(LineSeries, { color: 'rgba(170,0,255,0.85)', lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dashed, title: 'Flip', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
+    const callS = chart.addSeries(LineSeries, { color: 'rgba(0,255,136,0.8)', lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dotted, title: 'CW', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
+    const putS  = chart.addSeries(LineSeries, { color: 'rgba(255,51,68,0.8)',  lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dotted, title: 'PW', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
+    const onResize = () => { if (el) chart.applyOptions({ width: el.clientWidth }) }
+    window.addEventListener('resize', onResize)
+    const ep = isNdx ? '/api/ndx-levels-history' : '/api/levels-history'
+    apiFetch(ep).then(d => {
+      const hist = d.history || []
+      const priceBars = (d.price_bars || []).map((b: any) => ({ time: b.time, value: b.value }))
+      const flipD: any[] = [], callD: any[] = [], putD: any[] = [], spxD: any[] = []
+      hist.forEach((h: any) => {
+        if (h.flip > 0)      flipD.push({ time: h.ts, value: h.flip })
+        if (h.call_wall > 0) callD.push({ time: h.ts, value: h.call_wall })
+        if (h.put_wall > 0)  putD.push({ time: h.ts, value: h.put_wall })
+        if (h.spx > 0)       spxD.push({ time: h.ts, value: h.spx })
+      })
+      const priceData = priceBars.length ? priceBars : spxD
+      if (priceData.length) spxS.setData(priceData)
+      if (flipD.length) flipS.setData(flipD)
+      if (callD.length) callS.setData(callD)
+      if (putD.length)  putS.setData(putD)
+      chart.timeScale().fitContent()
+    }).catch(() => {})
+    return () => { window.removeEventListener('resize', onResize); chart.remove() }
+  }, [isNdx])
+
+  // GEX Flip Zone chart
+  useEffect(() => {
+    const el = flipChartRef.current
+    if (!el) return
+    const chart = createChart(el, {
+      layout: { background: { color: 'transparent' }, textColor: '#777' },
+      grid:   { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)', scaleMargins: { top: 0.04, bottom: 0.04 } },
+      timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
+      width: el.clientWidth, height: 140,
+    })
+    const flipS = chart.addSeries(LineSeries, { color: 'rgba(168,85,247,0.9)', lineWidth: 2 as 2, lineStyle: LwLineStyle.Dashed, title: 'Flip', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
+    const spxS  = chart.addSeries(LineSeries, { color: 'rgba(255,204,0,0.9)',  lineWidth: 2 as 2, title: isNdx ? 'NDX' : 'SPX', priceFormat: { type: 'price', precision: 2, minMove: 0.01 } })
+    const onResize = () => { if (el) chart.applyOptions({ width: el.clientWidth }) }
+    window.addEventListener('resize', onResize)
+    const ep = isNdx ? '/api/ndx-gex-flip-history' : '/api/gex-flip-history'
+    apiFetch(ep).then(d => {
+      const hist = d.history || []
+      const priceBars = (d.price_bars || []).map((b: any) => ({ time: b.time, value: b.value }))
+      const flipD: any[] = [], spxD: any[] = []
+      hist.forEach((h: any) => {
+        if (h.flip_zone != null) flipD.push({ time: h.ts, value: h.flip_zone })
+        if (h.spx != null)       spxD.push({ time: h.ts, value: h.spx })
+      })
+      const priceData = priceBars.length ? priceBars : spxD
+      if (flipD.length)    flipS.setData(flipD)
+      if (priceData.length) spxS.setData(priceData)
+      chart.timeScale().fitContent()
+    }).catch(() => {})
+    return () => { window.removeEventListener('resize', onResize); chart.remove() }
+  }, [isNdx])
 
   const nd = data?.ndx ?? {}
 
@@ -329,6 +404,59 @@ export default function LevelsScreen() {
             : ticker.map((c, i) => <TickerRow key={i} c={c} />)
           }
         </div>
+      </div>
+
+      {/* ── Intraday Key Levels Chart ── */}
+      <div className="panel">
+        <div className="panel-title">Intraday Key Levels — Today</div>
+        <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>How key levels (GEX flip zone, call wall, put wall, {isNdx ? 'NDX' : 'SPX'} price) have moved today.</div>
+        <div ref={lvlChartRef} />
+      </div>
+
+      {/* ── GEX Flip Zone Chart ── */}
+      <div className="panel">
+        <div className="panel-title">Gamma Flip Zone — Intraday</div>
+        <div ref={flipChartRef} />
+      </div>
+
+      {/* ── Dark Pool Price Levels ── */}
+      <div className="panel">
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Dark Pool Price Levels — {isNdx ? 'NDX' : 'SPX'}
+          <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+        </div>
+        <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Top price levels by dark pool volume — significant institutional activity.</div>
+        {!dpLoaded ? (
+          <button
+            onClick={() => {
+              setDpLoaded(true)
+              apiFetch(isNdx ? '/api/ndx-darkpool' : '/api/spx-darkpool').then(d => {
+                setDarkPool(d.levels ?? d.prints ?? [])
+              }).catch(() => {})
+            }}
+            style={{ fontSize: 10, padding: '5px 12px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4, cursor: 'pointer' }}
+          >Load Dark Pool Levels</button>
+        ) : darkPool.length === 0 ? (
+          <div style={{ color: 'var(--muted2)', fontSize: 10, padding: '8px 0' }}>Loading...</div>
+        ) : (
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>
+            {darkPool.slice(0, 15).map((p: any, i: number) => {
+              const side = (p.side || p.direction || '').toUpperCase()
+              const prem = p.premium != null ? (p.premium >= 1e9 ? (p.premium/1e9).toFixed(2)+'B' : p.premium >= 1e6 ? (p.premium/1e6).toFixed(1)+'M' : p.premium >= 1e3 ? (p.premium/1e3).toFixed(0)+'K' : String(p.premium)) : ''
+              const sz = p.size != null ? (p.size >= 1e6 ? (p.size/1e6).toFixed(1)+'M' : p.size >= 1e3 ? (p.size/1e3).toFixed(0)+'K' : String(p.size)) : ''
+              const price = p.price ?? p.level
+              return (
+                <div key={i} style={{ display: 'flex', gap: 8, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', alignItems: 'center' }}>
+                  {side && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 3, background: side === 'BUY' ? 'rgba(0,255,136,0.15)' : side === 'SELL' ? 'rgba(255,51,68,0.15)' : 'rgba(100,116,139,0.2)', color: side === 'BUY' ? 'var(--green)' : side === 'SELL' ? 'var(--red)' : 'var(--muted2)' }}>{side}</span>}
+                  <span style={{ fontWeight: 700 }}>{price}</span>
+                  {prem && <span style={{ color: 'var(--green)' }}>{prem}</span>}
+                  {sz && <span style={{ color: 'var(--muted2)' }}>{sz} shares</span>}
+                  {p.time && <span style={{ marginLeft: 'auto', color: 'var(--muted2)', fontSize: 9 }}>{p.time}</span>}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Dealer Score ── */}
