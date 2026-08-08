@@ -69,17 +69,18 @@ export default function CandleChart({ title, candleEndpoint, zonesEndpoint, time
 
     if (!chartRef.current) {
       chartRef.current = createChart(containerRef.current, {
-        layout: { background: { color: 'transparent' }, textColor: '#888' },
+        layout: { background: { color: 'transparent' }, textColor: '#9ca3af' },
         grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
-        rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)', scaleMargins: { top: 0.06, bottom: 0.06 } },
-        timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible, secondsVisible: false },
+        rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.06, bottom: 0.06 } },
+        timeScale: { borderVisible: false, timeVisible, secondsVisible: false },
+        crosshair: { vertLine: { color: 'rgba(255,255,255,0.5)', style: 0, labelBackgroundColor: '#1c1f2e' }, horzLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1c1f2e' } },
         width: containerRef.current.clientWidth,
         height: chartH(),
       })
       seriesRef.current = chartRef.current.addSeries(CandlestickSeries, {
-        upColor: '#26a69a', downColor: '#ef5350',
-        borderUpColor: '#26a69a', borderDownColor: '#ef5350',
-        wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+        upColor: '#00ff88', downColor: '#ff3344',
+        borderUpColor: '#00ff88', borderDownColor: '#ff3344',
+        wickUpColor: 'rgba(0,255,136,0.7)', wickDownColor: 'rgba(255,51,68,0.7)',
       })
       const onResize = () => {
         if (chartRef.current && containerRef.current)

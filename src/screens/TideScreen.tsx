@@ -1,9 +1,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { createChart, LineSeries, HistogramSeries } from 'lightweight-charts'
+import { createChart, LineSeries, HistogramSeries, AreaSeries, BaselineSeries } from 'lightweight-charts'
 import type { IChartApi, ISeriesApi } from 'lightweight-charts'
 import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
 import { postAiRead } from '../hooks/useLadders'
+import { useSSE } from '../lib/SSEContext'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -24,10 +25,14 @@ function fmtFlow(v: number) {
 }
 
 const CHART_BASE = {
-  layout:     { background: { color: 'transparent' }, textColor: '#777' },
-  grid:       { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
-  rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)' },
-  timeScale:  { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
+  layout:     { background: { color: 'transparent' }, textColor: '#9ca3af' },
+  grid:       { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+  rightPriceScale: { borderVisible: false },
+  timeScale:  { borderVisible: false, timeVisible: true, secondsVisible: false },
+  crosshair: {
+    vertLine: { color: 'rgba(255,255,255,0.5)', style: 0 as const, labelBackgroundColor: '#1c1f2e' },
+    horzLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1c1f2e' },
+  },
   handleScroll: false, handleScale: false,
 }
 const FLOW_LOC = { localization: { priceFormatter: fmtFlow } }
@@ -48,6 +53,7 @@ export default function TideScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const isNdx = side === 'ndx'
+  const { on } = useSSE()
 
   const [moneyness, setMoneyness] = useState<Moneyness>('all')
   const [expiry,    setExpiry]    = useState<Expiry>('all')
@@ -56,8 +62,8 @@ export default function TideScreen() {
   const c1Ref = useRef<HTMLDivElement>(null)
   const c1    = useRef<IChartApi | null>(null)
   const priceLine = useRef<ISeriesApi<'Line'> | null>(null)
-  const callLine  = useRef<ISeriesApi<'Line'> | null>(null)
-  const putLine   = useRef<ISeriesApi<'Line'> | null>(null)
+  const callLine  = useRef<ISeriesApi<'Area'> | null>(null)
+  const putLine   = useRef<ISeriesApi<'Area'> | null>(null)
 
   // Tide chart 2: Net premium histogram
   const c2Ref = useRef<HTMLDivElement>(null)
@@ -67,14 +73,14 @@ export default function TideScreen() {
   // Tide chart 3: Flow Acceleration (5-period MA)
   const c3Ref = useRef<HTMLDivElement>(null)
   const c3    = useRef<IChartApi | null>(null)
-  const accelLine = useRef<ISeriesApi<'Line'> | null>(null)
+  const accelLine = useRef<ISeriesApi<'Baseline'> | null>(null)
 
   // UW Market Tide chart
   const mktRef = useRef<HTMLDivElement>(null)
   const mktC   = useRef<IChartApi | null>(null)
-  const mktCall = useRef<ISeriesApi<'Line'> | null>(null)
-  const mktPut  = useRef<ISeriesApi<'Line'> | null>(null)
-  const mktNet  = useRef<ISeriesApi<'Line'> | null>(null)
+  const mktCall = useRef<ISeriesApi<'Area'> | null>(null)
+  const mktPut  = useRef<ISeriesApi<'Area'> | null>(null)
+  const mktNet  = useRef<ISeriesApi<'Baseline'> | null>(null)
 
   const [stats,     setStats]     = useState<any>(null)
   const [divData,   setDivData]   = useState<any>(null)
@@ -93,8 +99,8 @@ export default function TideScreen() {
         rightPriceScale: { visible: true, borderColor: 'rgba(255,255,255,0.08)' },
       })
       priceLine.current = c1.current.addSeries(LineSeries, { color: '#ffcc00', lineWidth: 2, priceScaleId: 'left', crosshairMarkerVisible: false } as any)
-      callLine.current  = c1.current.addSeries(LineSeries, { color: 'rgba(0,255,136,0.85)', lineWidth: 2, priceScaleId: 'right' } as any)
-      putLine.current   = c1.current.addSeries(LineSeries, { color: 'rgba(255,51,68,0.85)',  lineWidth: 2, priceScaleId: 'right' } as any)
+      callLine.current  = c1.current.addSeries(AreaSeries, { lineColor: 'rgba(0,255,136,0.9)', lineWidth: 2, topColor: 'rgba(0,255,136,0.18)', bottomColor: 'rgba(0,255,136,0.0)', priceScaleId: 'right' } as any)
+      putLine.current   = c1.current.addSeries(AreaSeries, { lineColor: 'rgba(255,51,68,0.9)',  lineWidth: 2, topColor: 'rgba(255,51,68,0.15)',  bottomColor: 'rgba(255,51,68,0.0)',  priceScaleId: 'right' } as any)
     }
     if (c2Ref.current && !c2.current) {
       c2.current = createChart(c2Ref.current, { ...CHART_BASE, ...FLOW_LOC, height: 160, width: c2Ref.current.clientWidth })
@@ -105,16 +111,24 @@ export default function TideScreen() {
     }
     if (c3Ref.current && !c3.current) {
       c3.current = createChart(c3Ref.current, { ...CHART_BASE, ...FLOW_LOC, height: 120, width: c3Ref.current.clientWidth })
-      accelLine.current = c3.current.addSeries(LineSeries, {
-        color: 'rgba(255,204,0,0.75)', lineWidth: 1.5,
+      accelLine.current = c3.current.addSeries(BaselineSeries, {
+        baseValue: { type: 'price', price: 0 },
+        topLineColor: 'rgba(0,255,136,0.9)', topFillColor1: 'rgba(0,255,136,0.22)', topFillColor2: 'rgba(0,255,136,0.02)',
+        bottomLineColor: 'rgba(255,51,68,0.9)', bottomFillColor1: 'rgba(255,51,68,0.02)', bottomFillColor2: 'rgba(255,51,68,0.22)',
+        lineWidth: 2,
         priceFormat: { type: 'custom', formatter: (p: number) => { const a = Math.abs(p); return (p>=0?'+':'-')+(a>=1e6?(a/1e6).toFixed(1)+'M':a>=1000?(a/1000).toFixed(0)+'K':a.toFixed(0)) } },
       } as any)
     }
     if (mktRef.current && !mktC.current) {
       mktC.current  = createChart(mktRef.current, { ...CHART_BASE, ...FLOW_LOC, height: 160, width: mktRef.current.clientWidth })
-      mktCall.current = mktC.current.addSeries(LineSeries, { color: 'rgba(0,255,136,0.8)',  lineWidth: 1.5 } as any)
-      mktPut.current  = mktC.current.addSeries(LineSeries, { color: 'rgba(255,51,68,0.8)',   lineWidth: 1.5 } as any)
-      mktNet.current  = mktC.current.addSeries(LineSeries, { color: 'rgba(255,204,0,0.9)',  lineWidth: 2   } as any)
+      mktCall.current = mktC.current.addSeries(AreaSeries, { lineColor: 'rgba(0,255,136,0.9)', lineWidth: 2, topColor: 'rgba(0,255,136,0.2)', bottomColor: 'rgba(0,255,136,0.0)' } as any)
+      mktPut.current  = mktC.current.addSeries(AreaSeries, { lineColor: 'rgba(255,51,68,0.9)',  lineWidth: 2, topColor: 'rgba(255,51,68,0.18)',  bottomColor: 'rgba(255,51,68,0.0)'  } as any)
+      mktNet.current  = mktC.current.addSeries(BaselineSeries, {
+        baseValue: { type: 'price', price: 0 },
+        topLineColor: 'rgba(255,204,0,0.9)', topFillColor1: 'rgba(255,204,0,0.18)', topFillColor2: 'rgba(255,204,0,0.02)',
+        bottomLineColor: 'rgba(255,204,0,0.9)', bottomFillColor1: 'rgba(255,204,0,0.02)', bottomFillColor2: 'rgba(255,204,0,0.18)',
+        lineWidth: 2,
+      } as any)
     }
     const onResize = () => {
       if (c1.current && c1Ref.current) c1.current.applyOptions({ width: c1Ref.current.clientWidth })
@@ -193,10 +207,10 @@ export default function TideScreen() {
   useEffect(() => {
     loadFlowHistory()
     loadMarketTide()
-    const t1 = setInterval(loadFlowHistory, 30_000)
-    const t2 = setInterval(loadMarketTide, 60_000)
-    return () => { clearInterval(t1); clearInterval(t2) }
-  }, [loadFlowHistory, loadMarketTide])
+    const off1 = on('update', () => loadFlowHistory())
+    const off2 = on('update', () => loadMarketTide())
+    return () => { off1(); off2() }
+  }, [loadFlowHistory, loadMarketTide, on])
 
   async function handleAiRead() {
     setLoadingAi(true)
@@ -304,7 +318,7 @@ export default function TideScreen() {
         <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.7, padding: '8px 0', borderTop: '1px solid var(--border)', marginTop: 4 }}>{aiRead}</div>
       )}
 
-      <div style={{ fontSize: 8, color: 'var(--muted2)', textAlign: 'right', marginTop: 10 }}>{tsLabel} · auto-refresh 30s · UnusualWhales</div>
+      <div style={{ fontSize: 8, color: 'var(--muted2)', textAlign: 'right', marginTop: 10 }}>{tsLabel} · SSE live · UnusualWhales</div>
 
       {/* UW Market Tide */}
       <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>

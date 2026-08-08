@@ -5,7 +5,7 @@ import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useLiveFlow } from '../hooks/useLiveFlow'
 import LadderPriceLine from '../components/LadderPriceLine'
-import { createChart, LineSeries, LineStyle as LwLineStyle } from 'lightweight-charts'
+import { createChart, AreaSeries, LineSeries, LineStyle as LwLineStyle } from 'lightweight-charts'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -157,13 +157,14 @@ export default function LevelsScreen() {
     const el = lvlChartRef.current
     if (!el) return
     const chart = createChart(el, {
-      layout: { background: { color: 'transparent' }, textColor: '#777' },
-      grid:   { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)', scaleMargins: { top: 0.06, bottom: 0.06 } },
-      timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
+      layout: { background: { color: 'transparent' }, textColor: '#9ca3af' },
+      grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.06, bottom: 0.06 } },
+      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+      crosshair: { vertLine: { color: 'rgba(255,255,255,0.5)', style: 0, labelBackgroundColor: '#1c1f2e' }, horzLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1c1f2e' } },
       width: el.clientWidth, height: 180,
     })
-    const spxS = chart.addSeries(LineSeries, { color: 'rgba(255,204,0,0.9)', lineWidth: 2 as 2, title: isNdx ? 'NDX' : 'SPX', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
+    const spxS = chart.addSeries(AreaSeries, { lineColor: 'rgba(255,204,0,0.9)', lineWidth: 2, topColor: 'rgba(255,204,0,0.15)', bottomColor: 'rgba(255,204,0,0.0)', title: isNdx ? 'NDX' : 'SPX', priceFormat: { type: 'price', precision: 0, minMove: 1 } } as any)
     const flipS = chart.addSeries(LineSeries, { color: 'rgba(170,0,255,0.85)', lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dashed, title: 'Flip', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
     const callS = chart.addSeries(LineSeries, { color: 'rgba(0,255,136,0.8)', lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dotted, title: 'CW', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
     const putS  = chart.addSeries(LineSeries, { color: 'rgba(255,51,68,0.8)',  lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dotted, title: 'PW', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
@@ -199,14 +200,15 @@ export default function LevelsScreen() {
     const el = flipChartRef.current
     if (!el) return
     const chart = createChart(el, {
-      layout: { background: { color: 'transparent' }, textColor: '#777' },
-      grid:   { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)', scaleMargins: { top: 0.04, bottom: 0.04 } },
-      timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
+      layout: { background: { color: 'transparent' }, textColor: '#9ca3af' },
+      grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.04, bottom: 0.04 } },
+      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+      crosshair: { vertLine: { color: 'rgba(255,255,255,0.5)', style: 0, labelBackgroundColor: '#1c1f2e' }, horzLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1c1f2e' } },
       width: el.clientWidth, height: 140,
     })
     const flipS = chart.addSeries(LineSeries, { color: 'rgba(168,85,247,0.9)', lineWidth: 2 as 2, lineStyle: LwLineStyle.Dashed, title: 'Flip', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
-    const spxS  = chart.addSeries(LineSeries, { color: 'rgba(255,204,0,0.9)',  lineWidth: 2 as 2, title: isNdx ? 'NDX' : 'SPX', priceFormat: { type: 'price', precision: 2, minMove: 0.01 } })
+    const spxS  = chart.addSeries(AreaSeries, { lineColor: 'rgba(255,204,0,0.9)', lineWidth: 2, topColor: 'rgba(255,204,0,0.15)', bottomColor: 'rgba(255,204,0,0.0)', title: isNdx ? 'NDX' : 'SPX', priceFormat: { type: 'price', precision: 2, minMove: 0.01 } } as any)
     const onResize = () => { if (el) chart.applyOptions({ width: el.clientWidth }) }
     window.addEventListener('resize', onResize)
     const ep = isNdx ? '/api/ndx-gex-flip-history' : '/api/gex-flip-history'

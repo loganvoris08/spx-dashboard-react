@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { createChart, LineSeries } from 'lightweight-charts'
-import type { IChartApi, ISeriesApi, LineSeriesOptions } from 'lightweight-charts'
+import { createChart, AreaSeries, BaselineSeries } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi } from 'lightweight-charts'
 import { useSide } from '../lib/SideContext'
+import { useSSE } from '../lib/SSEContext'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -12,11 +13,14 @@ function fmtFlow(v: number) {
 }
 
 const CHART_OPTS = {
-  layout:     { background: { color: 'transparent' }, textColor: '#777' },
-  grid:       { vertLines: { color: 'rgba(255,255,255,0.03)' }, horzLines: { color: 'rgba(255,255,255,0.03)' } },
-  rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)', scaleMargins: { top: 0.08, bottom: 0.08 } },
-  timeScale:  { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
-  crosshair:  { vertLine: { color: 'rgba(255,255,255,0.3)', style: 0 as const }, horzLine: { color: 'rgba(255,255,255,0.2)' } },
+  layout:     { background: { color: 'transparent' }, textColor: '#9ca3af' },
+  grid:       { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+  rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.08 } },
+  timeScale:  { borderVisible: false, timeVisible: true, secondsVisible: false },
+  crosshair:  {
+    vertLine: { color: 'rgba(255,255,255,0.5)', style: 0 as const, labelBackgroundColor: '#1c1f2e' },
+    horzLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1c1f2e' },
+  },
   localization: { priceFormatter: fmtFlow },
   handleScroll: false,
   handleScale:  false,
@@ -25,14 +29,15 @@ const CHART_OPTS = {
 export default function FlowChart() {
   const { side } = useSide()
   const isNdx = side === 'ndx'
+  const { on } = useSSE()
 
   const chartRef = useRef<HTMLDivElement>(null)
   const netRef   = useRef<HTMLDivElement>(null)
   const chartInst    = useRef<IChartApi | null>(null)
-  const callSeries   = useRef<ISeriesApi<'Line'> | null>(null)
-  const putSeries    = useRef<ISeriesApi<'Line'> | null>(null)
+  const callSeries   = useRef<ISeriesApi<'Area'> | null>(null)
+  const putSeries    = useRef<ISeriesApi<'Area'> | null>(null)
   const netChartInst = useRef<IChartApi | null>(null)
-  const netSeries    = useRef<ISeriesApi<'Line'> | null>(null)
+  const netSeries    = useRef<ISeriesApi<'Baseline'> | null>(null)
 
   const callEl = useRef<HTMLDivElement>(null)
   const putEl  = useRef<HTMLDivElement>(null)
@@ -43,12 +48,27 @@ export default function FlowChart() {
     if (!chartRef.current || chartInst.current) return
 
     chartInst.current = createChart(chartRef.current, { ...CHART_OPTS, height: 200, width: chartRef.current.clientWidth })
-    callSeries.current = chartInst.current.addSeries(LineSeries, { color: 'rgba(0,255,136,0.9)', lineWidth: 2 } as Partial<LineSeriesOptions>)
-    putSeries.current  = chartInst.current.addSeries(LineSeries, { color: 'rgba(255,51,68,0.9)',  lineWidth: 2 } as Partial<LineSeriesOptions>)
+    callSeries.current = chartInst.current.addSeries(AreaSeries, {
+      lineColor: 'rgba(0,255,136,0.9)', lineWidth: 2,
+      topColor: 'rgba(0,255,136,0.22)', bottomColor: 'rgba(0,255,136,0.0)',
+    } as any)
+    putSeries.current  = chartInst.current.addSeries(AreaSeries, {
+      lineColor: 'rgba(255,51,68,0.9)', lineWidth: 2,
+      topColor: 'rgba(255,51,68,0.18)', bottomColor: 'rgba(255,51,68,0.0)',
+    } as any)
 
     if (netRef.current && !netChartInst.current) {
-      netChartInst.current = createChart(netRef.current, { ...CHART_OPTS, height: 70, width: netRef.current.clientWidth })
-      netSeries.current = netChartInst.current.addSeries(LineSeries, { color: 'rgba(255,204,0,0.9)', lineWidth: 2 } as Partial<LineSeriesOptions>)
+      netChartInst.current = createChart(netRef.current, { ...CHART_OPTS, height: 80, width: netRef.current.clientWidth })
+      netSeries.current = netChartInst.current.addSeries(BaselineSeries, {
+        baseValue: { type: 'price', price: 0 },
+        topLineColor:    'rgba(0,255,136,0.9)',
+        topFillColor1:   'rgba(0,255,136,0.28)',
+        topFillColor2:   'rgba(0,255,136,0.02)',
+        bottomLineColor: 'rgba(255,51,68,0.9)',
+        bottomFillColor1:'rgba(255,51,68,0.02)',
+        bottomFillColor2:'rgba(255,51,68,0.28)',
+        lineWidth: 2,
+      } as any)
     }
 
     const onResize = () => {
@@ -100,9 +120,9 @@ export default function FlowChart() {
 
   useEffect(() => {
     loadData()
-    const t = setInterval(loadData, 60_000)
-    return () => clearInterval(t)
-  }, [loadData])
+    const off = on('update', () => loadData())
+    return off
+  }, [loadData, on])
 
   // Re-init charts when side changes
   useEffect(() => {
@@ -119,7 +139,7 @@ export default function FlowChart() {
           <span>Intraday Net Flow</span>
           <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW LIVE</span>
         </div>
-        <span style={{ fontSize: 8, color: 'var(--muted2)' }}>60s refresh</span>
+        <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>SSE LIVE</span>
       </div>
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         {([
