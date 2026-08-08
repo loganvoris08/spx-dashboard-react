@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useLiveFlow } from '../hooks/useLiveFlow'
 import LadderPriceLine from '../components/LadderPriceLine'
-import { createChart, AreaSeries, LineSeries, LineStyle as LwLineStyle } from 'lightweight-charts'
+import CanvasChart from '../components/CanvasChart'
+import type { CCSeries } from '../components/CanvasChart'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -151,8 +152,8 @@ export default function LevelsScreen() {
   const [darkPool, setDarkPool]     = useState<any[]>([])
   const [dpLoaded, setDpLoaded]     = useState(false)
   const ladders = useLadders(true)
-  const lvlChartRef  = useRef<HTMLDivElement>(null)
-  const flipChartRef = useRef<HTMLDivElement>(null)
+  const [lvlSeries,  setLvlSeries]  = useState<CCSeries[]>([])
+  const [flipChSeries, setFlipChSeries] = useState<CCSeries[]>([])
 
   // Live options flow via SSE WebSocket relay — no polling
   const { alerts: ticker, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
@@ -168,22 +169,6 @@ export default function LevelsScreen() {
 
   // Intraday Key Levels chart
   useEffect(() => {
-    const el = lvlChartRef.current
-    if (!el) return
-    const chart = createChart(el, {
-      layout: { background: { color: 'transparent' }, textColor: '#9ca3af' },
-      grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.06, bottom: 0.06 } },
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
-      crosshair: { vertLine: { color: 'rgba(255,255,255,0.5)', style: 0, labelBackgroundColor: '#1c1f2e' }, horzLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1c1f2e' } },
-      width: el.clientWidth, height: 180,
-    })
-    const spxS = chart.addSeries(AreaSeries, { lineColor: 'rgba(255,204,0,0.9)', lineWidth: 2, topColor: 'rgba(255,204,0,0.15)', bottomColor: 'rgba(255,204,0,0.0)', title: isNdx ? 'NDX' : 'SPX', priceFormat: { type: 'price', precision: 0, minMove: 1 } } as any)
-    const flipS = chart.addSeries(LineSeries, { color: 'rgba(170,0,255,0.85)', lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dashed, title: 'Flip', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
-    const callS = chart.addSeries(LineSeries, { color: 'rgba(0,255,136,0.8)', lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dotted, title: 'CW', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
-    const putS  = chart.addSeries(LineSeries, { color: 'rgba(255,51,68,0.8)',  lineWidth: 1.5 as 2, lineStyle: LwLineStyle.Dotted, title: 'PW', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
-    const onResize = () => { if (el) chart.applyOptions({ width: el.clientWidth }) }
-    window.addEventListener('resize', onResize)
     const ep = isNdx ? '/api/ndx-levels-history' : '/api/levels-history'
     apiFetch(ep).then(d => {
       const hist = d.history || []
@@ -197,34 +182,20 @@ export default function LevelsScreen() {
       })
       const priceData = priceBars.length ? priceBars : spxD
       if (!priceData.length) return
-      // Clip wall/flip data to price time range to prevent lines extending past visible area
       const minT = priceData[0].time, maxT = priceData[priceData.length - 1].time
       const clip = (arr: any[]) => arr.filter((r: any) => r.time >= minT && r.time <= maxT)
-      spxS.setData(priceData)
-      if (flipD.length) flipS.setData(clip(flipD))
-      if (callD.length) callS.setData(clip(callD))
-      if (putD.length)  putS.setData(clip(putD))
-      chart.timeScale().fitContent()
+      const series: CCSeries[] = [
+        { data: priceData,     color: '#ffcc00', rgb: '255,204,0', label: isNdx ? 'NDX' : 'SPX' },
+      ]
+      if (flipD.length) series.push({ data: clip(flipD), color: '#aa00ff', rgb: '170,0,255',   fill: false, dash: [4, 4], lw: 1.5 })
+      if (callD.length) series.push({ data: clip(callD), color: '#00ff88', rgb: '0,255,136',   fill: false, dash: [2, 5], lw: 1 })
+      if (putD.length)  series.push({ data: clip(putD),  color: '#ff3344', rgb: '255,51,68',   fill: false, dash: [2, 5], lw: 1 })
+      setLvlSeries(series)
     }).catch(() => {})
-    return () => { window.removeEventListener('resize', onResize); chart.remove() }
   }, [isNdx])
 
   // GEX Flip Zone chart
   useEffect(() => {
-    const el = flipChartRef.current
-    if (!el) return
-    const chart = createChart(el, {
-      layout: { background: { color: 'transparent' }, textColor: '#9ca3af' },
-      grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.04, bottom: 0.04 } },
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
-      crosshair: { vertLine: { color: 'rgba(255,255,255,0.5)', style: 0, labelBackgroundColor: '#1c1f2e' }, horzLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1c1f2e' } },
-      width: el.clientWidth, height: 140,
-    })
-    const flipS = chart.addSeries(LineSeries, { color: 'rgba(168,85,247,0.9)', lineWidth: 2 as 2, lineStyle: LwLineStyle.Dashed, title: 'Flip', priceFormat: { type: 'price', precision: 0, minMove: 1 } })
-    const spxS  = chart.addSeries(AreaSeries, { lineColor: 'rgba(255,204,0,0.9)', lineWidth: 2, topColor: 'rgba(255,204,0,0.15)', bottomColor: 'rgba(255,204,0,0.0)', title: isNdx ? 'NDX' : 'SPX', priceFormat: { type: 'price', precision: 2, minMove: 0.01 } } as any)
-    const onResize = () => { if (el) chart.applyOptions({ width: el.clientWidth }) }
-    window.addEventListener('resize', onResize)
     const ep = isNdx ? '/api/ndx-gex-flip-history' : '/api/gex-flip-history'
     apiFetch(ep).then(d => {
       const hist = d.history || []
@@ -235,11 +206,11 @@ export default function LevelsScreen() {
         if (h.spx != null)       spxD.push({ time: h.ts, value: h.spx })
       })
       const priceData = priceBars.length ? priceBars : spxD
-      if (flipD.length)    flipS.setData(flipD)
-      if (priceData.length) spxS.setData(priceData)
-      chart.timeScale().fitContent()
+      const series: CCSeries[] = []
+      if (priceData.length) series.push({ data: priceData, color: '#ffcc00', rgb: '255,204,0', label: isNdx ? 'NDX' : 'SPX' })
+      if (flipD.length) series.push({ data: flipD, color: '#a855f7', rgb: '168,85,247', fill: false, dash: [4, 4], lw: 2 })
+      setFlipChSeries(series)
     }).catch(() => {})
-    return () => { window.removeEventListener('resize', onResize); chart.remove() }
   }, [isNdx])
 
   const nd = data?.ndx ?? {}
@@ -539,13 +510,23 @@ export default function LevelsScreen() {
       <div className="panel">
         <div className="panel-title">Intraday Key Levels — Today</div>
         <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>How key levels (GEX flip zone, call wall, put wall, {isNdx ? 'NDX' : 'SPX'} price) have moved today.</div>
-        <div ref={lvlChartRef} />
+        <CanvasChart series={lvlSeries} height={180} pulse={false} glow yFmt={(v) => Math.round(v).toLocaleString()} />
+        <div style={{ display: 'flex', gap: 14, marginTop: 5, padding: '0 2px' }}>
+          <span style={{ fontSize: 8, color: '#ffcc00', fontFamily: 'var(--mono)' }}>▬ {isNdx ? 'NDX' : 'SPX'}</span>
+          <span style={{ fontSize: 8, color: '#aa00ff', fontFamily: 'var(--mono)' }}>╌ Flip</span>
+          <span style={{ fontSize: 8, color: '#00ff88', fontFamily: 'var(--mono)' }}>⋯ Call Wall</span>
+          <span style={{ fontSize: 8, color: '#ff3344', fontFamily: 'var(--mono)' }}>⋯ Put Wall</span>
+        </div>
       </div>
 
       {/* ── GEX Flip Zone Chart ── */}
       <div className="panel">
         <div className="panel-title">Gamma Flip Zone — Intraday</div>
-        <div ref={flipChartRef} />
+        <CanvasChart series={flipChSeries} height={140} pulse={false} glow yFmt={(v) => Math.round(v).toLocaleString()} />
+        <div style={{ display: 'flex', gap: 14, marginTop: 5, padding: '0 2px' }}>
+          <span style={{ fontSize: 8, color: '#ffcc00', fontFamily: 'var(--mono)' }}>▬ {isNdx ? 'NDX' : 'SPX'}</span>
+          <span style={{ fontSize: 8, color: '#a855f7', fontFamily: 'var(--mono)' }}>╌ Flip Zone</span>
+        </div>
       </div>
 
       {/* ── Dark Pool Price Levels ── */}
