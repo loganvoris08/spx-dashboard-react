@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
@@ -172,6 +172,10 @@ export default function LevelsScreen() {
   const ladders = useLadders(true)
   const [lvlSeries,  setLvlSeries]  = useState<CCSeries[]>([])
   const [flipChSeries, setFlipChSeries] = useState<CCSeries[]>([])
+  const sparkCanvasRef  = useRef<HTMLCanvasElement>(null)
+  const prevRegimeRef   = useRef<string | null>(null)
+  const prevRegimeLabel = useRef<string | null>(null)
+  const priceHistory    = useRef<{ ts: number; price: number }[]>([])
 
   // Live options flow via SSE WebSocket relay — no polling
   const { alerts: ticker, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
@@ -233,9 +237,93 @@ export default function LevelsScreen() {
 
   const nd = data?.ndx ?? {}
 
-  // Banner stats
+  // Banner stats (declared early so useEffects below can reference them)
   const regime      = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
   const flip        = isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
+  const flipNum_e   = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
+
+  // Track previous regime (only update label when regime actually changes)
+  useEffect(() => {
+    if (!regime) return
+    if (prevRegimeRef.current && prevRegimeRef.current !== regime) {
+      prevRegimeLabel.current = prevRegimeRef.current
+    }
+    prevRegimeRef.current = regime
+  }, [regime])
+
+  // Rolling price history for "last 15m" — priceNum computed further below,
+  // so we read it from a ref that gets updated there
+  const priceNumRef = useRef(0)
+
+  useEffect(() => {
+    if (!priceNumRef.current || priceNumRef.current <= 0) return
+    const now = Date.now()
+    priceHistory.current.push({ ts: now, price: priceNumRef.current })
+    // Keep only last 20 min
+    priceHistory.current = priceHistory.current.filter(p => now - p.ts < 1200000)
+  })
+
+  // Draw sparkline from today's price history in flipChSeries
+  useEffect(() => {
+    const canvas = sparkCanvasRef.current
+    if (!canvas) return
+    const priceData = flipChSeries[0]?.data ?? []
+    const flipData  = flipChSeries[1]?.data ?? []
+    if (!priceData.length) return
+    const dpr = window.devicePixelRatio || 1
+    const W = canvas.clientWidth, H = canvas.clientHeight
+    if (!W || !H) return
+    canvas.width  = W * dpr
+    canvas.height = H * dpr
+    const ctx = canvas.getContext('2d')!
+    ctx.scale(dpr, dpr)
+    ctx.clearRect(0, 0, W, H)
+
+    const prices = priceData.map((d: any) => d.value)
+    const lo = Math.min(...prices), hi = Math.max(...prices)
+    const rng = hi - lo || 1
+    const py = (v: number) => H - ((v - lo) / rng) * (H - 2) - 1
+
+    const isNeg = String(regime ?? '').toLowerCase().includes('neg')
+    const lineColor = isNeg ? '#ff3344' : '#00ff88'
+    const fillColor = isNeg ? 'rgba(255,51,68,0.15)' : 'rgba(0,255,136,0.12)'
+
+    // Fill area
+    ctx.beginPath()
+    priceData.forEach((d: any, i: number) => {
+      const x = (i / (priceData.length - 1)) * W
+      if (i === 0) ctx.moveTo(x, py(d.value)); else ctx.lineTo(x, py(d.value))
+    })
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath()
+    ctx.fillStyle = fillColor; ctx.fill()
+
+    // Line
+    ctx.beginPath()
+    priceData.forEach((d: any, i: number) => {
+      const x = (i / (priceData.length - 1)) * W
+      if (i === 0) ctx.moveTo(x, py(d.value)); else ctx.lineTo(x, py(d.value))
+    })
+    ctx.strokeStyle = lineColor; ctx.lineWidth = 1.5; ctx.stroke()
+
+    // Flip zone dashed line
+    if (flipData.length && flipNum_e > 0) {
+      const flipY = py(flipNum_e)
+      ctx.setLineDash([3, 3])
+      ctx.beginPath(); ctx.moveTo(0, flipY); ctx.lineTo(W, flipY)
+      ctx.strokeStyle = 'rgba(168,85,247,0.6)'; ctx.lineWidth = 1; ctx.stroke()
+      ctx.setLineDash([])
+    }
+
+    // Current price dot
+    if (priceData.length > 0) {
+      const last = priceData[priceData.length - 1]
+      const x = W, y = py(last.value)
+      ctx.beginPath(); ctx.arc(x - 2, y, 2.5, 0, Math.PI * 2)
+      ctx.fillStyle = lineColor; ctx.fill()
+    }
+  }, [flipChSeries, regime, flipNum_e])
+
+  // Remaining banner stats
   const cWall       = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
   const pWall       = isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
   const netDelta    = !isNdx ? data?.net_delta_dir : null
@@ -297,9 +385,28 @@ export default function LevelsScreen() {
   const priceNum = isNdx
     ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
     : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
+  priceNumRef.current = priceNum
   const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
   const cwNum    = parseFloat(String(cWall ?? '').replace(/,/g, '')) || 0
   const pwNum    = parseFloat(String(pWall ?? '').replace(/,/g, '')) || 0
+
+  // Regime card computed values
+  const dayOpen     = parseFloat(String(data?.daily_open ?? 0)) || 0
+  const sinceOpen   = dayOpen > 0 && priceNum > 0 ? priceNum - dayOpen : null
+  const price15mAgo = useMemo(() => {
+    const target = Date.now() - 15 * 60 * 1000
+    const hist = priceHistory.current
+    if (!hist.length) return null
+    return hist.reduce((best, p) => Math.abs(p.ts - target) < Math.abs(best.ts - target) ? p : best, hist[0]).price
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceNum])
+  const last15m     = price15mAgo != null && priceNum > 0 ? priceNum - price15mAgo : null
+  const flipDistPts = flipNum > 0 && priceNum > 0 ? priceNum - flipNum : null
+  const flipDistPct = flipDistPts != null ? Math.min(100, (Math.abs(flipDistPts) / 80) * 100) : 0
+  const fmtChg = (v: number | null) => {
+    if (v == null) return '--'
+    return (v >= 0 ? '+' : '') + v.toFixed(1)
+  }
 
   // Ladder data — filtered to ±lvRange pts from current price
   const allOiRows = isNdx
@@ -368,28 +475,70 @@ export default function LevelsScreen() {
 
   const scoreBarW = score != null ? `${score}%` : '50%'
 
+  const regimeColor    = regimeCls(regime) === 'bear' ? 'var(--red)' : regimeCls(regime) === 'bull' ? 'var(--green)' : 'var(--muted2)'
+  const flipDistColor  = flipDistPts == null ? 'var(--muted2)' : flipDistPts > 0 ? 'var(--green)' : 'var(--red)'
+  const sinceOpenColor = sinceOpen == null ? 'var(--muted2)' : sinceOpen >= 0 ? 'var(--green)' : 'var(--red)'
+  const last15mColor   = last15m == null ? 'var(--muted2)' : last15m >= 0 ? 'var(--green)' : 'var(--red)'
+
   return (
     <>
       {/* ── lv-banner ── */}
       <div className="lv-banner">
-        {regime && (
-          <div className="lv-stat">
-            <span className="lv-stat-label">Regime</span>
-            <span className={`lv-stat-val ${regimeCls(regime)}`}>{regime}</span>
+
+        {/* ── Gamma Regime card (wide) ── */}
+        <div className="lv-stat lv-regime-card">
+          {/* Header row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+            <span className="lv-stat-label" style={{ marginBottom: 0 }}>Gamma Regime</span>
+            {prevRegimeLabel.current && (
+              <span style={{ fontSize: 7.5, fontFamily: 'var(--mono)', color: 'var(--muted2)' }}>
+                from {prevRegimeLabel.current.toUpperCase()}
+              </span>
+            )}
           </div>
-        )}
-        {flip && (
-          <div className="lv-stat">
-            <span className="lv-stat-label">Flip Zone</span>
-            <span className="lv-stat-val" style={{ color: 'var(--yellow)' }}>{fmtNum(flip)}</span>
+          {/* Regime value */}
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: regimeColor, letterSpacing: 0.5, lineHeight: 1, marginBottom: 6 }}>
+            {regime ? regime.toUpperCase() : '--'}
           </div>
-        )}
-        {gammaTrough != null && (
-          <div className="lv-stat">
-            <span className="lv-stat-label">γ Trough</span>
-            <span className="lv-stat-val bear">{fmtNum(gammaTrough)}</span>
+          {/* Sparkline */}
+          <canvas ref={sparkCanvasRef} style={{ width: '100%', height: 36, display: 'block', marginBottom: 6 }} />
+          {/* SPX / Flip row */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 5 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 7, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 1 }}>{isNdx ? 'NDX' : 'SPX'} Price</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: 'var(--yellow)' }}>{priceNum > 0 ? priceNum.toFixed(2) : '--'}</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 7, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 1 }}>Gamma Flip</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: 'rgba(168,85,247,0.9)' }}>{flipNum > 0 ? fmtNum(flip) : '--'}</div>
+            </div>
           </div>
-        )}
+          {/* Flip distance bar */}
+          <div style={{ marginBottom: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+              <span style={{ fontSize: 7, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Flip Dist</span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: flipDistColor, fontWeight: 700 }}>
+                {flipDistPts != null ? `${flipDistPts > 0 ? '+' : ''}${flipDistPts.toFixed(0)} pts` : '--'}
+              </span>
+            </div>
+            <div style={{ height: 4, background: 'var(--surface)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ width: `${flipDistPct}%`, height: '100%', background: flipDistColor, borderRadius: 2, opacity: 0.8, transition: 'width 0.3s' }} />
+            </div>
+          </div>
+          {/* Since open / Last 15m */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 7, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 1 }}>Since Open</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, color: sinceOpenColor }}>{fmtChg(sinceOpen)}</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 7, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 1 }}>Last 15M</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, color: last15mColor }}>{fmtChg(last15m)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── remaining stat boxes ── */}
         {cWall && (
           <div className="lv-stat">
             <span className="lv-stat-label">Call Wall</span>
@@ -402,6 +551,12 @@ export default function LevelsScreen() {
             <span className="lv-stat-val bear">{fmtNum(pWall)}</span>
           </div>
         )}
+        {gammaTrough != null && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">γ Trough</span>
+            <span className="lv-stat-val bear">{fmtNum(gammaTrough)}</span>
+          </div>
+        )}
         {netDelta && (
           <div className="lv-stat">
             <span className="lv-stat-label">Net Delta</span>
@@ -412,7 +567,7 @@ export default function LevelsScreen() {
         )}
         {dhPressure && (
           <div className="lv-stat">
-            <span className="lv-stat-label">Pressure</span>
+            <span className="lv-stat-label">DH Pressure</span>
             <span className={`lv-stat-val ${String(dhPressure).toUpperCase().includes('BULL') ? 'bull' : String(dhPressure).toUpperCase().includes('BEAR') ? 'bear' : 'neut'}`}>{dhPressure}</span>
           </div>
         )}
