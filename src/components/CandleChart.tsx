@@ -96,7 +96,6 @@ export default function CandleChart({ title, candleEndpoint, zonesEndpoint, time
       seriesRef.current!.setData(candles)
       liveCandleRef.current = candles[candles.length - 1]
       chartRef.current!.timeScale().fitContent()
-      setTimeout(() => chartRef.current?.timeScale().scrollToRealTime(), 50)
       if (statusRef.current) {
         const close = liveCandleRef.current.close
         statusRef.current.textContent = `${title} ${close.toFixed(2)}`
