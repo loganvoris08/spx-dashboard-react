@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
-import { postAiRead } from '../hooks/useLadders'
+import { useLadders, postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useSSE } from '../lib/SSEContext'
 import LadderPriceLine from '../components/LadderPriceLine'
+import { computeHotScores } from '../lib/hotScores'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -59,7 +60,7 @@ function fmtNum(v: any, d = 0) {
   return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 }
 
-function GEXHBars({ rows, priceStrike, flipStrike, hotSet }: { rows: any[]; priceStrike: number; flipStrike: number; hotSet: Set<number> }) {
+function GEXHBars({ rows, priceStrike, flipStrike, hotScores }: { rows: any[]; priceStrike: number; flipStrike: number; hotScores: Map<number, number> }) {
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No ladder data</div>
   )
@@ -70,28 +71,35 @@ function GEXHBars({ rows, priceStrike, flipStrike, hotSet }: { rows: any[]; pric
     <div>
       {rows.map((row: any, i: number) => {
         const strike   = parseFloat(String(row.strike).replace(/,/g, ''))
+        const skey     = Math.round(strike)
         const isPrice  = priceStrike && Math.abs(strike - priceStrike) < 3
         const isFlip   = flipStrike  && Math.abs(strike - flipStrike)  < 3
-        const isHot    = hotSet.has(Math.round(strike))
+        const hotScore = hotScores.get(skey)
+        const isHot    = hotScore != null && hotScore >= 70
+        const isWarm   = hotScore != null && hotScore >= 50 && hotScore < 70
         const cGex = Math.abs(row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
         const pGex = Math.abs(row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? row.net_gex : 0))
         const pFill = Math.min(1, pGex / maxPut)
         const cFill = Math.min(1, cGex / maxCall)
-        const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : 'transparent'
-        const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : isHot ? 'var(--red)' : 'var(--muted2)'
+        const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)'
+          : isWarm ? 'rgba(234,179,8,0.05)' : 'transparent'
+        const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : isHot ? 'var(--red)' : isWarm ? '#eab308' : 'var(--muted2)'
+        const tagLabel = isFlip ? 'FLIP' : (isHot || isWarm) ? String(hotScore) : ''
+        const tagColor = isFlip ? '#f0f' : isHot ? 'var(--red)' : isWarm ? 'rgba(234,179,8,0.6)' : 'var(--muted2)'
 
         return (
           <div key={i} className="hbar-row" style={{ background: isHot && !isPrice && !isFlip ? undefined : bg, animation: isHot && !isPrice && !isFlip ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
             <div className="hbar-strike" style={{ color: strikeColor }}>
-              {isHot && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
-              {Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
+              {isHot  && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
+              {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
+              {skey}
             </div>
             <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
               {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
               {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
             </div>
-            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: isFlip ? '#f0f' : isHot ? 'var(--red)' : 'var(--muted2)', fontSize: 7 }}>
-              {isFlip ? 'FLIP' : isHot ? 'HOT' : ''}
+            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: tagColor, fontSize: 7, fontWeight: 700 }}>
+              {tagLabel}
             </div>
           </div>
         )
@@ -111,6 +119,7 @@ export default function GEXScreen() {
   const [dealerText, setDealerText] = useState('')
   const [loadingDealer, setLoadingDealer] = useState(false)
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
+  const ladders = useLadders(true)
 
   const loadGexStrikes = useCallback(() => {
     apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
@@ -126,8 +135,14 @@ export default function GEXScreen() {
   }, [isNdx, loadGexStrikes, on])
 
   const nd = data?.ndx ?? {}
-  const hotStrikes = isNdx ? (nd.hot_strikes ?? []) : (data?.hot_strikes ?? [])
-  const hotSet = new Set<number>((hotStrikes as any[]).map((h: any) => Math.round(parseFloat(String(h.strike)))))
+
+  const oiRows = isNdx
+    ? (ladders?.ndx?.oi_ladder_buckets?.all ?? ladders?.ndx?.ladder_rows ?? [])
+    : (ladders?.oi_ladder_buckets?.all ?? ladders?.ladder_rows ?? [])
+
+  const priceNum = isNdx
+    ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
+    : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
   const regime   = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
   const flip     = isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
   const maxPain  = !isNdx ? data?.max_pain_strike : null
@@ -195,9 +210,6 @@ export default function GEXScreen() {
   const scoreLabel = dealerScore?.label ?? null
   const scFactors  = dealerScore?.factors ?? []
 
-  const priceNum = isNdx
-    ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
-    : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
   const flipNum  = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
 
   const sortDesc = (rows: any[]) => [...rows].sort((a: any, b: any) =>
@@ -208,6 +220,10 @@ export default function GEXScreen() {
     return Math.abs(s - priceNum) <= range
   })
   const bucketData = sortDesc(rangeFiltered.length > 0 ? rangeFiltered : gexStrikes)
+
+  const hotScores = new Map<number, number>(
+    [...computeHotScores(oiRows, bucketData, priceNum).entries()].filter(([, s]) => s >= 50)
+  )
 
   // Top gamma strikes: sort by absolute net_gex
   const topGamma = [...gexStrikes]
@@ -312,7 +328,7 @@ export default function GEXScreen() {
           <span style={{ color: 'var(--green)' }}>CALL GEX ▶</span>
         </div>
         <div style={{ position: 'relative' }}>
-          <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} hotSet={hotSet} />
+          <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} hotScores={hotScores} />
           <LadderPriceLine rows={bucketData} price={priceNum} />
         </div>
         {gexStrikes.length === 0 && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}

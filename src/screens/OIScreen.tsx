@@ -1,9 +1,19 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders, postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
+import { useSSE } from '../lib/SSEContext'
 import LadderPriceLine from '../components/LadderPriceLine'
+import { computeHotScores } from '../lib/hotScores'
+
+const BASE = import.meta.env.VITE_API_URL ?? ''
+function token() { return localStorage.getItem('dash_token') ?? '' }
+async function apiFetch(path: string) {
+  const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token()}` } })
+  if (!res.ok) throw new Error(`${path} ${res.status}`)
+  return res.json()
+}
 
 type Bucket = 'all' | 'week'
 const BUCKETS: { id: Bucket; label: string }[] = [
@@ -27,8 +37,8 @@ function fmtPrem(v: any) {
   return n.toFixed(2)
 }
 
-function OIHBars({ rows, priceStrike, callWall, putWall, hotSet }: {
-  rows: any[]; priceStrike: number; callWall: number; putWall: number; hotSet: Set<number>
+function OIHBars({ rows, priceStrike, callWall, putWall, hotScores }: {
+  rows: any[]; priceStrike: number; callWall: number; putWall: number; hotScores: Map<number, number>
 }) {
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No data</div>
@@ -39,28 +49,35 @@ function OIHBars({ rows, priceStrike, callWall, putWall, hotSet }: {
   return (
     <div>
       {rows.map((row: any, i: number) => {
-        const strike  = parseFloat(String(row.strike).replace(/,/g, ''))
-        const isPrice = row.is_price_zone || (priceStrike && Math.abs(strike - priceStrike) < 3)
-        const isCall  = callWall && Math.abs(strike - callWall) < 3
-        const isPut   = putWall  && Math.abs(strike - putWall)  < 3
-        const isHot   = hotSet.has(Math.round(strike))
-        const pFill   = Math.min(1, (row.put_value  || 0) / maxPut)
-        const cFill   = Math.min(1, (row.call_value || 0) / maxCall)
-        const bg = isPrice ? 'rgba(255,204,0,0.06)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
-        const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : isHot ? 'var(--red)' : 'var(--muted2)'
+        const strike    = parseFloat(String(row.strike).replace(/,/g, ''))
+        const skey      = Math.round(strike)
+        const isPrice   = row.is_price_zone || (priceStrike && Math.abs(strike - priceStrike) < 3)
+        const isCall    = callWall && Math.abs(strike - callWall) < 3
+        const isPut     = putWall  && Math.abs(strike - putWall)  < 3
+        const hotScore  = hotScores.get(skey)
+        const isHot     = hotScore != null && hotScore >= 70
+        const isWarm    = hotScore != null && hotScore >= 50 && hotScore < 70
+        const pFill     = Math.min(1, (row.put_value  || 0) / maxPut)
+        const cFill     = Math.min(1, (row.call_value || 0) / maxCall)
+        const bg = isPrice ? 'rgba(255,204,0,0.06)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)'
+          : isWarm ? 'rgba(234,179,8,0.05)' : 'transparent'
+        const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : isHot ? 'var(--red)' : isWarm ? '#eab308' : 'var(--muted2)'
+        const tagLabel = isCall ? 'CW' : isPut ? 'PW' : (isHot || isWarm) ? String(hotScore) : ''
+        const tagColor = isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? 'var(--red)' : isWarm ? 'rgba(234,179,8,0.6)' : 'var(--muted2)'
 
         return (
           <div key={i} className="hbar-row" style={{ background: isHot && !isPrice && !isCall && !isPut ? undefined : bg, animation: isHot && !isPrice && !isCall && !isPut ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
             <div className="hbar-strike" style={{ color: strikeColor, textAlign: 'right', paddingRight: 6 }}>
-              {isHot && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
-              {Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
+              {isHot  && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
+              {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
+              {skey}
             </div>
             <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
               {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
               {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
             </div>
-            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? 'var(--red)' : 'var(--muted2)', fontSize: 7 }}>
-              {isCall ? 'CW' : isPut ? 'PW' : isHot ? 'HOT' : ''}
+            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: tagColor, fontSize: 7, fontWeight: 700 }}>
+              {tagLabel}
             </div>
           </div>
         )
@@ -73,12 +90,27 @@ export default function OIScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const live = useLivePrice()
+  const { on } = useSSE()
   const isNdx = side === 'ndx'
   const [bucket, setBucket] = useState<Bucket>('all')
   const [range, setRange]   = useState(150)
   const [oiText, setOiText] = useState('')
   const [loadingOi, setLoadingOi] = useState(false)
+  const [gexStrikes, setGexStrikes] = useState<any[]>([])
   const ladders = useLadders(true)
+
+  const loadGex = useCallback(() => {
+    apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
+      .then(d => setGexStrikes(d.strikes ?? []))
+      .catch(() => {})
+  }, [isNdx])
+
+  useEffect(() => {
+    setGexStrikes([])
+    loadGex()
+    const off = on('update', () => loadGex())
+    return off
+  }, [isNdx, loadGex, on])
 
   const nd = data?.ndx ?? {}
   const cWall = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
@@ -113,6 +145,11 @@ export default function OIScreen() {
     const s = parseFloat(String(r.strike).replace(/,/g, ''))
     return Math.abs(s - priceRef) <= range
   })
+
+  const allOiForScore = rangeFiltered.length > 0 ? rangeFiltered : bucketData
+  const hotScores = new Map<number, number>(
+    [...computeHotScores(allOiForScore, gexStrikes, priceRef).entries()].filter(([, s]) => s >= 50)
+  )
 
   async function loadOiRead() {
     setLoadingOi(true)
@@ -211,7 +248,7 @@ export default function OIScreen() {
           <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
         </div>
         <div style={{ position: 'relative' }}>
-          <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} hotSet={new Set((hotStrikes as any[]).map((h: any) => Math.round(parseFloat(String(h.strike)))))} />
+          <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} hotScores={hotScores} />
           <LadderPriceLine rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} price={priceRef} />
         </div>
         {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
