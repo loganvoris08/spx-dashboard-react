@@ -287,8 +287,8 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
                   {(() => {
                     const range = callWall - putWall
                     const flip = gexFlip ?? (putWall + range / 2)
-                    const putFill = range > 0 ? ((flip - putWall) / range * 100) : 50
-                    const cursorPct = range > 0 ? ((spxPrice - putWall) / range * 100) : 50
+                    const putFill = range > 0 ? Math.max(0, Math.min(100, (flip - putWall) / range * 100)) : 50
+                    const cursorPct = range > 0 ? Math.max(0, Math.min(100, (spxPrice - putWall) / range * 100)) : 50
                     return <>
                       <div className="oi-strip-fill-put" style={{ width: `${putFill}%` }} />
                       <div className="oi-strip-fill-call" style={{ width: `${100 - putFill}%` }} />

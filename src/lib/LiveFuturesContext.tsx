@@ -75,6 +75,7 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
           // Auth success → subscribe to ES trades + second aggregates
           if (m.ev === 'status' && m.status === 'auth_success') {
             sock.send(JSON.stringify({ action: 'subscribe', params: 'T.ES1!,A.ES1!' }))
+            setState(s => ({ ...s, connected: true }))
           }
 
           // Second aggregate — build live minute bar
