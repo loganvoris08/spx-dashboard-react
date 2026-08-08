@@ -48,23 +48,39 @@ function CongressRow({ t }: { t: any }) {
 }
 
 function InstRow({ inst }: { inst: any }) {
-  const aum   = inst.total_value ?? inst.aum ?? 0
+  // ownership endpoint: {value, units, units_changed, avg_price, report_date, name}
+  // institution-trades endpoint: {total_value/aum, buy_value, sell_value}
+  const value = inst.value ?? inst.total_value ?? inst.aum ?? 0
+  const units = inst.units ?? 0
+  const unitsChg = inst.units_changed ?? inst.shares_changed ?? null
   const buys  = inst.buy_value ?? inst.buys ?? 0
   const sells = inst.sell_value ?? inst.sells ?? 0
   const total = buys + Math.abs(sells)
   const buyPct  = total > 0 ? (buys / total) * 100 : 50
   const sellPct = total > 0 ? (Math.abs(sells) / total) * 100 : 50
   const net = buys - Math.abs(sells)
+  const isChgPos = unitsChg != null && unitsChg > 0
+  const isChgNeg = unitsChg != null && unitsChg < 0
   return (
     <div style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {inst.name ?? inst.institution_name ?? 'Unknown'}
         </span>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted2)', whiteSpace: 'nowrap' }}>{fmtAum(aum)}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted2)', whiteSpace: 'nowrap' }}>{fmtAum(value)}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 10, fontSize: 9, color: 'var(--muted2)', flexWrap: 'wrap' }}>
+        {units > 0 && <span>Shares: <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)' }}>{Number(units).toLocaleString()}</span></span>}
+        {unitsChg != null && <span>Chg: <span style={{ color: isChgPos ? '#00cc55' : isChgNeg ? '#ff4455' : 'var(--text)', fontFamily: 'var(--mono)' }}>{isChgPos ? '+' : ''}{Number(unitsChg).toLocaleString()}</span></span>}
+        {inst.avg_price && <span>Avg: <span style={{ fontFamily: 'var(--mono)' }}>${parseFloat(inst.avg_price).toFixed(2)}</span></span>}
+        {inst.report_date && <span>{inst.report_date}</span>}
+        {buys > 0  && <span>Bought: <span style={{ color: '#00cc55', fontWeight: 600 }}>{fmtAum(buys)}</span></span>}
+        {sells > 0 && <span>Sold: <span style={{ color: '#ff4455', fontWeight: 600 }}>{fmtAum(Math.abs(sells))}</span></span>}
+        {net !== 0 && total > 0 && <span>Net: <span style={{ color: net > 0 ? '#00cc55' : '#ff4455', fontWeight: 600 }}>{net > 0 ? '+' : ''}{fmtAum(net)}</span></span>}
+        {inst.call_put && <span><span style={{ color: 'var(--green)' }}>C</span>/<span style={{ color: 'var(--red)' }}>P</span>: {inst.call_put}</span>}
       </div>
       {total > 0 && (
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4 }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 4 }}>
           <div style={{ flex: 1, background: 'var(--border)', borderRadius: 2, height: 4, overflow: 'hidden' }}>
             <div style={{ width: `${buyPct}%`, height: '100%', background: '#00cc55', borderRadius: 2 }} />
           </div>
@@ -73,12 +89,6 @@ function InstRow({ inst }: { inst: any }) {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 10, fontSize: 9, color: 'var(--muted2)', flexWrap: 'wrap' }}>
-        {buys > 0  && <span>Bought: <span style={{ color: '#00cc55', fontWeight: 600 }}>{fmtAum(buys)}</span></span>}
-        {sells > 0 && <span>Sold: <span style={{ color: '#ff4455', fontWeight: 600 }}>{fmtAum(Math.abs(sells))}</span></span>}
-        {net !== 0 && <span>Net: <span style={{ color: net > 0 ? '#00cc55' : '#ff4455', fontWeight: 600 }}>{net > 0 ? '+' : ''}{fmtAum(net)}</span></span>}
-        {inst.call_put && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ color: 'var(--green)' }}>C</span>/<span style={{ color: 'var(--red)' }}>P</span>: {inst.call_put}</span>}
-      </div>
     </div>
   )
 }
