@@ -60,7 +60,8 @@ function GEXHBars({ rows, priceStrike, flipStrike }: { rows: any[]; priceStrike:
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No ladder data</div>
   )
-  const maxVal = Math.max(...rows.map((r: any) => Math.max(Math.abs(r.call_gex || 0), Math.abs(r.put_gex || 0), Math.abs(r.net_gex || 0))), 1)
+  const maxCall = Math.max(...rows.map((r: any) => Math.abs(r.call_gex ?? (r.net_gex > 0 ? r.net_gex : 0))), 1)
+  const maxPut  = Math.max(...rows.map((r: any) => Math.abs(r.put_gex  ?? (r.net_gex < 0 ? r.net_gex : 0))), 1)
 
   return (
     <div>
@@ -68,24 +69,23 @@ function GEXHBars({ rows, priceStrike, flipStrike }: { rows: any[]; priceStrike:
         const strike   = parseFloat(String(row.strike).replace(/,/g, ''))
         const isPrice  = priceStrike && Math.abs(strike - priceStrike) < 3
         const isFlip   = flipStrike  && Math.abs(strike - flipStrike)  < 3
-        const cGex = row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0)
-        const pGex = row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? Math.abs(row.net_gex) : 0)
-        const cFill = Math.min(1, Math.abs(cGex) / maxVal)
-        const pFill = Math.min(1, Math.abs(pGex) / maxVal)
+        const cGex = Math.abs(row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
+        const pGex = Math.abs(row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? row.net_gex : 0))
+        const pFill = Math.min(1, pGex / maxPut)
+        const cFill = Math.min(1, cGex / maxCall)
         const bg = isPrice ? 'rgba(255,204,0,0.07)' : isFlip ? 'rgba(240,0,255,0.05)' : 'transparent'
+        const strikeColor = isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--muted2)'
 
         return (
           <div key={i} className="hbar-row" style={{ background: bg }}>
-            <div className="hbar-strike" style={{ color: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--muted2)' }}>
+            <div className="hbar-strike" style={{ color: strikeColor }}>
               {Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
             </div>
-            <div className="hbar-left">
-              <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: cGex >= 0 ? 'rgba(0,255,136,0.75)' : 'rgba(255,51,68,0.75)' }} />
+            <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
+              {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
+              {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
             </div>
-            <div className="hbar-divider" style={{ background: isPrice ? 'var(--yellow)' : isFlip ? '#f0f' : 'var(--border2)' }} />
-            <div className="hbar-right">
-              <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.75)' }} />
-            </div>
+            {isFlip && <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 4, color: '#f0f', fontSize: 7 }}>FLIP</div>}
           </div>
         )
       })}
@@ -286,8 +286,8 @@ export default function GEXScreen() {
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 16, padding: '4px 14px', borderBottom: '1px solid var(--border)', fontSize: 8, fontWeight: 700, fontFamily: 'var(--mono)' }}>
-          <span style={{ color: 'var(--red)' }}>◀ PUT GEX</span>
-          <span style={{ color: 'var(--muted2)' }}>|</span>
+          <span style={{ color: 'var(--red)' }}>PUT GEX ▶</span>
+          <span style={{ color: 'var(--muted2)' }}>then</span>
           <span style={{ color: 'var(--green)' }}>CALL GEX ▶</span>
         </div>
         <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} />

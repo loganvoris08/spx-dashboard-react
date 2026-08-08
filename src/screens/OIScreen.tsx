@@ -31,7 +31,8 @@ function OIHBars({ rows, priceStrike, callWall, putWall }: {
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No data</div>
   )
-  const maxVal = Math.max(...rows.map((r: any) => Math.max(r.call_value || 0, r.put_value || 0)), 1)
+  const maxCall = Math.max(...rows.map((r: any) => r.call_value || 0), 1)
+  const maxPut  = Math.max(...rows.map((r: any) => r.put_value  || 0), 1)
 
   return (
     <div>
@@ -40,26 +41,22 @@ function OIHBars({ rows, priceStrike, callWall, putWall }: {
         const isPrice = row.is_price_zone || (priceStrike && Math.abs(strike - priceStrike) < 3)
         const isCall  = callWall && Math.abs(strike - callWall) < 3
         const isPut   = putWall  && Math.abs(strike - putWall)  < 3
-
-        const cFill = Math.min(1, (row.call_value || 0) / maxVal)
-        const pFill = Math.min(1, (row.put_value  || 0) / maxVal)
-
+        const pFill   = Math.min(1, (row.put_value  || 0) / maxPut)
+        const cFill   = Math.min(1, (row.call_value || 0) / maxCall)
         const bg = isPrice ? 'rgba(255,204,0,0.06)' : isCall ? 'rgba(0,255,136,0.04)' : isPut ? 'rgba(255,51,68,0.04)' : 'transparent'
+        const strikeColor = isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : isCall ? 'var(--green)' : 'var(--muted2)'
 
         return (
           <div key={i} className="hbar-row" style={{ background: bg }}>
-            <div className="hbar-strike" style={{ color: isPut ? 'var(--red)' : isPrice ? 'var(--yellow)' : 'var(--muted2)', textAlign: 'right', paddingRight: 6 }}>
-              {isPut ? '▼' : isPrice ? '●' : ''}{Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
+            <div className="hbar-strike" style={{ color: strikeColor, textAlign: 'right', paddingRight: 6 }}>
+              {Math.round(parseFloat(String(row.strike).replace(/,/g, '')))}
             </div>
-            <div className="hbar-left">
-              <div className="hbar-fill-call" style={{ width: `${cFill * 100}%`, background: 'rgba(0,255,136,0.7)' }} />
+            <div style={{ gridColumn: '2 / 5', display: 'flex', alignSelf: 'center', height: 12, overflow: 'hidden' }}>
+              {pFill > 0 && <div style={{ width: `${pFill * 50}%`, height: '100%', background: 'rgba(255,51,68,0.75)', borderRadius: cFill > 0 ? '2px 0 0 2px' : '2px', flexShrink: 0 }} />}
+              {cFill > 0 && <div style={{ width: `${cFill * 50}%`, height: '100%', background: 'rgba(0,255,136,0.75)', borderRadius: pFill > 0 ? '0 2px 2px 0' : '2px', flexShrink: 0 }} />}
             </div>
-            <div className="hbar-divider" style={{ background: isPrice ? 'var(--yellow)' : 'var(--border2)' }} />
-            <div className="hbar-right">
-              <div className="hbar-fill-put" style={{ width: `${pFill * 100}%`, background: 'rgba(255,51,68,0.7)' }} />
-            </div>
-            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: isCall ? 'var(--green)' : isPrice ? 'var(--yellow)' : 'var(--muted2)' }}>
-              {isCall ? '▲' : ''}
+            <div className="hbar-strike" style={{ textAlign: 'left', paddingLeft: 5, paddingRight: 0, color: isCall ? 'var(--green)' : isPut ? 'var(--red)' : 'var(--muted2)', fontSize: 7 }}>
+              {isCall ? 'CW' : isPut ? 'PW' : ''}
             </div>
           </div>
         )
@@ -204,9 +201,9 @@ export default function OIScreen() {
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 16, padding: '4px 14px', borderBottom: '1px solid var(--border)', fontSize: 8, fontWeight: 700, fontFamily: 'var(--mono)' }}>
-          <span style={{ color: 'var(--green)' }}>◀ CALLS</span>
-          <span style={{ color: 'var(--muted2)' }}>|</span>
           <span style={{ color: 'var(--red)' }}>PUTS ▶</span>
+          <span style={{ color: 'var(--muted2)' }}>then</span>
+          <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
         </div>
         <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} />
         {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
