@@ -74,18 +74,36 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   const isNdx = side === 'ndx'
   const tabs = [...SPX_TABS, ...(isNdx ? NDX_EXTRA : [])]
 
-  // Tickers
-  const spxRaw  = data?.spx
-  const spxNum  = typeof spxRaw === 'number' ? spxRaw : (data?.daily_open ?? null)
+  // Tickers — swap to NDX/NQ when on NDX side
+  const spxRaw  = isNdx ? (data?.ndx ?? data?.ndx_price) : data?.spx
+  const spxNum  = typeof spxRaw === 'number' ? spxRaw
+    : spxRaw != null ? parseFloat(String(spxRaw).replace(/,/g, ''))
+    : (isNdx ? null : (data?.daily_open ?? null))
   const spxFmt  = spxNum != null ? fmt2(spxNum) : '--'
-  const esFmt   = data?.es_price != null ? fmt2(data.es_price) : (data?.es != null ? fmt2(data.es) : '--')
+  const esRaw   = isNdx
+    ? (data?.nq ?? data?.nq_price)
+    : (data?.es_price ?? data?.es)
+  const esFmt   = esRaw != null ? fmt2(parseFloat(String(esRaw).replace(/,/g, ''))) : '--'
   const vixFmt  = data?.vix != null ? Number(data.vix).toFixed(2) : '--'
+  const spxLabel = isNdx ? 'NDX' : 'SPX'
+  const esLabel  = isNdx ? 'NQ'  : 'ES'
 
-  // Day change
+  // Day change — compute from prev_close if pre-computed field missing
+  const pn = (v: any) => v != null ? parseFloat(String(v).replace(/,/g, '')) : null
+  const spxPrev = pn(isNdx ? data?.ndx_prev_close : data?.prev_close)
+  const esPrev  = pn(isNdx ? data?.nq_prev_close  : data?.es_prev_close)
+  const vixPrev = pn(data?.vix_prev_close)
   const spxChg  = data?.spx_change ?? data?.day_change
+    ?? (spxNum != null && spxPrev != null ? spxNum - spxPrev : null)
   const spxChgPct = data?.spx_change_pct ?? data?.day_change_pct
+    ?? (spxNum != null && spxPrev != null && spxPrev !== 0 ? (spxNum - spxPrev) / spxPrev * 100 : null)
+  const esRawNum = pn(esRaw)
   const esChg   = data?.es_change
+    ?? (esRawNum != null && esPrev != null ? esRawNum - esPrev : null)
+  const esChgPct = esRawNum != null && esPrev != null && esPrev !== 0 ? (esRawNum - esPrev) / esPrev * 100 : null
+  const vixNum  = pn(data?.vix)
   const vixChg  = data?.vix_change
+    ?? (vixNum != null && vixPrev != null ? vixNum - vixPrev : null)
 
   function fmtChg(v: any, pct?: any) {
     if (v == null) return null
@@ -154,24 +172,24 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
         <div className="ticker-strip">
           <div className="ticker">
-            <div className="ticker-label">SPX</div>
+            <div className="ticker-label">{spxLabel}</div>
             <div className="ticker-val spx">{spxFmt}</div>
             {fmtChg(spxChg, spxChgPct) && (
-              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: spxChg >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
+              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
           </div>
           <div className="ticker">
-            <div className="ticker-label">ES</div>
+            <div className="ticker-label">{esLabel}</div>
             <div className="ticker-val es">{esFmt}</div>
-            {fmtChg(esChg) && (
-              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: esChg >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg)}</div>
+            {fmtChg(esChg, esChgPct) && (
+              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
             )}
           </div>
           <div className="ticker">
             <div className="ticker-label">VIX</div>
             <div className="ticker-val vix">{vixFmt}</div>
             {fmtChg(vixChg) && (
-              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: vixChg >= 0 ? 'var(--red)' : 'var(--green)', marginTop: 1 }}>{fmtChg(vixChg)}</div>
+              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (vixChg ?? 0) >= 0 ? 'var(--red)' : 'var(--green)', marginTop: 1 }}>{fmtChg(vixChg)}</div>
             )}
           </div>
         </div>

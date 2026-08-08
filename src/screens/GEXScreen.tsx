@@ -113,6 +113,7 @@ export default function GEXScreen() {
   const regime   = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
   const flip     = isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
   const maxPain  = !isNdx ? data?.max_pain_strike : null
+  const maxPainDte = !isNdx ? (data?.max_pain_dte ?? data?.max_pain_days ?? null) : null
   const cWall    = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
   const pWall    = isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
   const netDelta = !isNdx ? data?.net_delta_dir : null
@@ -189,7 +190,7 @@ export default function GEXScreen() {
         {maxPain != null && (
           <div className="kl-item">
             <div className="kl-label">Max Pain</div>
-            <div className="kl-val">{fmtNum(maxPain)}</div>
+            <div className="kl-val">{fmtNum(maxPain)}{maxPainDte != null ? ` (${maxPainDte} DTE)` : ''}</div>
           </div>
         )}
         {cWall && (

@@ -167,6 +167,7 @@ export default function LevelsScreen() {
   const cWall       = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
   const pWall       = isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
   const netDelta    = !isNdx ? data?.net_delta_dir : null
+  const netDeltaDollar = !isNdx ? (data?.net_dealer_delta ?? data?.net_delta_dollar ?? null) : null
   const dhPressure  = !isNdx ? data?.delta_hedging_pressure : null
   const gammaDollar = !isNdx ? data?.dealer_gamma_dollar_per_pct : null
 
@@ -238,7 +239,9 @@ export default function LevelsScreen() {
         {netDelta && (
           <div className="lv-stat">
             <span className="lv-stat-label">Net Delta</span>
-            <span className={`lv-stat-val ${netDelta === 'LONG' ? 'bull' : netDelta === 'SHORT' ? 'bear' : 'neut'}`}>{netDelta}</span>
+            <span className={`lv-stat-val ${netDelta === 'LONG' ? 'bull' : netDelta === 'SHORT' ? 'bear' : 'neut'}`}>
+              {netDelta}{netDeltaDollar != null ? ` ${fmtNum(netDeltaDollar)}` : ''}
+            </span>
           </div>
         )}
         {dhPressure && (
