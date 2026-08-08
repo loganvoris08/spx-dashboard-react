@@ -319,7 +319,7 @@ export default function OptionsSetupScreen() {
                     val={esVwap.toFixed(2) + (futConnected ? ' ●' : '')}
                     color={futConnected ? 'var(--green)' : 'var(--muted2)'}
                   />
-                )}}
+                )}
                 {snap.or_high && <Chip label="OR" val={snap.price_vs_or ?? '—'} color={snap.price_vs_or?.includes('ABOVE') ? 'var(--green)' : snap.price_vs_or?.includes('BELOW') ? 'var(--red)' : undefined} />}
                 {snap.pdh && <Chip label="PDH" val={String(snap.pdh)} />}
                 {snap.pdl && <Chip label="PDL" val={String(snap.pdl)} />}
