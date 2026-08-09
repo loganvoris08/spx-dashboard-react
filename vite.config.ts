@@ -10,6 +10,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
@@ -28,21 +31,8 @@ export default defineConfig({
           { src: '/icons/maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        // Cache app shell and static assets; don't cache API calls
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        runtimeCaching: [
-          {
-            // Cache the main dashboard data for 5 minutes so app loads offline
-            urlPattern: /\/data$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-data',
-              expiration: { maxAgeSeconds: 300, maxEntries: 5 },
-            },
-          },
-        ],
-        navigateFallback: 'index.html',
       },
     }),
   ],

@@ -2,6 +2,7 @@ import { useState, type ReactNode, useRef, useEffect } from 'react'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 
 const SPX_TABS = [
   { id: 'levels', label: 'Levels' },
@@ -60,6 +61,7 @@ function fmt2(v: any) {
 
 export default function Layout({ activeTab, setTab, data, children }: Props) {
   const { side, setSide } = useSide()
+  const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -289,6 +291,25 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
         <div className="status-bar">
           <div className={`dot${isLive ? '' : ' stale'}`} />
           <span>{isLive ? 'LIVE' : 'LOADING'}</span>
+          {pushState !== 'unsupported' && (
+            <button
+              onClick={pushState === 'subscribed' ? pushUnsubscribe : pushSubscribe}
+              title={pushState === 'subscribed' ? 'Disable push alerts' : 'Enable push alerts'}
+              style={{
+                marginLeft: 6,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                lineHeight: 1,
+                opacity: pushState === 'loading' ? 0.4 : pushState === 'denied' ? 0.3 : 1,
+                pointerEvents: pushState === 'loading' || pushState === 'denied' ? 'none' : 'auto',
+                filter: pushState === 'subscribed' ? 'none' : 'grayscale(1)',
+              }}
+            >
+              {pushState === 'subscribed' ? '🔔' : '🔕'}
+            </button>
+          )}
         </div>
       </div>
 
