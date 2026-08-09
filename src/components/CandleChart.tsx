@@ -1,6 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { createChart, CandlestickSeries, LineStyle } from 'lightweight-charts'
-import type { IChartApi, ISeriesApi } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi, IPriceLine } from 'lightweight-charts'
+
+export interface LevelLine {
+  price: number
+  color: string
+  label: string
+  dashed?: boolean
+  width?: number
+}
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -18,15 +26,17 @@ interface Props {
   livePrice?: number | null
   liveBar?: { time: number; open: number; high: number; low: number; close: number; volume?: number } | null
   height?: number
+  levels?: LevelLine[]
 }
 
-export default function CandleChart({ title, candleEndpoint, zonesEndpoint, timeVisible = false, livePrice, liveBar, height = 0 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const chartRef     = useRef<IChartApi | null>(null)
-  const seriesRef    = useRef<ISeriesApi<'Candlestick'> | null>(null)
+export default function CandleChart({ title, candleEndpoint, zonesEndpoint, timeVisible = false, livePrice, liveBar, height = 0, levels }: Props) {
+  const containerRef  = useRef<HTMLDivElement>(null)
+  const chartRef      = useRef<IChartApi | null>(null)
+  const seriesRef     = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const liveCandleRef = useRef<any>(null)
-  const statusRef    = useRef<HTMLSpanElement>(null)
-  const priceLines   = useRef<any[]>([])
+  const statusRef     = useRef<HTMLSpanElement>(null)
+  const priceLines    = useRef<any[]>([])
+  const levelLinesRef = useRef<IPriceLine[]>([])
 
   const chartH = () => height > 0 ? height : 400
 
@@ -139,11 +149,34 @@ export default function CandleChart({ title, candleEndpoint, zonesEndpoint, time
     } catch {}
   }, [liveBar, title])
 
+  // Redraw named level lines (flip, walls, VWAP) whenever props change
+  useEffect(() => {
+    if (!seriesRef.current) return
+    levelLinesRef.current.forEach(l => { try { seriesRef.current!.removePriceLine(l) } catch {} })
+    levelLinesRef.current = []
+    if (!levels) return
+    levels.forEach(({ price, color, label, dashed, width }) => {
+      if (!price || isNaN(price)) return
+      try {
+        const ln = seriesRef.current!.createPriceLine({
+          price,
+          color,
+          lineWidth: (width ?? 1) as 1 | 2 | 3 | 4,
+          lineStyle: dashed ? LineStyle.Dashed : LineStyle.Solid,
+          axisLabelVisible: true,
+          title: label,
+        })
+        levelLinesRef.current.push(ln)
+      } catch {}
+    })
+  }, [levels])
+
   useEffect(() => {
     load()
     return () => {
       if (chartRef.current) { chartRef.current.remove(); chartRef.current = null }
-      seriesRef.current = null; liveCandleRef.current = null; priceLines.current = []
+      seriesRef.current = null; liveCandleRef.current = null
+      priceLines.current = []; levelLinesRef.current = []
     }
   }, [load])
 

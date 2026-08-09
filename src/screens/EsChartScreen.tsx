@@ -1,7 +1,9 @@
+import { useMemo } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
 import { useLiveFutures } from '../lib/LiveFuturesContext'
 import CandleChart from '../components/CandleChart'
+import type { LevelLine } from '../components/CandleChart'
 import LiveBadge from '../components/LiveBadge'
 
 const HAS_KEY = !!(import.meta.env.VITE_MASSIVE_KEY as string ?? '').trim()
@@ -13,14 +15,45 @@ function fmtDelta(v: number) {
   return s + a.toFixed(0)
 }
 
+function pn(v: any) { const n = parseFloat(String(v ?? '').replace(/,/g, '')); return isNaN(n) ? null : n }
+
 export default function EsChartScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
-  const { esLiveBar, esCumDelta, esSessionVol, connected } = useLiveFutures()
+  const { esLiveBar, esCumDelta, esSessionVol, esVwap, connected } = useLiveFutures()
   const isNdx = side === 'ndx'
 
-  const esPrice = data?.es != null ? parseFloat(String(data.es).replace(/,/g, '')) : null
-  const nqPrice = data?.nq != null ? parseFloat(String(data.nq).replace(/,/g, '')) : null
+  const esPrice = pn(data?.es)
+  const nqPrice = pn(data?.nq)
+
+  // Key levels for the ES chart
+  const esLevels = useMemo<LevelLine[]>(() => {
+    if (!data) return []
+    const lines: LevelLine[] = []
+    const flip  = pn(data.gex_flip_zone_raw ?? data.gex_flip_zone)
+    const call  = pn(data.nearest_call_wall)
+    const put   = pn(data.nearest_put_wall)
+    const vwap  = esVwap  // live tick-by-tick ES VWAP
+    if (flip)  lines.push({ price: flip,  color: 'rgba(168,85,247,0.85)',  label: 'Flip',      dashed: true,  width: 1 })
+    if (call)  lines.push({ price: call,  color: 'rgba(0,255,136,0.75)',   label: 'Call Wall', dashed: true,  width: 1 })
+    if (put)   lines.push({ price: put,   color: 'rgba(255,51,68,0.75)',   label: 'Put Wall',  dashed: true,  width: 1 })
+    if (vwap)  lines.push({ price: vwap,  color: 'rgba(64,196,255,0.9)',   label: 'VWAP',      dashed: false, width: 2 })
+    return lines
+  }, [data, esVwap])
+
+  // NDX chart: use NDX-specific levels
+  const ndxLevels = useMemo<LevelLine[]>(() => {
+    if (!data) return []
+    const nd = data.ndx ?? {}
+    const lines: LevelLine[] = []
+    const flip = pn(nd.gex_flip_zone_raw ?? nd.gex_flip_zone)
+    const call = pn(nd.nearest_call_wall ?? nd.gex_nearest_call_wall)
+    const put  = pn(nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)
+    if (flip) lines.push({ price: flip, color: 'rgba(168,85,247,0.85)', label: 'Flip',      dashed: true,  width: 1 })
+    if (call) lines.push({ price: call, color: 'rgba(0,255,136,0.75)',  label: 'Call Wall', dashed: true,  width: 1 })
+    if (put)  lines.push({ price: put,  color: 'rgba(255,51,68,0.75)',  label: 'Put Wall',  dashed: true,  width: 1 })
+    return lines
+  }, [data])
 
   if (isNdx) {
     return (
@@ -30,6 +63,7 @@ export default function EsChartScreen() {
         zonesEndpoint="/nq-zones"
         timeVisible={false}
         livePrice={nqPrice}
+        levels={ndxLevels}
       />
     )
   }
@@ -50,6 +84,7 @@ export default function EsChartScreen() {
         timeVisible={false}
         livePrice={esPrice}
         liveBar={esLiveBar}
+        levels={esLevels}
       />
 
       {/* ── ES Cumulative Delta ── */}
