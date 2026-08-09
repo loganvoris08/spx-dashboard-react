@@ -30,16 +30,25 @@ function textColor(pct: number): string {
 
 export default function SectorHeatmap() {
   const [sectors, setSectors] = useState<Sector[] | null>(null)
+  const [loadErr, setLoadErr] = useState('')
   const [ts, setTs] = useState('')
 
   const load = useCallback(async () => {
     try {
       const d = await apiFetch('/api/sectors')
+      if (d.error) { setLoadErr(d.error); setSectors([]); return }
       if (d.sectors?.length) {
         setSectors(d.sectors)
+        setLoadErr('')
         setTs(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET')
+      } else {
+        setSectors([])
+        setLoadErr('No sector data')
       }
-    } catch {}
+    } catch (e: any) {
+      setLoadErr(e.message ?? 'Failed to load')
+      setSectors([])
+    }
   }, [])
 
   useEffect(() => {
@@ -59,7 +68,15 @@ export default function SectorHeatmap() {
     )
   }
 
-  if (!sectors.length) return null
+  if (!sectors.length) {
+    return (
+      <div className="panel" style={{ padding: '10px 12px 8px' }}>
+        <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: '.7px', textTransform: 'uppercase' }}>
+          Sector Heatmap {loadErr && <span style={{ color: 'var(--red)', textTransform: 'none', marginLeft: 4 }}>— {loadErr}</span>}
+        </div>
+      </div>
+    )
+  }
 
   const best  = [...sectors].sort((a, b) => b.chg_pct - a.chg_pct)[0]
   const worst = [...sectors].sort((a, b) => a.chg_pct - b.chg_pct)[0]
