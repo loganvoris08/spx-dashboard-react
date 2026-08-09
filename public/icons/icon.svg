@@ -1,15 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="72" fill="#020509"/>
-  <g transform="translate(96 103) scale(6.67)">
-    <!-- Lightning bolt fill -->
-    <path fill="#863bff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/>
-    <!-- Inner highlight -->
-    <path fill="url(#shine)" opacity="0.5" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/>
-  </g>
-  <defs>
-    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ede6ff"/>
-      <stop offset="100%" stop-color="#7e14ff" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
+  <rect width="512" height="512" rx="72" fill="#080c14"/>
+  <!-- SPX text -->
+  <text x="256" y="300" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="188" fill="white">SPX</text>
+  <!-- CMD text (dimmed layer behind line) -->
+  <text x="256" y="400" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="116" letter-spacing="14" fill="rgba(255,255,255,0.12)">CMD</text>
+  <!-- Price line crossing through -->
+  <polyline points="40,310 100,254 150,284 196,212 240,180 288,226 338,154 394,196 472,134" fill="none" stroke="#00ff88" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Endpoint dot -->
+  <circle cx="472" cy="134" r="13" fill="#00ff88"/>
+  <circle cx="472" cy="134" r="24" fill="none" stroke="#00ff88" stroke-width="3" opacity="0.35"/>
+  <!-- CMD text (bright layer on top) -->
+  <text x="256" y="400" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="116" letter-spacing="14" fill="#00ff88">CMD</text>
 </svg>
