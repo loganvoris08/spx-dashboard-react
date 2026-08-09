@@ -442,6 +442,7 @@ export default function GEXScreen() {
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
   const ladders = useLadders(true)
   const gexPriceRowRef = useRef<HTMLDivElement>(null)
+  const gexScrollRef   = useRef<HTMLDivElement>(null)
 
   const loadGexStrikes = useCallback(() => {
     apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
@@ -550,7 +551,8 @@ export default function GEXScreen() {
   useEffect(() => {
     if (!bucketData.length || !priceNum) return
     requestAnimationFrame(() => {
-      gexPriceRowRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' })
+      const c = gexScrollRef.current, r = gexPriceRowRef.current
+      if (c && r) c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
     })
   }, [bucketData.length, bucket, isNdx])
 
@@ -659,7 +661,7 @@ export default function GEXScreen() {
           <span style={{ color: 'var(--muted2)' }}>then</span>
           <span style={{ color: 'var(--green)' }}>CALL GEX ▶</span>
         </div>
-        <div style={{ position: 'relative' }}>
+        <div ref={gexScrollRef} style={{ position: 'relative', maxHeight: '60vh', overflowY: 'auto' }}>
           <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} hotScores={hotScores} priceRowRef={gexPriceRowRef} />
           <LadderPriceLine rows={bucketData} price={priceNum} />
         </div>

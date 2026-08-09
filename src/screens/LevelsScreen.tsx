@@ -181,6 +181,8 @@ export default function LevelsScreen() {
   const prevRegimeLabel = useRef<string | null>(null)
   const oiPriceRowRef   = useRef<HTMLDivElement>(null)
   const gexPriceRowRef  = useRef<HTMLDivElement>(null)
+  const oiScrollRef     = useRef<HTMLDivElement>(null)
+  const gexScrollRef    = useRef<HTMLDivElement>(null)
 
   // Live options flow via SSE WebSocket relay — no polling
   const { alerts: ticker, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
@@ -427,11 +429,17 @@ export default function LevelsScreen() {
   const gexRows = sortDesc(filterByRange(allGexRows))
 
   useEffect(() => {
-    if (oiRows.length > 0) requestAnimationFrame(() => oiPriceRowRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    if (oiRows.length > 0) requestAnimationFrame(() => {
+      const c = oiScrollRef.current, r = oiPriceRowRef.current
+      if (c && r) c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
+    })
   }, [oiRows.length, oiBucket, isNdx])
 
   useEffect(() => {
-    if (gexRows.length > 0) requestAnimationFrame(() => gexPriceRowRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+    if (gexRows.length > 0) requestAnimationFrame(() => {
+      const c = gexScrollRef.current, r = gexPriceRowRef.current
+      if (c && r) c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
+    })
   }, [gexRows.length, gexBucket, isNdx])
 
   const maxOICall = Math.max(...oiRows.map((r: any) => r.call_value || 0), 1)
@@ -636,7 +644,7 @@ export default function LevelsScreen() {
             <span style={{ color: 'var(--muted2)' }}>then</span>
             <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
           </div>
-          <div className="lv-col-scroll" style={{ position: 'relative' }}>
+          <div ref={oiScrollRef} className="lv-col-scroll" style={{ position: 'relative' }}>
             {oiRows.length > 0
               ? oiRows.map((r: any, i: number) => (
                   <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxCall={maxOICall} maxPut={maxOIPut} hotScores={hotScores} priceRowRef={oiPriceRowRef} />
@@ -663,7 +671,7 @@ export default function LevelsScreen() {
             <span style={{ color: 'var(--muted2)' }}>then</span>
             <span style={{ color: 'var(--green)' }}>CALL γ ▶</span>
           </div>
-          <div className="lv-col-scroll" style={{ position: 'relative' }}>
+          <div ref={gexScrollRef} className="lv-col-scroll" style={{ position: 'relative' }}>
             {gexRows.length > 0
               ? gexRows.map((r: any, i: number) => (
                   <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxCall={maxGexCall} maxPut={maxGexPut} hotScores={hotScores} priceRowRef={gexPriceRowRef} />
