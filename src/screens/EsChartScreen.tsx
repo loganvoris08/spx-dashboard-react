@@ -33,11 +33,13 @@ export default function EsChartScreen() {
     const flip  = pn(data.gex_flip_zone_raw ?? data.gex_flip_zone)
     const call  = pn(data.nearest_call_wall)
     const put   = pn(data.nearest_put_wall)
-    const vwap  = esVwap  // live tick-by-tick ES VWAP
+    // Prefer live tick-by-tick VWAP; fall back to session VWAP from backend
+    const vwap  = esVwap ?? pn(data.spx_vwap)
+    const isLiveVwap = esVwap != null
     if (flip)  lines.push({ price: flip,  color: 'rgba(168,85,247,0.85)',  label: 'Flip',      dashed: true,  width: 1 })
     if (call)  lines.push({ price: call,  color: 'rgba(0,255,136,0.75)',   label: 'Call Wall', dashed: true,  width: 1 })
     if (put)   lines.push({ price: put,   color: 'rgba(255,51,68,0.75)',   label: 'Put Wall',  dashed: true,  width: 1 })
-    if (vwap)  lines.push({ price: vwap,  color: 'rgba(64,196,255,0.9)',   label: 'VWAP',      dashed: false, width: 2 })
+    if (vwap)  lines.push({ price: vwap,  color: isLiveVwap ? 'rgba(64,196,255,0.9)' : 'rgba(64,196,255,0.55)', label: 'VWAP', dashed: false, width: 2 })
     return lines
   }, [data, esVwap])
 
