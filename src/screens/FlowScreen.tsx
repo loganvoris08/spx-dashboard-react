@@ -144,6 +144,9 @@ export default function FlowScreen() {
   const [sectorFlow,   setSectorFlow]   = useState<any[]>([])
   const [velocitySeries, setVelocitySeries] = useState<CCSeries[]>([])
   const [divergenceData, setDivergenceData] = useState<any>(null)
+  const [etfTideData,  setEtfTideData]  = useState<any[]>([])
+  const [pulseData,    setPulseData]    = useState<any>(null)
+  const [multiLegData, setMultiLegData] = useState<any[]>([])
   const [loadingUnusual, setLoadingUnusual] = useState(false)
   const [loadingDp,    setLoadingDp]    = useState(false)
   const [loadingFlow,  setLoadingFlow]  = useState(false)
@@ -304,6 +307,27 @@ export default function FlowScreen() {
     }
   }, [isNdx])
 
+  const loadEtfTide = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/etf-tide')
+      setEtfTideData(d.data ?? [])
+    } catch {}
+  }, [])
+
+  const loadOptionsPulse = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/options-pulse')
+      setPulseData(d)
+    } catch {}
+  }, [])
+
+  const loadMultiLeg = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/multi-leg-flow')
+      setMultiLegData(d.data ?? [])
+    } catch {}
+  }, [])
+
   useEffect(() => {
     setBlockItems([])
     setDpItems([])
@@ -318,17 +342,21 @@ export default function FlowScreen() {
     loadSector()
     loadVelocity()
     loadSmartDivergence()
+    loadEtfTide()
+    loadOptionsPulse()
+    loadMultiLeg()
 
-    // Refresh on every SSE update event (backend publishes when data changes)
     const off1 = on('update', () => loadBlocks())
     const off2 = on('update', () => load0dte())
     const off3 = on('update', () => loadAnalytics())
     const off4 = on('update', () => loadExpiry())
     const off5 = on('update', () => loadVelocity())
     const off6 = on('update', () => loadSmartDivergence())
+    const off7 = on('update', () => loadOptionsPulse())
 
-    return () => { off1(); off2(); off3(); off4(); off5(); off6() }
-  }, [isNdx, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector, loadVelocity, loadSmartDivergence, on])
+    return () => { off1(); off2(); off3(); off4(); off5(); off6(); off7() }
+  }, [isNdx, loadBlocks, load0dte, loadDarkPool, loadAnalytics, loadExpiry, loadSector,
+      loadVelocity, loadSmartDivergence, loadEtfTide, loadOptionsPulse, loadMultiLeg, on])
 
   /* ── 0DTE computed values ── */
   const dteCallPrem = dteStats?.net_call_prem ?? dteStats?.call_premium
@@ -773,6 +801,115 @@ export default function FlowScreen() {
           </div>
         )}
       </div>
+
+      {/* ── Options Pulse ── */}
+      {pulseData && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Tooltip tip="Options Pulse measures the intensity and direction of options activity. Total Pulse is a single market-wide score. Sector breakdown shows where the heat is concentrated right now — high pulse + bullish direction = options traders piling into calls in that sector." label="Options Pulse">Options Pulse</Tooltip>
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+          </div>
+          {(() => {
+            const total = pulseData.total ?? {}
+            const score = parseFloat(total.score ?? total.pulse ?? total.total_score ?? '0') || 0
+            const dir   = (total.direction ?? total.bias ?? '').toUpperCase()
+            const scoreColor = score > 70 ? 'var(--green)' : score > 40 ? 'var(--yellow)' : 'var(--muted2)'
+            const sectors: any[] = pulseData.sectors ?? []
+            return (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, padding: '8px 10px', background: 'var(--surface)', borderRadius: 5 }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)' }}>MARKET PULSE</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 22, fontWeight: 700, color: scoreColor }}>{score > 0 ? score.toFixed(0) : '--'}</div>
+                  </div>
+                  {dir && <div style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 700, color: dir.includes('BULL') ? 'var(--green)' : dir.includes('BEAR') ? 'var(--red)' : 'var(--muted2)' }}>{dir}</div>}
+                </div>
+                {sectors.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {sectors.slice(0, 8).map((s: any, i: number) => {
+                      const ps = parseFloat(s.score ?? s.pulse ?? '0') || 0
+                      const sd = (s.direction ?? s.bias ?? '').toUpperCase()
+                      const isB = sd.includes('BULL') || ps > 50
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontFamily: 'var(--mono)', fontSize: 8, minWidth: 110, color: 'var(--muted2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sector ?? s.name ?? s.etf}</span>
+                          <div style={{ flex: 1, height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.min(100, ps)}%`, background: isB ? 'var(--green)' : 'var(--red)', borderRadius: 3, opacity: 0.8 }} />
+                          </div>
+                          <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, minWidth: 28, textAlign: 'right', color: isB ? 'var(--green)' : 'var(--red)' }}>{ps.toFixed(0)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* ── ETF Tide ── */}
+      {etfTideData.length > 0 && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Tooltip tip="Net options flow for major ETFs (SPY, QQQ, IWM, TLT, GLD, etc.). Shows where institutions are positioned at the macro ETF level — useful for spotting rotation between equities, bonds, and commodities that sector data misses." label="ETF Tide">ETF Tide</Tooltip>
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+          </div>
+          <div style={{ fontSize: 8, color: 'var(--muted)', marginBottom: 8 }}>Net call − put premium by ETF. Positive = bullish institutional positioning.</div>
+          {etfTideData.slice(0, 10).map((r: any, i: number) => {
+            const callPrem = parseFloat(r.net_call_premium ?? r.call_premium ?? '0') || 0
+            const putPrem  = parseFloat(r.net_put_premium  ?? r.put_premium  ?? '0') || 0
+            const net      = callPrem - putPrem
+            const maxNet   = Math.max(...etfTideData.slice(0, 10).map((x: any) => {
+              const c = parseFloat(x.net_call_premium ?? x.call_premium ?? '0') || 0
+              const p = parseFloat(x.net_put_premium  ?? x.put_premium  ?? '0') || 0
+              return Math.abs(c - p)
+            }), 1)
+            const pct   = Math.min(92, Math.abs(net) / maxNet * 85) + 5
+            const isPos = net >= 0
+            const fmtM  = (v: number) => {
+              const a = Math.abs(v)
+              return (v >= 0 ? '+' : '-') + (a >= 1e9 ? (a/1e9).toFixed(1)+'B' : a >= 1e6 ? (a/1e6).toFixed(0)+'M' : a >= 1e3 ? (a/1e3).toFixed(0)+'K' : a.toFixed(0))
+            }
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, minWidth: 40, color: 'var(--text)' }}>{r.ticker ?? r.etf ?? r.symbol}</span>
+                <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: isPos ? 'var(--green)' : 'var(--red)', borderRadius: 3, opacity: 0.8 }} />
+                </div>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: isPos ? 'var(--green)' : 'var(--red)', minWidth: 50, textAlign: 'right' }}>{fmtM(net)}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Multi-Leg Spreads ── */}
+      {multiLegData.length > 0 && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Tooltip tip="Detected multi-leg option spreads (iron condors, bull call spreads, strangles, etc.). Institutional desks trade spreads rather than naked single legs — a 'small' individual leg may be part of a massive spread strategy. Shows the full picture of what's being constructed." label="Multi-Leg Spreads">Multi-Leg Spreads — {isNdx ? 'NDX' : 'SPX'}</Tooltip>
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+          </div>
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            {multiLegData.slice(0, 20).map((s: any, i: number) => {
+              const prem = parseFloat(s.total_premium ?? s.premium ?? '0') || 0
+              const strat = (s.strategy ?? s.spread_type ?? s.type ?? 'SPREAD').toUpperCase()
+              const side  = (s.side ?? s.direction ?? '').toUpperCase()
+              const fmtP  = (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0)
+              const sideColor = side.includes('BUY') || side.includes('BULL') ? 'var(--green)' : side.includes('SELL') || side.includes('BEAR') ? 'var(--red)' : 'var(--muted2)'
+              return (
+                <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: 'var(--text)', minWidth: 100 }}>{strat}</span>
+                  {side && <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: sideColor }}>{side}</span>}
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)' }}>{s.expiry ?? s.expiration ?? ''}</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: 'var(--yellow)', marginLeft: 'auto' }}>${fmtP(prem)}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── AI Flow Read ── */}
       <div className="panel">

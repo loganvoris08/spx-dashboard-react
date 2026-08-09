@@ -439,7 +439,8 @@ export default function GEXScreen() {
   const [range, setRange]         = useState(150)
   const [dealerText, setDealerText] = useState('')
   const [loadingDealer, setLoadingDealer] = useState(false)
-  const [gexStrikes, setGexStrikes] = useState<any[]>([])
+  const [gexStrikes,   setGexStrikes]   = useState<any[]>([])
+  const [gexByExpiry,  setGexByExpiry]  = useState<any[]>([])
   const ladders = useLadders(true)
   const gexPriceRowRef = useRef<HTMLDivElement>(null)
   const gexScrollRef   = useRef<HTMLDivElement>(null)
@@ -450,12 +451,21 @@ export default function GEXScreen() {
       .catch(() => {})
   }, [isNdx])
 
+  const loadGexByExpiry = useCallback(() => {
+    apiFetch(isNdx ? '/api/ndx-gex-by-expiry' : '/api/gex-by-expiry')
+      .then(d => setGexByExpiry(d.data ?? []))
+      .catch(() => {})
+  }, [isNdx])
+
   useEffect(() => {
     setGexStrikes([])
+    setGexByExpiry([])
     loadGexStrikes()
-    const off = on('update', () => loadGexStrikes())
-    return off
-  }, [isNdx, loadGexStrikes, on])
+    loadGexByExpiry()
+    const off1 = on('update', () => loadGexStrikes())
+    const off2 = on('update', () => loadGexByExpiry())
+    return () => { off1(); off2() }
+  }, [isNdx, loadGexStrikes, loadGexByExpiry, on])
 
   const nd = data?.ndx ?? {}
 
@@ -821,6 +831,41 @@ export default function GEXScreen() {
           })}
         </div>
       )}
+
+      {/* ── GEX by Expiry ── */}
+      {gexByExpiry.length > 0 && (() => {
+        const maxAbs = Math.max(...gexByExpiry.map((r: any) => Math.abs(r.net_gex ?? r.gamma ?? 0)), 1)
+        return (
+          <div className="panel">
+            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Tooltip tip="Dealer gamma exposure broken down by expiration date. Shows which expiry is carrying the most dealer hedging pressure. 0DTE = today's expiry — gamma here is extremely concentrated and forces rapid dealer hedging. Weekly/monthly expirations carry sustained positioning." label="GEX by Expiry">GEX by Expiry</Tooltip>
+              <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+            </div>
+            <div style={{ fontSize: 8, color: 'var(--muted)', marginBottom: 8 }}>Net dealer gamma per expiry date. Largest bars = most hedging activity concentrated here.</div>
+            {gexByExpiry.slice(0, 10).map((r: any, i: number) => {
+              const net  = r.net_gex ?? r.gamma ?? 0
+              const isPos = net >= 0
+              const pct  = Math.min(95, Math.abs(net) / maxAbs * 90) + 5
+              const exp  = r.expiry ?? r.expiration_date ?? r.date ?? ''
+              const today = new Date().toISOString().slice(0, 10)
+              const is0dte = exp === today
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 9, minWidth: 72, color: is0dte ? 'var(--yellow)' : 'var(--muted2)' }}>
+                    {exp}{is0dte ? ' 0DTE' : ''}
+                  </span>
+                  <div style={{ flex: 1, height: 7, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: isPos ? 'var(--green)' : 'var(--red)', borderRadius: 3, opacity: 0.85 }} />
+                  </div>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: isPos ? 'var(--green)' : 'var(--red)', minWidth: 48, textAlign: 'right' }}>
+                    {fmtNum(net)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* ── Intraday GEX 1-Min ── */}
       {(data?.spot_exposures?.length > 0) && (

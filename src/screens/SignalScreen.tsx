@@ -68,17 +68,23 @@ export default function SignalScreen() {
   const { on }   = useSSE()
   const isNdx = side === 'ndx'
 
-  const [patternData, setPatternData] = useState<any>(null)
+  const [patternData,     setPatternData]    = useState<any>(null)
+  const [seasonalityData, setSeasonalityData] = useState<any>(null)
 
   const loadPattern = useCallback(async () => {
     try { setPatternData(await apiFetch('/api/pattern-match')) } catch {}
   }, [])
 
+  const loadSeasonality = useCallback(async () => {
+    try { setSeasonalityData(await apiFetch('/api/seasonality')) } catch {}
+  }, [])
+
   useEffect(() => {
     loadPattern()
+    loadSeasonality()
     const off = on('update', loadPattern)
     return off
-  }, [loadPattern, on])
+  }, [loadPattern, loadSeasonality, on])
 
   const signal    = data?.signal ?? 'WAIT'
   const score     = data?.score
@@ -517,6 +523,75 @@ export default function SignalScreen() {
               <div style={{ fontSize: 9, color: 'var(--muted2)', textAlign: 'center', padding: '6px 0' }}>
                 Collecting data — {total} session{total !== 1 ? 's' : ''} recorded so far
                 {s.count > 0 && s.count < 5 && ` (${s.count} match${s.count !== 1 ? 'es' : ''}, need 5+)`}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* ── Seasonality ── */}
+      {seasonalityData && (() => {
+        const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+        const avgRet: any[] = seasonalityData.avg_monthly_return ?? []
+        const curMonth: number = (seasonalityData.current_month ?? new Date().getMonth() + 1) - 1
+        const curRow = avgRet.find((r: any) => {
+          const m = parseInt(r.month ?? r.month_num ?? '0')
+          return m === curMonth + 1
+        })
+        const curAvg = parseFloat(curRow?.avg_return ?? curRow?.average_return ?? '0') || 0
+        const winRate = parseFloat(curRow?.win_rate ?? curRow?.bull_pct ?? '0') || 0
+        return (
+          <div className="panel">
+            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Tooltip tip="Historical seasonality for SPX. Shows average monthly returns and win rates based on all historical data. Use as a bias calibrator — not a timing tool. Strong seasonal tailwinds increase conviction; headwinds call for tighter risk management." label="Seasonality">Seasonality — SPX Historical</Tooltip>
+              <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+            </div>
+            {/* Current month highlight */}
+            {curRow && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <div style={{ flex: 1, background: 'var(--surface)', borderRadius: 5, padding: '8px 10px', textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', marginBottom: 3 }}>
+                    <Tooltip tip={`Average SPX return during ${MONTHS[curMonth]} across all historical years.`}>{MONTHS[curMonth]} AVG RETURN</Tooltip>
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 700, color: curAvg >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                    {curAvg >= 0 ? '+' : ''}{curAvg.toFixed(2)}%
+                  </div>
+                </div>
+                <div style={{ flex: 1, background: 'var(--surface)', borderRadius: 5, padding: '8px 10px', textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', marginBottom: 3 }}>
+                    <Tooltip tip={`Percentage of years where SPX finished ${MONTHS[curMonth]} positive.`}>{MONTHS[curMonth]} WIN RATE</Tooltip>
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 700, color: winRate >= 60 ? 'var(--green)' : winRate <= 40 ? 'var(--red)' : 'var(--muted2)' }}>
+                    {winRate > 0 ? winRate.toFixed(0) + '%' : '--'}
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* All-months bar chart */}
+            {avgRet.length > 0 && (
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', marginBottom: 5 }}>AVG MONTHLY RETURN — ALL YEARS</div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 60 }}>
+                  {MONTHS.map((mo, idx) => {
+                    const row = avgRet.find((r: any) => parseInt(r.month ?? r.month_num ?? '0') === idx + 1)
+                    const val = parseFloat(row?.avg_return ?? row?.average_return ?? '0') || 0
+                    const allVals = avgRet.map((r: any) => Math.abs(parseFloat(r.avg_return ?? r.average_return ?? '0') || 0))
+                    const maxV = Math.max(...allVals, 0.01)
+                    const barH = Math.max(3, Math.abs(val) / maxV * 50)
+                    const isCur = idx === curMonth
+                    return (
+                      <div key={mo} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <div style={{
+                          width: '100%', height: barH,
+                          background: val >= 0 ? (isCur ? 'var(--green)' : 'rgba(0,232,122,0.5)') : (isCur ? 'var(--red)' : 'rgba(240,90,90,0.5)'),
+                          borderRadius: 2,
+                          outline: isCur ? '1px solid var(--yellow)' : 'none',
+                        }} />
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: 6, color: isCur ? 'var(--yellow)' : 'var(--muted)', transform: 'rotate(-45deg)', transformOrigin: 'center', display: 'block' }}>{mo}</span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>

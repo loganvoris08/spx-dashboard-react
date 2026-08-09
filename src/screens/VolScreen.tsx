@@ -127,6 +127,7 @@ export default function VolScreen() {
   const [volStats,   setVolStats]   = useState<any>(null)
   const [skewTermData, setSkewTermData] = useState<{ term_structure: any[]; atm_iv: number; skew: number; iv_rank: number; iv_regime: string } | null>(null)
   const [sectorData,   setSectorData]   = useState<any[]>([])
+  const [volAnomalyData, setVolAnomalyData] = useState<any>(null)
   const [volRead,    setVolRead]    = useState('')
   const [loadingVol, setLoadingVol] = useState(false)
 
@@ -208,19 +209,27 @@ export default function VolScreen() {
     } catch {}
   }, [])
 
+  const loadVolAnomaly = useCallback(async () => {
+    try {
+      const d = await apiFetch('/api/vol-anomaly')
+      setVolAnomalyData(d)
+    } catch {}
+  }, [])
+
   useEffect(() => {
     loadTermStructure()
     loadRrSkew()
     loadIvCurve()
     loadSkewTerm()
     loadSectorFlow()
+    loadVolAnomaly()
     const off1 = on('update', () => loadTermStructure())
     const off2 = on('update', () => loadRrSkew())
     const off3 = on('update', () => loadIvCurve())
     const off4 = on('update', () => loadSkewTerm())
     const off5 = on('update', () => loadSectorFlow())
     return () => { off1(); off2(); off3(); off4(); off5() }
-  }, [loadTermStructure, loadRrSkew, loadIvCurve, loadSkewTerm, loadSectorFlow, on])
+  }, [loadTermStructure, loadRrSkew, loadIvCurve, loadSkewTerm, loadSectorFlow, loadVolAnomaly, on])
 
   // vol_stats comes from the main /data endpoint via useDashboard
   useEffect(() => {
@@ -466,6 +475,77 @@ export default function VolScreen() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* ── Volatility Anomaly / Character / VRP ── */}
+      {volAnomalyData && (
+        <div className="panel">
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Tooltip tip="Advanced volatility regime signals from Unusual Whales. Anomaly Score flags when IV is behaving unusually vs history. Character classifies whether vol is trending or mean-reverting. VRP (Variance Risk Premium) measures how much options sellers are being paid above realized vol." label="Vol Anomaly & VRP">Vol Anomaly &amp; VRP</Tooltip>
+            <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
+          </div>
+          {(() => {
+            const spxData = volAnomalyData?.tickers?.SPX || volAnomalyData?.tickers?.SPXW || {}
+            const anomaly  = spxData.anomaly  || {}
+            const char_    = spxData.character || {}
+            const vrp      = spxData.vrp       || {}
+            const anomScore = parseFloat(anomaly.score ?? anomaly.anomaly_score ?? '0') || 0
+            const charLabel = char_.character || char_.regime || '--'
+            const vrpVal    = parseFloat(vrp.vrp ?? vrp.variance_risk_premium ?? '0') || 0
+            const anomColor = anomScore > 0.7 ? 'var(--red)' : anomScore > 0.4 ? 'var(--yellow)' : 'var(--green)'
+            const vrpColor  = vrpVal > 3 ? 'var(--green)' : vrpVal < -1 ? 'var(--red)' : 'var(--muted2)'
+            const charColor = charLabel.toLowerCase().includes('trend') ? 'var(--yellow)' : charLabel.toLowerCase().includes('mean') ? 'var(--green)' : 'var(--muted2)'
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
+                <div style={{ background: 'var(--surface)', borderRadius: 5, padding: '8px 10px' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', marginBottom: 4 }}>
+                    <Tooltip tip="Volatility Anomaly Score (0–1). High score means current IV behavior is statistically unusual relative to historical norms. Above 0.7 = significant anomaly worth noting.">ANOMALY SCORE</Tooltip>
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 700, color: anomColor }}>
+                    {anomScore > 0 ? anomScore.toFixed(2) : '--'}
+                  </div>
+                  <div style={{ fontSize: 9, color: anomColor, marginTop: 2 }}>
+                    {anomScore > 0.7 ? 'HIGH ANOMALY' : anomScore > 0.4 ? 'ELEVATED' : anomScore > 0 ? 'NORMAL' : '--'}
+                  </div>
+                </div>
+                <div style={{ background: 'var(--surface)', borderRadius: 5, padding: '8px 10px' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', marginBottom: 4 }}>
+                    <Tooltip tip="Volatility Character: whether vol is TRENDING (rising/falling persistently), MEAN-REVERTING (bouncing around a stable level), or in a BREAKOUT regime. Trending vol calls for momentum strategies; mean-reverting vol favors selling premium.">VOL CHARACTER</Tooltip>
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 700, color: charColor, lineHeight: 1.3 }}>
+                    {charLabel !== '--' ? charLabel.toUpperCase() : '--'}
+                  </div>
+                </div>
+                <div style={{ background: 'var(--surface)', borderRadius: 5, padding: '8px 10px' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', marginBottom: 4 }}>
+                    <Tooltip tip="Variance Risk Premium (VRP) = Implied Vol minus Realized Vol. Positive VRP means options are expensive — sellers collect a premium above actual moves. Negative VRP means options are cheap relative to realized vol — buyers have an edge.">VRP</Tooltip>
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 700, color: vrpColor }}>
+                    {vrpVal !== 0 ? (vrpVal > 0 ? '+' : '') + vrpVal.toFixed(1) : '--'}
+                  </div>
+                  <div style={{ fontSize: 9, color: vrpColor, marginTop: 2 }}>
+                    {vrpVal > 3 ? 'SELL VOL' : vrpVal > 0 ? 'VOL RICH' : vrpVal < -1 ? 'BUY VOL' : vrpVal < 0 ? 'VOL CHEAP' : '--'}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+          {/* Top anomalies list */}
+          {volAnomalyData?.top_anomaly?.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', marginBottom: 5 }}>TOP VOL ANOMALIES</div>
+              {(volAnomalyData.top_anomaly as any[]).slice(0, 5).map((r: any, i: number) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid var(--border)', fontSize: 10 }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 700 }}>{r.ticker}</span>
+                  <span style={{ color: 'var(--muted2)', fontSize: 9 }}>{r.character || r.regime || ''}</span>
+                  <span style={{ fontFamily: 'var(--mono)', color: parseFloat(r.score ?? '0') > 0.7 ? 'var(--red)' : 'var(--yellow)' }}>
+                    {parseFloat(r.score ?? '0').toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
