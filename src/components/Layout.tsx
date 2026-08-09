@@ -1,5 +1,4 @@
 import { useState, type ReactNode, useRef, useEffect } from 'react'
-import { Tooltip } from './Tooltip'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
@@ -240,14 +239,14 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
         <div className="ticker-strip">
           <div className="ticker">
-            <div className="ticker-label"><Tooltip tip={isNdx ? "Nasdaq-100 cash index tracking the 100 largest non-financial Nasdaq companies. Cash market open 9:30am–4pm ET." : "S&P 500 cash index tracking 500 large-cap US companies. The main US equity benchmark. Cash market open 9:30am–4pm ET."}>{spxLabel}</Tooltip></div>
+            <div className="ticker-label">{spxLabel}</div>
             <div className={`ticker-val spx${spxDir === 'up' ? ' tick-up' : spxDir === 'down' ? ' tick-down' : ''}`}>{animSpxFmt}</div>
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
           </div>
           <div className="ticker">
-            <div className="ticker-label"><Tooltip tip={isNdx ? "NQ (E-Mini Nasdaq-100) futures. Mirrors NDX but trades nearly 24/7. Often leads the cash market open." : "ES (E-Mini S&P 500) futures. Mirrors SPX but trades nearly 24/7. Often leads the cash market open."}>{esLabel}</Tooltip></div>
+            <div className="ticker-label">{esLabel}</div>
             <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{animEsFmt}</div>
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
@@ -255,7 +254,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
           </div>
           <div className="ticker">
             <div className="ticker-label" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Tooltip tip="CBOE Volatility Index — the 'fear gauge.' Measures expected 30-day SPX volatility. Below 15 = calm, 15–20 = normal, 20–30 = elevated fear, 30+ = extreme fear. Higher VIX = wider daily ranges.">VIX</Tooltip>
+              VIX
               {vixChg != null && (
                 <span style={{ fontSize: 9, color: vixChg > 0 ? 'var(--red)' : 'var(--green)', lineHeight: 1 }}>
                   {vixChg > 0 ? '↑' : '↓'}
@@ -275,7 +274,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             )}
             {vvixNum != null && vvixNum > 0 && (
               <div style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--muted2)', marginTop: 0 }}>
-                <Tooltip tip="Volatility of VIX — measures how much the VIX itself is moving. Above 100 = vol expectations are very uncertain. Above 120 = extreme instability in fear levels." iconColor="rgba(136,136,136,0.5)">VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span></Tooltip>
+              VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
               </div>
             )}
           </div>
@@ -283,7 +282,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
         {regime && (
           <div className={`topbar-regime ${regimeClass(regime)}`}>
-            <Tooltip tip="SPX gamma regime. POSITIVE = dealers are net long gamma — they hedge by selling rallies and buying dips, which stabilizes price. NEGATIVE = dealers are net short gamma — they must chase moves, which amplifies them. NEUTRAL = near the flip zone, regime is transitioning." iconColor="rgba(255,255,255,0.4)">{regime.toUpperCase()}</Tooltip>
+            {regime.toUpperCase()}
           </div>
         )}
 
