@@ -396,7 +396,7 @@ export default function FlowScreen() {
       {velocitySeries.length > 0 && (
         <div className="panel">
           <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            Flow Velocity
+            <Tooltip tip="Rate of change in net options premium flow. Positive = flow accelerating in the bullish direction (call premium increasing faster than put). Negative = flow momentum turning bearish. Peaks and reversals in velocity often lead price by minutes.">Flow Velocity</Tooltip>
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: '#f59e0b', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>MOMENTUM</span>
             <LiveBadge label="UW LIVE" />
           </div>
@@ -411,21 +411,21 @@ export default function FlowScreen() {
       {!isNdx && divergenceData && (
         <div className="panel">
           <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            Smart Money Divergence
+            <Tooltip tip="Compares three independent signals: price trend direction, net options flow bias, and large block trade sentiment. When all three agree, the signal is high-conviction. When they diverge, institutions may be positioning against the price move — a warning sign." label="Smart Money Divergence">Smart Money Divergence</Tooltip>
             <LiveBadge label="UW LIVE" />
           </div>
           {/* 3-way signal grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
             {[
-              { label: 'Price Trend', dir: divergenceData.price_dir, icon: '📈' },
-              { label: 'Options Flow', dir: divergenceData.flow_dir, icon: '🌊' },
-              { label: 'Block Trades', dir: divergenceData.block_dir, icon: '🔷' },
-            ].map(({ label, dir }) => {
+              { label: 'Price Trend', dir: divergenceData.price_dir, icon: '📈', tip: 'Current intraday price direction. BULLISH = price making higher highs/lows. BEARISH = lower highs/lows. NEUTRAL = directionless chop.' },
+              { label: 'Options Flow', dir: divergenceData.flow_dir, icon: '🌊', tip: 'Net direction of options premium flow. BULLISH = call premium dominant. BEARISH = put premium dominant. Leads price when institutions are positioning ahead of a move.' },
+              { label: 'Block Trades', dir: divergenceData.block_dir, icon: '🔷', tip: 'Sentiment from large block options trades ($500k+). These are typically institutional directional bets or hedges. BULLISH = big money buying calls. BEARISH = buying puts.' },
+            ].map(({ label, dir, tip }) => {
               const col = dir === 'BULLISH' ? 'var(--green)' : dir === 'BEARISH' ? 'var(--red)' : 'var(--yellow)'
               const bg  = dir === 'BULLISH' ? 'rgba(0,255,136,0.06)' : dir === 'BEARISH' ? 'rgba(255,51,68,0.06)' : 'rgba(234,179,8,0.06)'
               return (
                 <div key={label} style={{ background: bg, border: `1px solid ${col}22`, borderRadius: 5, padding: '7px 6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 3 }}><Tooltip tip={tip}>{label}</Tooltip></div>
                   <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: col }}>{dir ?? '--'}</div>
                 </div>
               )
@@ -462,7 +462,7 @@ export default function FlowScreen() {
       {/* ── Flow Bias ── */}
       <div className="panel">
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          Options Flow Bias — {isNdx ? 'NDX' : 'SPX'}
+          <Tooltip tip="Ratio of call vs put premium flowing into the market. Dominated by calls = bullish lean. Dominated by puts = bearish/hedging activity. Updated live from UnusualWhales." label="Options Flow Bias">Options Flow Bias — {isNdx ? 'NDX' : 'SPX'}</Tooltip>
           <LiveBadge label="UW LIVE" />
         </div>
         <div className="flow-bar-wrap">
@@ -477,9 +477,9 @@ export default function FlowScreen() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 16, paddingTop: 8, borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
-          {flowState && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>Flow: <span style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>{flowState}</span></span>}
-          {oisState  && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>OI: <span style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>{oisState}</span></span>}
-          {pcr && <span style={{ fontSize: 10, color: 'var(--muted2)' }}>P/C: <span style={{ color: parseFloat(pcr) > 1.2 ? 'var(--red)' : parseFloat(pcr) < 0.7 ? 'var(--green)' : 'var(--text)', fontFamily: 'var(--mono)' }}>{parseFloat(pcr).toFixed(2)}</span></span>}
+          {flowState && <span style={{ fontSize: 10, color: 'var(--muted2)' }}><Tooltip tip="Overall options flow state. CALL_DOMINANT = majority of premium is in calls (bullish lean). PUT_DOMINANT = majority in puts (bearish or hedging). Can diverge from price when institutions are positioning ahead of a move.">Flow</Tooltip>: <span style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>{flowState}</span></span>}
+          {oisState  && <span style={{ fontSize: 10, color: 'var(--muted2)' }}><Tooltip tip="Where the heaviest open interest concentration sits relative to price. ABOVE = OI resistance overhead. BELOW = OI support beneath. PINNED = price is trading near max OI (likely to stay range-bound).">OI</Tooltip>: <span style={{ color: 'var(--text)', fontFamily: 'var(--mono)' }}>{oisState}</span></span>}
+          {pcr && <span style={{ fontSize: 10, color: 'var(--muted2)' }}><Tooltip tip="Put/Call ratio. Above 1.0 = more put buying than calls. Below 0.8 = call-heavy (risk-on). Extremes above 1.5 or below 0.6 often mark short-term sentiment reversals.">P/C</Tooltip>: <span style={{ color: parseFloat(pcr) > 1.2 ? 'var(--red)' : parseFloat(pcr) < 0.7 ? 'var(--green)' : 'var(--text)', fontFamily: 'var(--mono)' }}>{parseFloat(pcr).toFixed(2)}</span></span>}
         </div>
       </div>
 
@@ -584,19 +584,19 @@ export default function FlowScreen() {
         return (
           <div className="panel">
             <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              NOPE — Net Options Pricing Effect
+              <Tooltip tip="NOPE = Net Options Pricing Effect. Measures the net dealer delta flow normalized by options volume. Created by Lily Francus (@nope_it_blows). Positive = net bullish hedge pressure from dealers. Negative = bearish. Strong NOPE often leads SPX price by 30–60 minutes." label="NOPE">NOPE — Net Options Pricing Effect</Tooltip>
               <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
             </div>
             <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Net dealer delta flow adjusted for options volume. Positive = net bullish hedge pressure. Negative = bearish.</div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>NOPE</div>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}><Tooltip tip="Net Options Pricing Effect. Positive = dealers net buying the underlying (bullish pressure). Negative = net selling (bearish pressure). Strong readings (above +1 or below -1) often precede SPX moves within the hour.">NOPE</Tooltip></div>
                 <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: nopeVal != null ? (nopeVal > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
                   {nopeVal != null ? Number(nopeVal).toFixed(2) : '--'}
                 </div>
               </div>
               <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>NOPE Fill</div>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}><Tooltip tip="The portion of NOPE derived from order-flow imbalance between buyers and sellers at the bid/ask. NOPE Fill > NOPE = aggressive order-flow confirming the direction. Divergence between the two can signal a fade.">NOPE Fill</Tooltip></div>
                 <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--mono)', color: nopeFill != null ? (nopeFill > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
                   {nopeFill != null ? Number(nopeFill).toFixed(2) : '--'}
                 </div>
@@ -633,19 +633,19 @@ export default function FlowScreen() {
         return (
           <div className="panel">
             <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              Greek Flow — Delta &amp; Vega
+              <Tooltip tip="Measures net directional flow of the two most important option greeks. Delta flow = net call delta minus put delta (shows directional bet size). Vega flow = call vega premium minus put vega premium (shows who is buying/selling volatility itself)." label="Greek Flow">Greek Flow — Delta &amp; Vega</Tooltip>
               <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
             </div>
             <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 6 }}>Directional delta flow = net call minus put delta. Directional vega = call vega premium − put vega premium.</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>Dir. Δ Flow</div>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}><Tooltip tip="Directional delta flow = net call delta minus net put delta in dollar terms. Positive = more bullish directional bets. Negative = more bearish. This captures the speculative directional conviction in options, not just premium size.">Dir. Δ Flow</Tooltip></div>
                 <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: deltaFlow != null ? (deltaFlow > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
                   {deltaFlow != null ? (deltaFlow > 0 ? '+' : '') + fmtGf(deltaFlow) : '--'}
                 </div>
               </div>
               <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>Dir. ν Flow</div>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}><Tooltip tip="Directional vega flow = call vega premium minus put vega premium. Positive = net buyers of upside volatility. Negative = buyers of downside volatility (puts). Vega flow tells you whether institutions expect vol to rise (upside or downside) vs collapse.">Dir. ν Flow</Tooltip></div>
                 <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: vegaFlow != null ? (vegaFlow > 0 ? 'var(--green)' : 'var(--red)') : 'var(--text)' }}>
                   {vegaFlow != null ? (vegaFlow > 0 ? '+' : '') + fmtGf(vegaFlow) : '--'}
                 </div>
@@ -658,7 +658,7 @@ export default function FlowScreen() {
       {/* ── Flow By Expiry ── */}
       {expiryData.length > 0 && (
         <div className="panel">
-          <div className="panel-title">Flow By Expiry</div>
+          <div className="panel-title"><Tooltip tip="Options premium flow broken down by expiration date. Shows where the money is concentrated — 0DTE = today, weekly = this week's expiry, etc. Heavy near-term flow = speculative intraday bets. Heavy far-dated flow = longer-term institutional positioning." label="Flow By Expiry">Flow By Expiry</Tooltip></div>
           {expiryData.map((row: any, i: number) => {
             const cPrem = row.call_premium ?? row.call_prem ?? 0
             const pPrem = row.put_premium  ?? row.put_prem  ?? 0
@@ -682,7 +682,7 @@ export default function FlowScreen() {
       {/* ── Sector Tide ── */}
       {sectorTide.length > 0 && (
         <div className="panel">
-          <div className="panel-title">Sector Tide</div>
+          <div className="panel-title"><Tooltip tip="Net options flow (calls minus puts) per sector ETF. Shows where institutional money is flowing at the sector level. Positive = net bullish flow into this sector. Negative = bearish/hedging. Useful for rotating into the sectors with the strongest flow tailwind." label="Sector Tide">Sector Tide</Tooltip></div>
           {sectorTide.map((s: any, i: number) => {
             const name = s.sector ?? s.ticker ?? s.symbol ?? '--'
             const callP = s.net_call_premium ?? s.call_premium ?? 0
@@ -708,7 +708,7 @@ export default function FlowScreen() {
       {/* ── Sector Flow Pulse ── */}
       <div className="panel">
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>Sector Flow Pulse</span>
+          <span><Tooltip tip="Bull flow percentage per sector ETF. Each bar shows what % of that sector's options premium is bullish (calls). Above 55% = net bullish flow. Below 45% = net bearish. Use to identify which sectors institutions are leaning into vs hedging against." label="Sector Flow Pulse">Sector Flow Pulse</Tooltip></span>
           <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>bull premium % by sector ETF</span>
         </div>
         {sectorFlow.length === 0 && !loadingSector ? (
@@ -739,7 +739,7 @@ export default function FlowScreen() {
       {/* ── Unusual Alerts (Big Prints) ── */}
       <div className="panel">
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>Big Prints — {isNdx ? 'NDX' : 'SPX'}</span>
+          <span><Tooltip tip="Unusual options prints $100k+ in premium. These are the trades that stand out — large size, unusual strike/expiry, or unusually high implied volatility vs normal. Institutions use these for directional positioning or tail hedges. ⚡ = flagged as unusual by UnusualWhales." label="Big Prints">Big Prints — {isNdx ? 'NDX' : 'SPX'}</Tooltip></span>
           <button onClick={loadUnusual} style={{ fontSize: 8, fontFamily: 'var(--mono)', padding: '2px 8px', borderRadius: 3, border: '1px solid var(--border2)', background: 'none', color: 'var(--muted2)', cursor: 'pointer' }}>↻ Refresh</button>
         </div>
         {unusualItems.length === 0 && !loadingUnusual ? (
@@ -758,7 +758,7 @@ export default function FlowScreen() {
       {/* ── Dark Pool Prints ── */}
       <div className="panel">
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>Dark Pool — {isNdx ? 'QQQ' : 'SPY'}</span>
+          <span><Tooltip tip="Off-exchange (dark pool) equity prints for SPY/QQQ. Large dark pool prints signal institutional accumulation or distribution. They execute off-exchange to avoid moving the market. High dark pool volume near a key level often confirms or invalidates the move." label="Dark Pool">Dark Pool — {isNdx ? 'QQQ' : 'SPY'}</Tooltip></span>
           <button onClick={loadDarkPool} disabled={loadingDp} style={{ fontSize: 8, fontFamily: 'var(--mono)', padding: '2px 8px', borderRadius: 3, border: '1px solid var(--border2)', background: 'none', color: 'var(--muted2)', cursor: 'pointer' }}>
             {loadingDp ? '...' : '↻ Refresh'}
           </button>

@@ -36,7 +36,7 @@ function GexSparkline({ rows }: { rows: any[] }) {
   return (
     <div className="panel">
       <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        Intraday GEX — 1-Min
+        <Tooltip tip="Net dealer gamma per 1-minute bar throughout the session. Positive = dealers long gamma (stabilizing, buy dips/sell rips). Negative = dealers short gamma (forced to chase moves, amplifying). Sustained negative readings often precede sharp directional breaks.">Intraday GEX — 1-Min</Tooltip>
         <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
       </div>
       <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 4 }}>Net dealer gamma / 1% move per minute. Positive = pinning. Negative = amplifying.</div>
@@ -582,49 +582,49 @@ export default function GEXScreen() {
       <div className="key-levels-bar">
         {regime && (
           <div className="kl-item">
-            <div className="kl-label">Regime</div>
+            <div className="kl-label"><Tooltip tip="Current gamma regime. Positive = dealers long gamma, they sell rallies and buy dips (price-stabilizing). Negative = dealers short gamma, they chase moves in the same direction (price-amplifying).">Regime</Tooltip></div>
             <div className="kl-val" style={{ fontSize: 9, color: regime.toUpperCase().includes('NEG') ? 'var(--red)' : regime.toUpperCase().includes('POS') ? 'var(--green)' : 'var(--muted2)' }}>{regime}</div>
           </div>
         )}
         {flip && (
           <div className="kl-item">
-            <div className="kl-label">Gamma Flip</div>
+            <div className="kl-label"><Tooltip tip="The strike where net GEX crosses zero. Above this = positive gamma regime (stabilizing). Below = negative (amplifying). Crossing the flip zone is a high-volatility inflection point.">Gamma Flip</Tooltip></div>
             <div className="kl-val flip">{fmtNum(flip)}</div>
           </div>
         )}
         {maxPain != null && (
           <div className="kl-item">
-            <div className="kl-label">Max Pain</div>
+            <div className="kl-label"><Tooltip tip="Strike where the most open options expire worthless. Market makers benefit from price expiring here. Strongest gravitational pull in the final hour of expiration sessions.">Max Pain</Tooltip></div>
             <div className="kl-val" style={{ color: 'var(--yellow)' }}>{fmtNum(maxPain)}{maxPainDte != null ? ` (${String(maxPainDte).toUpperCase()})` : ''}</div>
           </div>
         )}
         {cWall && (
           <div className="kl-item">
-            <div className="kl-label">Call Wall</div>
+            <div className="kl-label"><Tooltip tip="Strike with the largest call GEX concentration. Acts as overhead resistance — dealers must sell underlying aggressively here to stay hedged, capping upside moves.">Call Wall</Tooltip></div>
             <div className="kl-val call">{fmtNum(cWall)}</div>
           </div>
         )}
         {pWall && (
           <div className="kl-item">
-            <div className="kl-label">Put Wall</div>
+            <div className="kl-label"><Tooltip tip="Strike with the largest put GEX concentration. Acts as downside support — dealers must buy underlying here to stay hedged, cushioning selloffs.">Put Wall</Tooltip></div>
             <div className="kl-val put">{fmtNum(pWall)}</div>
           </div>
         )}
         {netDelta && (
           <div className="kl-item">
-            <div className="kl-label">Net Delta</div>
+            <div className="kl-label"><Tooltip tip="Net directional delta exposure of all dealers combined. LONG = dealers are net buyers of the underlying (supportive). SHORT = net sellers (headwind for price).">Net Delta</Tooltip></div>
             <div className="kl-val" style={{ fontSize: 9, color: netDelta === 'LONG' ? 'var(--green)' : netDelta === 'SHORT' ? 'var(--red)' : 'var(--muted2)' }}>{netDelta}</div>
           </div>
         )}
         {flowBias && (
           <div className="kl-item">
-            <div className="kl-label">Flow</div>
+            <div className="kl-label"><Tooltip tip="Net options premium flow direction. CALL HEAVY = more call premium being bought (bullish lean). PUT HEAVY = more put premium (bearish/hedging). BALANCED = no clear institutional lean.">Flow</Tooltip></div>
             <div className="kl-val" style={{ fontSize: 9, color: String(flowBias).includes('CALL') ? 'var(--green)' : String(flowBias).includes('PUT') ? 'var(--red)' : 'var(--muted2)' }}>{flowBias}</div>
           </div>
         )}
         {pcRatio && (
           <div className="kl-item">
-            <div className="kl-label">P/C Ratio</div>
+            <div className="kl-label"><Tooltip tip="Put/Call ratio. Above 1.0 = more put buying than calls (bearish lean or heavy hedging). Below 0.8 = call-heavy (risk-on). Extreme readings (>1.5 or <0.6) often mark near-term reversals.">P/C Ratio</Tooltip></div>
             <div className="kl-val" style={{ fontSize: 11, color: parseFloat(pcRatio) > 1.1 ? 'var(--red)' : parseFloat(pcRatio) < 0.8 ? 'var(--green)' : 'var(--yellow)' }}>{parseFloat(pcRatio).toFixed(2)}</div>
           </div>
         )}
@@ -685,13 +685,13 @@ export default function GEXScreen() {
         </div>
         {netDeltaDisplay != null && (
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 9, color: 'var(--muted2)' }}>Net Dealer Delta</span>
+            <span style={{ fontSize: 9, color: 'var(--muted2)' }}><Tooltip tip="The aggregate net delta position of all market makers combined. Positive = dealers are net long the underlying (supporting price). Negative = net short (acting as a headwind). Dealers constantly hedge to stay delta-neutral, so this tells you the direction of their ongoing buy/sell pressure.">Net Dealer Delta</Tooltip></span>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: Number(netDeltaDisplay) > 0 ? 'var(--green)' : Number(netDeltaDisplay) < 0 ? 'var(--red)' : 'var(--muted2)' }}>{fmtNum(netDeltaDisplay)}</span>
           </div>
         )}
         {gammaPerPct != null && (
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 9, color: 'var(--muted2)' }}>Dealer Gamma / 1% Move</span>
+            <span style={{ fontSize: 9, color: 'var(--muted2)' }}><Tooltip tip="Dollar value of gamma exposure that dealers must hedge per 1% move in SPX. Large positive = dealers need to sell a lot if price rises 1% (cap on upside). Large negative = they need to buy a lot if price falls 1% (accelerates the drop). Key for understanding how violent a move can get.">Dealer Gamma / 1% Move</Tooltip></span>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: Number(gammaPerPct) > 0 ? 'var(--green)' : Number(gammaPerPct) < 0 ? 'var(--red)' : 'var(--muted2)' }}>{fmtNum(gammaPerPct)}</span>
           </div>
         )}
@@ -841,12 +841,22 @@ export default function GEXScreen() {
               <div className="scorecard-bar-fill" style={{ width: scoreBarW, background: scoreBarColor }} />
             </div>
             <div className="scorecard-factors">
-              {scFactors.map((f, i) => (
-                <div key={i} className="sc-factor">
-                  <div className="sc-factor-label">{f.label}</div>
-                  <div className={`sc-factor-val ${f.cls}`}>{f.val}</div>
-                </div>
-              ))}
+              {scFactors.map((f, i) => {
+                const factorTips: Record<string, string> = {
+                  Gamma:  'Whether dealers are in positive or negative gamma. Positive = dealers stabilize price (easier to hold trades). Negative = dealers amplify moves (higher volatility, wider stops needed).',
+                  Delta:  'Net delta hedging direction from all dealers. BUYING = dealers need to buy the underlying (tailwind for longs). SELLING = need to sell (headwind). Dollar value shows magnitude.',
+                  Flip:   'How far price is from the GEX flip zone. Above flip = positive gamma, price more stable. Below flip = negative gamma, moves can accelerate. AT FLIP = danger zone.',
+                  Flow:   'Current options premium flow bias. CALL HEAVY = institutions buying calls (bullish lean). PUT HEAVY = buying puts (bearish or hedging). BALANCED = no strong conviction.',
+                  Charm:  'Delta decay effect — as options lose time value, dealers must rebalance. BUYING = time decay forces dealer purchases (supportive). SELLING = forced selling as options expire.',
+                  Vanna:  'Sensitivity of dealer delta to VIX changes. AMPLIFIED = a VIX move causes large forced hedging (watch for vol-driven price spikes). MUTED = vol changes have little impact.',
+                }
+                return (
+                  <div key={i} className="sc-factor">
+                    <div className="sc-factor-label"><Tooltip tip={factorTips[f.label] ?? f.label}>{f.label}</Tooltip></div>
+                    <div className={`sc-factor-val ${f.cls}`}>{f.val}</div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>

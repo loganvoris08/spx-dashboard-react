@@ -26,7 +26,12 @@ function VixBar({ label, val, maxV }: { label: string; val: number; maxV: number
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted2)' }}>{label}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted2)' }}>
+        {label === 'VIX 9D'    ? <Tooltip tip="9-day VIX. Short-term fear gauge — more reactive than standard VIX. Spikes hard into binary events (FOMC, CPI). If VIX9D > VIX, that's backwardation: near-term panic priced in.">VIX 9D</Tooltip>
+        : label === 'VIX (30D)' ? <Tooltip tip="Standard 30-day implied volatility index. Below 15 = calm. 15–20 = normal. 20–30 = elevated. 30+ = fear. Watch if it's rising while price is rising (unusual — suspect the move).">VIX (30D)</Tooltip>
+        : label === 'VIX 3M'   ? <Tooltip tip="3-month VIX. Normally above VIX (contango = healthy). If VIX3M drops below VIX, that's backwardation — the market is pricing near-term panic above longer-term uncertainty.">VIX 3M</Tooltip>
+        : label}
+      </span>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 700, color }}>{val.toFixed(2)}</span>
       </div>
       <div style={{ height: 6, background: 'var(--surface)', borderRadius: 3, overflow: 'hidden' }}>
@@ -359,7 +364,7 @@ export default function VolScreen() {
         const rrColor = (v: number) => v <= -3 ? 'var(--green)' : v >= 3 ? 'var(--red)' : 'var(--muted2)'
         return (
           <div className="panel">
-            <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}>SPX RISK REVERSAL SKEW (25Δ Put − Call)</div>
+            <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}><Tooltip tip="Risk Reversal = put IV minus call IV at the same delta. Negative = puts more expensive than calls (bearish hedging dominates, typical). Very negative = fear spike. Near zero or positive = unusual call demand.">SPX RISK REVERSAL SKEW (25Δ Put − Call)</Tooltip></div>
             <div style={{ display: 'flex', gap: 16 }}>
               {last25 != null && (
                 <div>
@@ -369,7 +374,7 @@ export default function VolScreen() {
               )}
               {last10 != null && (
                 <div>
-                  <div style={{ fontSize: 8, color: 'var(--muted2)' }}>10Δ RR</div>
+                  <div style={{ fontSize: 8, color: 'var(--muted2)' }}><Tooltip tip="10-delta risk reversal: IV of the 10Δ put minus 10Δ call. These are deep out-of-the-money options — this skew captures tail-risk demand specifically. Very negative = institutions are buying crash protection. Divergence from 25Δ RR can signal stress concentration.">10Δ RR</Tooltip></div>
                   <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--mono)', color: rrColor(last10) }}>{(last10 >= 0 ? '+' : '') + last10.toFixed(2)} vol pts</div>
                 </div>
               )}
@@ -381,7 +386,7 @@ export default function VolScreen() {
       {/* ── IV Term Structure (interpolated) ── */}
       {ivCurve.length > 0 && (
         <div className="panel">
-          <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}>IV TERM STRUCTURE</div>
+          <div style={{ fontSize: 9, color: 'var(--muted2)', letterSpacing: 1, marginBottom: 8 }}><Tooltip tip="Implied volatility at different expirations plotted as bars. Each bar shows IV for that specific DTE (days-to-expiration). Normal shape = longer dates have higher IV (contango). Inverted = near-term IV higher than far-term (backwardation, stress signal). Yellow dashed line = current ATM IV.">IV TERM STRUCTURE</Tooltip></div>
           {ivCurve.map((r: any, i: number) => {
             const days = r.days
             const label = days <= 7 ? `${days}d` : days <= 30 ? `${days}d` : days <= 90 ? `${Math.round(days / 7)}w` : `${Math.round(days / 30)}m`
@@ -405,18 +410,18 @@ export default function VolScreen() {
       {volStats && (
         <div className="panel">
           <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            Vol Stats — IV vs RV
+            <Tooltip tip="Compares implied volatility (what the market expects) against realized volatility (what actually happened). When IV > RV, options are expensive relative to history — premiums are rich. When IV < RV, options are cheap. IV−RV spread is the vol risk premium." label="Vol Stats — IV vs RV">Vol Stats — IV vs RV</Tooltip>
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5 }}>
             {[
-              { label: 'IV',    val: volStats.iv,     color: 'var(--yellow)' },
-              { label: 'RV',    val: volStats.rv,     color: 'var(--text)' },
-              { label: 'IV Rank', val: volStats.iv_rank, color: 'var(--price)' },
-              { label: 'IV−RV', val: volStats.spread ?? (volStats.iv != null && volStats.rv != null ? (volStats.iv - volStats.rv).toFixed(1) : null), color: 'var(--text)' },
+              { label: 'IV',      val: volStats.iv,     color: 'var(--yellow)', tip: "Current implied volatility for SPX options. This is what the market prices in as the expected annualized move. Higher IV = more expensive options. Compare to RV to see if vol is cheap or rich." },
+              { label: 'RV',      val: volStats.rv,     color: 'var(--text)',   tip: "Realized volatility — what SPX actually moved over the recent period. If IV > RV, options are pricing in more fear than what's actually happening (sellers edge). If RV > IV, market is moving more than priced (buyers edge)." },
+              { label: 'IV Rank', val: volStats.iv_rank, color: 'var(--price)', tip: "IV Rank: where current IV sits within its 52-week range (0–100). 0 = cheapest IV of the year. 100 = most expensive. Above 50 = elevated relative to recent history — consider selling premium." },
+              { label: 'IV−RV',   val: volStats.spread ?? (volStats.iv != null && volStats.rv != null ? (volStats.iv - volStats.rv).toFixed(1) : null), color: 'var(--text)', tip: "The volatility risk premium: how much more you pay for options (IV) vs what actually happens (RV). Positive = options are expensive. Negative = options cheap. Persistently positive is why selling vol has a long-run edge." },
             ].map(s => (
               <div key={s.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: 6, textAlign: 'center' }}>
-                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>{s.label}</div>
+                <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}><Tooltip tip={s.tip}>{s.label}</Tooltip></div>
                 <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--mono)', color: s.color }}>{s.val ?? '--'}</div>
               </div>
             ))}
@@ -434,7 +439,7 @@ export default function VolScreen() {
       {sectorData.length > 0 && (
         <div className="panel">
           <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            Sector Options Flow
+            <Tooltip tip="Net options premium flow per sector (calls minus puts). Shows where institutional money is positioned at the sector level. Useful for identifying rotation — sectors with strong positive flow have a vol-driven tailwind." label="Sector Options Flow">Sector Options Flow</Tooltip>
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
           </div>
           <div style={{ fontSize: 8, color: 'var(--muted2)', marginBottom: 8 }}>Net call − put premium per sector. Shows where institutional options money is flowing.</div>

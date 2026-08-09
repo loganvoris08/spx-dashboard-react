@@ -52,11 +52,11 @@ function ZoneBox({ label, bot, top, mid, state, pct, nextBot, nextTop, prevBot, 
         {pct != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>{pct.toFixed(1)}% through zone</div>}
       </div>
       <div className="zone-levels">
-        {bot  != null && <div className="zl"><div className="zl-label">Zone Bot</div><div className="zl-val">{fmtN(bot, 2)}</div></div>}
-        {top  != null && <div className="zl"><div className="zl-label">Zone Top</div><div className="zl-val">{fmtN(top, 2)}</div></div>}
-        {mid  != null && <div className="zl"><div className="zl-label">Mid</div><div className="zl-val">{fmtN(mid, 2)}</div></div>}
-        {prevBot != null && <div className="zl"><div className="zl-label">Prev Zone</div><div className="zl-val put">{fmtRange(prevBot, prevTop)}</div></div>}
-        {nextBot != null && <div className="zl"><div className="zl-label">Next Zone</div><div className="zl-val call">{fmtRange(nextBot, nextTop)}</div></div>}
+        {bot  != null && <div className="zl"><div className="zl-label"><Tooltip tip="Lower boundary of the current price zone. Price tends to find support here as dealers re-hedge their gamma exposure near this level.">Zone Bot</Tooltip></div><div className="zl-val">{fmtN(bot, 2)}</div></div>}
+        {top  != null && <div className="zl"><div className="zl-label"><Tooltip tip="Upper boundary of the current price zone. Price often meets resistance or pauses here as dealers sell to stay delta-neutral.">Zone Top</Tooltip></div><div className="zl-val">{fmtN(top, 2)}</div></div>}
+        {mid  != null && <div className="zl"><div className="zl-label"><Tooltip tip="Midpoint of the current zone. Acts as intrazone support or resistance — price often consolidates here before committing to bot or top.">Mid</Tooltip></div><div className="zl-val">{fmtN(mid, 2)}</div></div>}
+        {prevBot != null && <div className="zl"><div className="zl-label"><Tooltip tip="The zone directly below current price. If price breaks under Zone Bot, this is the next target range to the downside.">Prev Zone</Tooltip></div><div className="zl-val put">{fmtRange(prevBot, prevTop)}</div></div>}
+        {nextBot != null && <div className="zl"><div className="zl-label"><Tooltip tip="The zone directly above current price. If price breaks above Zone Top, this is the next target range to the upside.">Next Zone</Tooltip></div><div className="zl-val call">{fmtRange(nextBot, nextTop)}</div></div>}
       </div>
     </div>
   )
@@ -314,15 +314,15 @@ export default function SignalScreen() {
       <div className="panel">
         <div className="panel-title"><Tooltip tip="Short-term trade setup based on 10-minute ES zones. Entry = zone boundary to initiate from. Target = next zone level. Stop = invalidation point. Score = how many confluence conditions are met (more = higher conviction)." label="Scalp Signal">Scalp Signal — 10m Zone to Zone</Tooltip></div>
         <div className="td-row">
-          <div className="td-label">Entry</div>
+          <div className="td-label"><Tooltip tip="Zone boundary to initiate the trade from. For longs: buy the zone bot on a pullback. For shorts: sell the zone top on a failed breakout.">Entry</Tooltip></div>
           <div className="td-val green">{entry ?? '--'}</div>
         </div>
         <div className="td-row">
-          <div className="td-label">Target</div>
+          <div className="td-label"><Tooltip tip="Next zone boundary in the signal direction. Exit or take profit when price reaches this level. Do not hold through without re-evaluating the setup.">Target</Tooltip></div>
           <div className="td-val yellow">{target ?? '--'}</div>
         </div>
         <div className="td-row">
-          <div className="td-label">Stop</div>
+          <div className="td-label"><Tooltip tip="Level that invalidates the trade setup. If price closes a candle beyond this on a 10-minute chart, the signal is wrong — exit to preserve capital.">Stop</Tooltip></div>
           <div className="td-val red">{stopLogic ?? '--'}</div>
         </div>
         {reason && (
@@ -394,7 +394,7 @@ export default function SignalScreen() {
       {/* ── ES 10M Zone ── */}
       {(es10Bot || es10Top) && (
         <div className="panel">
-          <div className="panel-title">ES 10M Zone — Intraday</div>
+          <div className="panel-title"><Tooltip tip="10-minute ES futures price zone. The scalp signal uses zone bot → top as the intraday target range. A confirmed break above Zone Top triggers a LONG setup toward the Next Zone. Break below Zone Bot triggers a SHORT setup toward Prev Zone.">ES 10M Zone — Intraday</Tooltip></div>
           <ZoneBox label="ES 10M" bot={es10Bot} top={es10Top} mid={es10Mid} state={es10State} pct={es10Pct}
             nextBot={es10NextBot} nextTop={es10NextTop} prevBot={es10PrevBot} prevTop={es10PrevTop} />
         </div>
@@ -403,7 +403,7 @@ export default function SignalScreen() {
       {/* ── ES Daily Zone ── */}
       {(esDBot || esDTop) && (
         <div className="panel">
-          <div className="panel-title">ES Daily Zone — Swing</div>
+          <div className="panel-title"><Tooltip tip="Daily ES futures zone. Swing signals are generated when price closes above or below a daily zone boundary. These zones hold for multiple days — use them for overnight positions and multi-day swing trades, not intraday scalps.">ES Daily Zone — Swing</Tooltip></div>
           <ZoneBox label="ES Daily" bot={esDBot} top={esDTop} mid={esDMid} state={esDState} pct={esDPct}
             nextBot={esDNextBot} nextTop={esDNextTop} prevBot={esDPrevBot} prevTop={esDPrevTop} />
         </div>
@@ -412,7 +412,7 @@ export default function SignalScreen() {
       {/* ── SPX Daily Zone ── */}
       {(spxBot || spxTop) && (
         <div className="panel" style={{ paddingBottom: 6 }}>
-          <div className="panel-title">SPX Daily Zone — Context</div>
+          <div className="panel-title"><Tooltip tip="SPX cash index daily zone. Useful as a secondary reference — ES futures zones drive the scalp signals, but SPX zones confirm macro structure. Use for context when the ES zone and SPX zone are aligned.">SPX Daily Zone — Context</Tooltip></div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {spxBot && <div className="zl" style={{ flex: 1, minWidth: 80 }}><div className="zl-label">Zone Bot</div><div className="zl-val">{fmtN(spxBot, 2)}</div></div>}
             {spxTop && <div className="zl" style={{ flex: 1, minWidth: 80 }}><div className="zl-label">Zone Top</div><div className="zl-val">{fmtN(spxTop, 2)}</div></div>}
@@ -461,17 +461,17 @@ export default function SignalScreen() {
         })()
 
         const chips = [
-          { label: 'GEX',   val: c.gex_regime ?? '--',  color: String(c.gex_regime ?? '').includes('POSITIVE') ? 'var(--green)' : String(c.gex_regime ?? '').includes('NEGATIVE') ? 'var(--red)' : 'var(--muted2)' },
-          { label: 'VIX',   val: c.vix_level  ?? '--',  color: c.vix_level === 'LOW' ? 'var(--green)' : c.vix_level === 'EXTREME' ? 'var(--red)' : c.vix_level === 'HIGH' ? 'var(--yellow)' : 'var(--muted2)' },
-          { label: 'IV',    val: c.iv_regime  ?? '--',  color: c.iv_regime === 'LOW' ? 'var(--green)' : c.iv_regime === 'EXTREME' || c.iv_regime === 'HIGH' ? 'var(--red)' : 'var(--muted2)' },
-          { label: 'FLOW',  val: c.flow_bias  ?? '--',  color: String(c.flow_bias ?? '').includes('CALL') ? 'var(--green)' : String(c.flow_bias ?? '').includes('PUT') ? 'var(--red)' : 'var(--muted2)' },
-          { label: 'TIME',  val: c.time_bucket ?? '--', color: 'var(--muted2)' },
+          { label: 'GEX',  tip: 'Gamma regime at the time of the pattern match. POSITIVE = dealers long gamma (stabilizing). NEGATIVE = dealers short gamma (amplifying). The regime shapes how large a move is possible.',  val: c.gex_regime ?? '--',  color: String(c.gex_regime ?? '').includes('POSITIVE') ? 'var(--green)' : String(c.gex_regime ?? '').includes('NEGATIVE') ? 'var(--red)' : 'var(--muted2)' },
+          { label: 'VIX',  tip: 'VIX level bucket used for pattern matching. LOW = below 15. NORMAL = 15–20. HIGH = 20–30. EXTREME = 30+. Higher VIX historically correlates with larger 4h moves in both directions.',    val: c.vix_level  ?? '--',  color: c.vix_level === 'LOW' ? 'var(--green)' : c.vix_level === 'EXTREME' ? 'var(--red)' : c.vix_level === 'HIGH' ? 'var(--yellow)' : 'var(--muted2)' },
+          { label: 'IV',   tip: 'Implied volatility regime. LOW = options cheap. HIGH/EXTREME = options expensive. When IV is elevated during a pattern match, historical outcomes show wider ranges — plan stops accordingly.',  val: c.iv_regime  ?? '--',  color: c.iv_regime === 'LOW' ? 'var(--green)' : c.iv_regime === 'EXTREME' || c.iv_regime === 'HIGH' ? 'var(--red)' : 'var(--muted2)' },
+          { label: 'FLOW', tip: 'Options flow bias bucket. CALL HEAVY = more call premium flowing in. PUT HEAVY = put premium dominant. BALANCED = no clear edge. Flow bias narrows which historical sessions are true matches.', val: c.flow_bias  ?? '--',  color: String(c.flow_bias ?? '').includes('CALL') ? 'var(--green)' : String(c.flow_bias ?? '').includes('PUT') ? 'var(--red)' : 'var(--muted2)' },
+          { label: 'TIME', tip: 'Time-of-day bucket for the pattern match. OPEN = 9:30–11am (highest vol). MIDDAY = 11am–2pm (lowest vol). CLOSE = 2–4pm (vol picks back up). Patterns from the same time bucket are more comparable.', val: c.time_bucket ?? '--', color: 'var(--muted2)' },
         ]
 
         return (
           <div className="panel">
             <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              Pattern Match Engine
+              <Tooltip tip="Looks up the current market regime (GEX, VIX, IV, flow, time of day) in a historical database and finds sessions with the same conditions. Shows what SPX did 4 hours later in those matching sessions. Higher match count = more reliable statistics." label="Pattern Match Engine">Pattern Match Engine</Tooltip>
               <LiveBadge variant="yellow" />
             </div>
 
@@ -479,7 +479,7 @@ export default function SignalScreen() {
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
               {chips.map(ch => (
                 <div key={ch.label} style={{ background: 'var(--surface)', border: `1px solid ${ch.color}33`, borderRadius: 4, padding: '3px 7px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 6, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{ch.label}</div>
+                  <div style={{ fontSize: 6, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.5px' }}><Tooltip tip={ch.tip}>{ch.label}</Tooltip></div>
                   <div style={{ fontSize: 9, fontFamily: 'var(--mono)', fontWeight: 700, color: ch.color }}>{ch.val}</div>
                 </div>
               ))}
