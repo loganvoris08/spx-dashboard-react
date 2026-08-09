@@ -538,8 +538,8 @@ export default function SignalScreen() {
           const m = parseInt(r.month ?? r.month_num ?? '0')
           return m === curMonth + 1
         })
-        const curAvg = parseFloat(curRow?.avg_return ?? curRow?.average_return ?? '0') || 0
-        const winRate = parseFloat(curRow?.win_rate ?? curRow?.bull_pct ?? '0') || 0
+        const curAvg = (parseFloat(curRow?.avg_change ?? curRow?.avg_return ?? curRow?.average_return ?? '0') || 0) * 100
+        const winRate = (parseFloat(curRow?.positive_months_perc ?? curRow?.win_rate ?? curRow?.bull_pct ?? '0') || 0) * 100
         return (
           <div className="panel">
             <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -574,8 +574,8 @@ export default function SignalScreen() {
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 60 }}>
                   {MONTHS.map((mo, idx) => {
                     const row = avgRet.find((r: any) => parseInt(r.month ?? r.month_num ?? '0') === idx + 1)
-                    const val = parseFloat(row?.avg_return ?? row?.average_return ?? '0') || 0
-                    const allVals = avgRet.map((r: any) => Math.abs(parseFloat(r.avg_return ?? r.average_return ?? '0') || 0))
+                    const val = (parseFloat(row?.avg_change ?? row?.avg_return ?? row?.average_return ?? '0') || 0) * 100
+                    const allVals = avgRet.map((r: any) => Math.abs((parseFloat(r.avg_change ?? r.avg_return ?? r.average_return ?? '0') || 0) * 100))
                     const maxV = Math.max(...allVals, 0.01)
                     const barH = Math.max(3, Math.abs(val) / maxV * 50)
                     const isCur = idx === curMonth

@@ -893,16 +893,16 @@ export default function FlowScreen() {
           </div>
           <div style={{ maxHeight: 220, overflowY: 'auto' }}>
             {multiLegData.slice(0, 20).map((s: any, i: number) => {
-              const prem = parseFloat(s.total_premium ?? s.premium ?? '0') || 0
-              const strat = (s.strategy ?? s.spread_type ?? s.type ?? 'SPREAD').toUpperCase()
-              const side  = (s.side ?? s.direction ?? '').toUpperCase()
+              const prem = parseFloat(s.net_premium ?? s.total_premium ?? s.premium ?? '0') || 0
+              const strat = (s.strategy ?? s.spread_type ?? s.type ?? 'SPREAD').replace(/_/g, ' ').toUpperCase()
+              const side  = (s.net_side ?? s.direction ?? s.side ?? '').toUpperCase()
               const fmtP  = (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v.toFixed(0)
               const sideColor = side.includes('BUY') || side.includes('BULL') ? 'var(--green)' : side.includes('SELL') || side.includes('BEAR') ? 'var(--red)' : 'var(--muted2)'
               return (
                 <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: 'var(--text)', minWidth: 100 }}>{strat}</span>
                   {side && <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: sideColor }}>{side}</span>}
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)' }}>{s.expiry ?? s.expiration ?? ''}</span>
+                  {(s.min_dte != null || s.max_dte != null) && <span style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)' }}>{s.min_dte ?? ''}–{s.max_dte ?? ''}d</span>}
                   <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: 'var(--yellow)', marginLeft: 'auto' }}>${fmtP(prem)}</span>
                 </div>
               )
