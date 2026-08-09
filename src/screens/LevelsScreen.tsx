@@ -429,17 +429,17 @@ export default function LevelsScreen() {
   const gexRows = sortDesc(filterByRange(allGexRows))
 
   useEffect(() => {
-    if (oiRows.length > 0) requestAnimationFrame(() => {
+    if (oiRows.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => {
       const c = oiScrollRef.current, r = oiPriceRowRef.current
       if (c && r) c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
-    })
+    }))
   }, [oiRows.length, oiBucket, isNdx])
 
   useEffect(() => {
-    if (gexRows.length > 0) requestAnimationFrame(() => {
+    if (gexRows.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => {
       const c = gexScrollRef.current, r = gexPriceRowRef.current
       if (c && r) c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
-    })
+    }))
   }, [gexRows.length, gexBucket, isNdx])
 
   const maxOICall = Math.max(...oiRows.map((r: any) => r.call_value || 0), 1)
