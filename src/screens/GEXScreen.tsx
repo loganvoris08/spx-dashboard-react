@@ -60,7 +60,7 @@ function fmtNum(v: any, d = 0) {
   return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 }
 
-function GEXHBars({ rows, priceStrike, flipStrike, hotScores }: { rows: any[]; priceStrike: number; flipStrike: number; hotScores: Map<number, number> }) {
+function GEXHBars({ rows, priceStrike, flipStrike, hotScores, priceRowRef }: { rows: any[]; priceStrike: number; flipStrike: number; hotScores: Map<number, number>; priceRowRef?: React.RefObject<HTMLDivElement | null> }) {
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No ladder data</div>
   )
@@ -97,7 +97,7 @@ function GEXHBars({ rows, priceStrike, flipStrike, hotScores }: { rows: any[]; p
         const tagColor = isFlip ? '#f0f' : isHot ? 'var(--red)' : isWarm ? 'rgba(234,179,8,0.6)' : 'var(--muted2)'
 
         return (
-          <div key={i} className="hbar-row" style={{ background: isHot && !isPrice && !isFlip ? undefined : bg, animation: isHot && !isPrice && !isFlip ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
+          <div key={i} ref={isPrice ? priceRowRef : undefined} className="hbar-row" style={{ background: isHot && !isPrice && !isFlip ? undefined : bg, animation: isHot && !isPrice && !isFlip ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
             <div className="hbar-strike" style={{ color: strikeColor }}>
               {isHot  && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
               {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
@@ -440,6 +440,7 @@ export default function GEXScreen() {
   const [loadingDealer, setLoadingDealer] = useState(false)
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
   const ladders = useLadders(true)
+  const gexPriceRowRef = useRef<HTMLDivElement>(null)
 
   const loadGexStrikes = useCallback(() => {
     apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
@@ -544,6 +545,13 @@ export default function GEXScreen() {
   const hotScores = new Map<number, number>(
     [...computeHotScores(oiRows, bucketData, priceNum).entries()].filter(([, s]) => s >= 50)
   )
+
+  useEffect(() => {
+    if (!bucketData.length || !priceNum) return
+    requestAnimationFrame(() => {
+      gexPriceRowRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' })
+    })
+  }, [bucketData.length, bucket, isNdx])
 
   // Top gamma strikes: sort by absolute net_gex
   const topGamma = [...gexStrikes]
@@ -651,7 +659,7 @@ export default function GEXScreen() {
           <span style={{ color: 'var(--green)' }}>CALL GEX ▶</span>
         </div>
         <div style={{ position: 'relative' }}>
-          <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} hotScores={hotScores} />
+          <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} hotScores={hotScores} priceRowRef={gexPriceRowRef} />
           <LadderPriceLine rows={bucketData} price={priceNum} />
         </div>
         {gexStrikes.length === 0 && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLadders, postAiRead } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
@@ -38,8 +38,8 @@ function fmtPrem(v: any) {
   return n.toFixed(2)
 }
 
-function OIHBars({ rows, priceStrike, callWall, putWall, hotScores }: {
-  rows: any[]; priceStrike: number; callWall: number; putWall: number; hotScores: Map<number, number>
+function OIHBars({ rows, priceStrike, callWall, putWall, hotScores, priceRowRef }: {
+  rows: any[]; priceStrike: number; callWall: number; putWall: number; hotScores: Map<number, number>; priceRowRef?: React.RefObject<HTMLDivElement | null>
 }) {
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No data</div>
@@ -76,7 +76,7 @@ function OIHBars({ rows, priceStrike, callWall, putWall, hotScores }: {
         const tagColor = isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? 'var(--red)' : isWarm ? 'rgba(234,179,8,0.6)' : 'var(--muted2)'
 
         return (
-          <div key={i} className="hbar-row" style={{ background: isHot && !isPrice && !isCall && !isPut ? undefined : bg, animation: isHot && !isPrice && !isCall && !isPut ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
+          <div key={i} ref={isPrice ? priceRowRef : undefined} className="hbar-row" style={{ background: isHot && !isPrice && !isCall && !isPut ? undefined : bg, animation: isHot && !isPrice && !isCall && !isPut ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
             <div className="hbar-strike" style={{ color: strikeColor, textAlign: 'right', paddingRight: 6 }}>
               {isHot  && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
               {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
@@ -108,6 +108,7 @@ export default function OIScreen() {
   const [loadingOi, setLoadingOi] = useState(false)
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
   const ladders = useLadders(true)
+  const oiPriceRowRef = useRef<HTMLDivElement>(null)
 
   const loadGex = useCallback(() => {
     apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
@@ -157,6 +158,13 @@ export default function OIScreen() {
   })
 
   const allOiForScore = rangeFiltered.length > 0 ? rangeFiltered : bucketData
+
+  useEffect(() => {
+    if (!bucketData.length || !priceRef) return
+    requestAnimationFrame(() => {
+      oiPriceRowRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' })
+    })
+  }, [bucketData.length, bucket, isNdx])
   const hotScores = new Map<number, number>(
     [...computeHotScores(allOiForScore, gexStrikes, priceRef).entries()].filter(([, s]) => s >= 50)
   )
@@ -261,7 +269,7 @@ export default function OIScreen() {
           <span style={{ color: 'var(--green)' }}>CALLS ▶</span>
         </div>
         <div style={{ position: 'relative' }}>
-          <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} hotScores={hotScores} />
+          <OIHBars rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} priceStrike={priceRef} callWall={cwNum} putWall={pwNum} hotScores={hotScores} priceRowRef={oiPriceRowRef} />
           <LadderPriceLine rows={rangeFiltered.length > 0 ? rangeFiltered : bucketData} price={priceRef} />
         </div>
         {!ladders && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
