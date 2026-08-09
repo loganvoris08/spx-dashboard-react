@@ -3,6 +3,7 @@ import { useDashboard } from '../hooks/useDashboard'
 import { useSide } from '../lib/SideContext'
 import { useSSE } from '../lib/SSEContext'
 import LiveBadge from '../components/LiveBadge'
+import { Tooltip } from '../components/Tooltip'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -142,15 +143,15 @@ export default function SignalScreen() {
   const swingSignal = data?.swing_signal
 
   const marketState = [
-    { label: 'Mode',      value: data?.market_mode ?? data?.mode },
-    { label: 'Break',     value: data?.break_state },
-    { label: 'Bias',      value: data?.bias },
-    { label: 'Day Bias',  value: data?.day_bias },
-    { label: 'Flow',      value: data?.flow_state },
-    { label: 'Gamma',     value: data?.gamma_state },
-    { label: 'OI State',  value: data?.oi_state },
-    { label: 'Trap',      value: data?.trap_state !== 'None' ? data?.trap_state : null },
-    { label: 'Price Loc', value: data?.price_location_state },
+    { label: 'Mode',      tip: 'Overall market mode combining GEX regime, flow bias, and volatility. TRENDING = directional, RANGING = mean-reverting, PINNED = stuck near a GEX magnet.',   value: data?.market_mode ?? data?.mode },
+    { label: 'Break',     tip: 'Whether price has confirmed a structural break above or below a key level. BREAK_UP = bullish, BREAK_DOWN = bearish, NONE = inside range.',                   value: data?.break_state },
+    { label: 'Bias',      tip: 'Overall directional bias combining GEX regime, flow, and zone location. BULLISH/BEARISH = clear lean. NEUTRAL = conflicting signals, reduce size.',           value: data?.bias },
+    { label: 'Day Bias',  tip: 'Intraday directional lean based on the opening gap, session flow, and GEX. Resets each morning. Use for same-day trade direction, not multi-day.',           value: data?.day_bias },
+    { label: 'Flow',      tip: 'Net options flow bias for the session. CALL_DOMINANT = more call premium paid (bullish lean). PUT_DOMINANT = more put premium paid (hedging/bearish lean).',  value: data?.flow_state },
+    { label: 'Gamma',     tip: 'Current gamma regime from GEX analysis. POSITIVE = dealers stabilize price near key strikes. NEGATIVE = dealers amplify moves away from flip zone.',          value: data?.gamma_state },
+    { label: 'OI State',  tip: 'Where the heavy open interest concentration sits relative to current price. ABOVE = OI resistance overhead. BELOW = OI support beneath. PINNED = price near max OI.', value: data?.oi_state },
+    { label: 'Trap',      tip: 'Potential bull or bear trap detected — a false breakout that is likely to reverse. Traps often occur at key OI or GEX levels where liquidity is thin above/below.', value: data?.trap_state !== 'None' ? data?.trap_state : null },
+    { label: 'Price Loc', tip: 'Price location relative to key GEX levels. ABOVE_CALL_WALL = above resistance. BELOW_PUT_WALL = below support. BETWEEN = inside the range defined by call and put walls.', value: data?.price_location_state },
   ].filter(r => r.value)
 
   const hasSessionStats = prevClose || dayOpen || gap || dayHigh || dayLow || dayRange
@@ -182,42 +183,42 @@ export default function SignalScreen() {
       {/* ── Session Stats Bar ── */}
       {hasSessionStats && (
         <div className="sess-bar">
-          {prevClose && <div className="sess-item"><div className="sess-label">Prev Close</div><div className="sess-val">{fmtN(prevClose, 2)}</div></div>}
-          {dayOpen   && <div className="sess-item"><div className="sess-label">Day Open</div><div className="sess-val">{fmtN(dayOpen, 2)}</div></div>}
+          {prevClose && <div className="sess-item"><div className="sess-label"><Tooltip tip="Yesterday's regular session closing price at 4pm ET.">Prev Close</Tooltip></div><div className="sess-val">{fmtN(prevClose, 2)}</div></div>}
+          {dayOpen   && <div className="sess-item"><div className="sess-label"><Tooltip tip="Today's opening price at 9:30am ET. Compared to Prev Close to determine gap direction.">Day Open</Tooltip></div><div className="sess-val">{fmtN(dayOpen, 2)}</div></div>}
           {gap != null && (() => {
             const g = parseFloat(String(gap))
             const gPct = data?.session_stats?.gap_pct ?? data?.gap_pct
             const sign = g >= 0 ? '+' : ''
             const pctStr = gPct != null ? ` (${g >= 0 ? '+' : ''}${parseFloat(String(gPct)).toFixed(2)}%)` : ''
-            return <div className="sess-item"><div className="sess-label">Gap</div><div className={`sess-val ${g > 0 ? 'pos' : g < 0 ? 'neg' : 'warn'}`}>{sign}{fmtN(gap, 2)}{pctStr}</div></div>
+            return <div className="sess-item"><div className="sess-label"><Tooltip tip="Difference between today's open and yesterday's close. Gaps above key GEX levels often fill. Large gaps can trigger gamma-driven moves.">Gap</Tooltip></div><div className={`sess-val ${g > 0 ? 'pos' : g < 0 ? 'neg' : 'warn'}`}>{sign}{fmtN(gap, 2)}{pctStr}</div></div>
           })()}
-          {dayHigh   && <div className="sess-item"><div className="sess-label">Day High</div><div className="sess-val pos">{fmtN(dayHigh, 2)}</div></div>}
-          {dayLow    && <div className="sess-item"><div className="sess-label">Day Low</div><div className="sess-val neg">{fmtN(dayLow, 2)}</div></div>}
-          {dayRange  && <div className="sess-item"><div className="sess-label">Range</div><div className="sess-val warn">{fmtN(dayRange, 2)}</div></div>}
+          {dayHigh   && <div className="sess-item"><div className="sess-label"><Tooltip tip="Highest price reached during today's regular session (9:30am–4pm ET).">Day High</Tooltip></div><div className="sess-val pos">{fmtN(dayHigh, 2)}</div></div>}
+          {dayLow    && <div className="sess-item"><div className="sess-label"><Tooltip tip="Lowest price reached during today's regular session.">Day Low</Tooltip></div><div className="sess-val neg">{fmtN(dayLow, 2)}</div></div>}
+          {dayRange  && <div className="sess-item"><div className="sess-label"><Tooltip tip="Today's high minus today's low. Compare to the implied weekly move to see if the daily range is expanding or contracting relative to volatility expectations.">Range</Tooltip></div><div className="sess-val warn">{fmtN(dayRange, 2)}</div></div>}
         </div>
       )}
 
       {/* ── Market Context ── */}
       {hasMarketCtx && (
         <div className="panel">
-          <div className="panel-title">Market Context</div>
+          <div className="panel-title"><Tooltip tip="Snapshot of current macro volatility conditions: VIX term structure, implied move, futures basis, and options skew. Use this to calibrate position sizing and directional conviction." label="Market Context">Market Context</Tooltip></div>
           {(vix9d || vix || vix3m) && (
             <div className="vix-ts-row">
               {vix9d && (
                 <div className="vix-ts-item">
-                  <div className="vix-ts-label">VIX9D</div>
+                  <div className="vix-ts-label"><Tooltip tip="9-day VIX — short-term fear gauge. More reactive than standard VIX. Spikes hard into binary events (FOMC, CPI). Unusually low vs VIX = complacency. Unusually high = near-term fear spike.">VIX9D</Tooltip></div>
                   <div className="vix-ts-val" style={{ color: Number(vix9d) > 20 ? 'var(--red)' : Number(vix9d) < 14 ? 'var(--green)' : 'var(--yellow)' }}>{Number(vix9d).toFixed(1)}</div>
                 </div>
               )}
               {vix && (
                 <div className="vix-ts-item">
-                  <div className="vix-ts-label">VIX</div>
+                  <div className="vix-ts-label"><Tooltip tip="30-day implied volatility (CBOE VIX). Below 15 = calm, 15–20 = normal, 20–30 = elevated, 30+ = fear. Rising VIX while price falls = real selling. Rising VIX while price rises = unusual, suspect the move.">VIX</Tooltip></div>
                   <div className="vix-ts-val" style={{ color: Number(vix) > 20 ? 'var(--red)' : Number(vix) < 14 ? 'var(--green)' : 'var(--yellow)' }}>{Number(vix).toFixed(1)}</div>
                 </div>
               )}
               {vix3m && (
                 <div className="vix-ts-item">
-                  <div className="vix-ts-label">VIX3M</div>
+                  <div className="vix-ts-label"><Tooltip tip="3-month VIX — medium-term vol expectation. Normally above VIX (contango = healthy). If VIX3M drops below VIX, that's backwardation — the market is pricing a near-term panic above longer-term uncertainty.">VIX3M</Tooltip></div>
                   <div className="vix-ts-val" style={{ color: Number(vix3m) > 22 ? 'var(--red)' : Number(vix3m) < 15 ? 'var(--green)' : 'var(--yellow)' }}>{Number(vix3m).toFixed(1)}</div>
                 </div>
               )}
@@ -227,21 +228,21 @@ export default function SignalScreen() {
             <div className="mkt-ctx-grid">
               {(implPts || implPct) && (
                 <div className="mkt-ctx-item">
-                  <div className="mkt-ctx-label">Implied Weekly Move</div>
+                  <div className="mkt-ctx-label"><Tooltip tip="The options market's expected SPX price range for this week. Derived from current at-the-money IV. Price has roughly 68% probability of staying within this range. Great for setting targets and stops.">Implied Weekly Move</Tooltip></div>
                   <div className="mkt-ctx-val warn">{implPts ? '±' + fmtN(implPts, 0) + ' pts' : '--'}</div>
                   {implPct && <div className="mkt-ctx-sub">±{Number(implPct).toFixed(2)}%</div>}
                 </div>
               )}
               {esBasis != null && (
                 <div className="mkt-ctx-item">
-                  <div className="mkt-ctx-label">ES Basis (ES−SPX)</div>
+                  <div className="mkt-ctx-label"><Tooltip tip="Fair value spread between ES futures and the SPX cash index. Positive = futures trading at a premium (normal). Large negative = unusual, often near dividend dates or risk-off. Used to detect futures-led moves.">ES Basis (ES−SPX)</Tooltip></div>
                   <div className="mkt-ctx-val" style={{ color: Number(esBasis) > 0 ? 'var(--green)' : Number(esBasis) < 0 ? 'var(--red)' : 'var(--text)' }}>{Number(esBasis).toFixed(2)}</div>
                   {esBasisLbl && <div className="mkt-ctx-sub">{esBasisLbl}</div>}
                 </div>
               )}
               {volSkew != null && (
                 <div className="mkt-ctx-item">
-                  <div className="mkt-ctx-label">Vol Skew</div>
+                  <div className="mkt-ctx-label"><Tooltip tip="Put IV minus call IV at equal distance from current price. Positive skew = puts more expensive than calls (tail-risk hedging active, typical). Very high skew = fear of a crash. Negative skew = unusual upside demand.">Vol Skew</Tooltip></div>
                   <div className="mkt-ctx-val" style={{ color: Number(volSkew) > 2 ? 'var(--red)' : Number(volSkew) < -2 ? 'var(--green)' : 'var(--yellow)' }}>{(() => { const s = Number(volSkew); return (s > 0 ? '+' : '') + s.toFixed(1) + ' vol pts' })()}</div>
                   {volSkewLbl && <div className="mkt-ctx-sub">{volSkewLbl}</div>}
                 </div>
@@ -311,7 +312,7 @@ export default function SignalScreen() {
 
       {/* ── Scalp Signal ── */}
       <div className="panel">
-        <div className="panel-title">Scalp Signal — 10m Zone to Zone</div>
+        <div className="panel-title"><Tooltip tip="Short-term trade setup based on 10-minute ES zones. Entry = zone boundary to initiate from. Target = next zone level. Stop = invalidation point. Score = how many confluence conditions are met (more = higher conviction)." label="Scalp Signal">Scalp Signal — 10m Zone to Zone</Tooltip></div>
         <div className="td-row">
           <div className="td-label">Entry</div>
           <div className="td-val green">{entry ?? '--'}</div>
@@ -365,7 +366,7 @@ export default function SignalScreen() {
 
       {/* ── Swing Signal ── */}
       <div className="panel">
-        <div className="panel-title">Swing Signal — Daily Zone</div>
+        <div className="panel-title"><Tooltip tip="Multi-day trade setup based on daily SPX zone breaks. Requires a confirmed close above or below a key daily level. Entries here are for overnight holds or 1–3 day swings, not intraday scalps." label="Swing Signal">Swing Signal — Daily Zone</Tooltip></div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontSize: 10, color: 'var(--muted2)' }}>Daily Zone Break</span>
           <span className={`sb-pill ${swCls}`} style={{ fontSize: 10, padding: '3px 10px' }}>{swing ?? 'NO SWING'}</span>
@@ -423,11 +424,11 @@ export default function SignalScreen() {
       {/* ── Market States ── */}
       {marketState.length > 0 && (
         <div className="panel">
-          <div className="panel-title">Market States</div>
+          <div className="panel-title"><Tooltip tip="Composite view of current market conditions derived from GEX, options flow, open interest, and price structure. Each state updates every 30 seconds. Tap any label for a full explanation." label="Market States">Market States</Tooltip></div>
           <div className="stat-grid">
             {marketState.map((r, i) => (
               <div key={i} className="stat">
-                <div className="stat-label">{r.label}</div>
+                <div className="stat-label"><Tooltip tip={r.tip ?? ''}>{r.label}</Tooltip></div>
                 <div className={`stat-val${String(r.value ?? '').toUpperCase().includes('BULL') || String(r.value ?? '').toUpperCase().includes('LONG') || String(r.value ?? '').toUpperCase().includes('POS') ? ' bull' : String(r.value ?? '').toUpperCase().includes('BEAR') || String(r.value ?? '').toUpperCase().includes('SHORT') || String(r.value ?? '').toUpperCase().includes('NEG') ? ' bear' : ''}`} style={{ fontSize: 10 }}>
                   {r.value}
                 </div>

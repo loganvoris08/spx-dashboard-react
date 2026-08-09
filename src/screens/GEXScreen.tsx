@@ -6,6 +6,7 @@ import { useLivePrice } from '../lib/LivePriceContext'
 import { useSSE } from '../lib/SSEContext'
 import LadderPriceLine from '../components/LadderPriceLine'
 import { computeHotScores } from '../lib/hotScores'
+import { Tooltip } from '../components/Tooltip'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -411,7 +412,7 @@ function GEXTerrainMap({ strikes, priceNum, flipNum, callWall, putWall }: {
   return (
     <div className="panel">
       <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        GEX Terrain Map
+        <Tooltip tip="3D visualization of gamma exposure across strikes and time. Green peaks = large call GEX (dealer support). Red troughs = large put GEX (dealer resistance). The yellow line is current price; the purple dashed line is the GEX flip zone." label="GEX Terrain Map">GEX Terrain Map</Tooltip>
         <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
         <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--yellow)', background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.2)', borderRadius: 3, padding: '1px 5px' }}>SURFACE</span>
       </div>
@@ -631,7 +632,7 @@ export default function GEXScreen() {
 
       {/* ── Dealer Read ── */}
       <div className="panel">
-        <div className="panel-title">Dealer Read</div>
+        <div className="panel-title"><Tooltip tip="AI-generated summary of current dealer positioning based on GEX data. Explains what dealers are likely doing and how their hedging activity affects price movement right now." label="Dealer Read">Dealer Read</Tooltip></div>
         <button className="ai-read-btn" onClick={loadDealer} disabled={loadingDealer}>
           {loadingDealer ? '⚡ LOADING...' : dealerText ? '↻ REFRESH DEALER READ' : '⚡ GET DEALER READ FROM CLAUDE'}
         </button>
@@ -644,7 +645,7 @@ export default function GEXScreen() {
       <div className="panel" style={{ padding: 0 }}>
         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span className="panel-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-            Gamma Exposure by Strike
+            <Tooltip tip="Net dealer gamma at each strike. Green bars = call GEX (dealers long gamma here, stabilizing). Red bars = put GEX (dealers short gamma here, amplifying). Largest bars = biggest hedging flows when price approaches that strike." label="Gamma by Strike">Gamma Exposure by Strike</Tooltip>
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>LIVE</span>
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -668,7 +669,7 @@ export default function GEXScreen() {
       {/* ── Flow Pressure ── */}
       <div className="panel">
         <div className="panel-title">
-          Flow Pressure
+          <Tooltip tip="Ratio of total call GEX to total put GEX across all strikes. Shows whether dealers are more exposed to upside moves (calls) or downside moves (puts). High call % = dealers are net long upside gamma (stabilizing on up moves). High put % = net long downside gamma (stabilizing on dips)." label="Flow Pressure">Flow Pressure</Tooltip>
           <span style={{ fontSize: 9, color: 'var(--muted2)', fontWeight: 400 }}>Call GEX above vs Put GEX below</span>
         </div>
         <div className="flow-bar-wrap">
@@ -699,7 +700,7 @@ export default function GEXScreen() {
       {/* ── Delta Hedging ── */}
       <div className="panel">
         <div className="panel-title">
-          Delta Hedging Flow
+          <Tooltip tip="How dealers must hedge their options positions using the underlying (buying or selling futures/shares). When dealers are long gamma, they sell into rallies and buy dips (stabilizing). When short gamma, they chase moves (amplifying)." label="Delta Hedging">Delta Hedging Flow</Tooltip>
           {dhPressure && (
             <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: String(dhPressure).toUpperCase().includes('BULL') ? 'var(--green)' : String(dhPressure).toUpperCase().includes('BEAR') ? 'var(--red)' : 'var(--muted2)', padding: '1px 6px', borderRadius: 3, border: '1px solid var(--border2)' }}>
               {dhPressure}
@@ -707,10 +708,10 @@ export default function GEXScreen() {
           )}
         </div>
         <div className="stat-grid">
-          {netDelta    && <div className="stat"><div className="stat-label">Net Delta</div><div className="stat-val" style={{ fontSize: 10, color: netDelta === 'LONG' ? 'var(--green)' : 'var(--red)' }}>{netDelta}</div></div>}
-          {charm       && <div className="stat"><div className="stat-label">Charm Flow</div><div className="stat-val" style={{ fontSize: 10, color: String(charm).toUpperCase() === 'BUYING' ? 'var(--green)' : String(charm).toUpperCase() === 'SELLING' ? 'var(--red)' : 'var(--muted2)' }}>{charm}</div></div>}
-          {vanna       && <div className="stat"><div className="stat-label">Vanna</div><div className="stat-val" style={{ fontSize: 10, color: String(vanna).toUpperCase() === 'AMPLIFIED' ? 'var(--red)' : String(vanna).toUpperCase() === 'ELEVATED' ? 'var(--yellow)' : 'var(--muted2)' }}>{vanna}</div></div>}
-          {maxPain != null && <div className="stat"><div className="stat-label">Max Pain</div><div className="stat-val" style={{ fontSize: 10, color: 'var(--yellow)' }}>{fmtNum(maxPain)}</div></div>}
+          {netDelta    && <div className="stat"><div className="stat-label"><Tooltip tip="Net direction dealers must hedge. LONG = dealers are net buyers of the underlying (supportive). SHORT = net sellers (headwind). Switches when gamma regime crosses neutral.">Net Delta</Tooltip></div><div className="stat-val" style={{ fontSize: 10, color: netDelta === 'LONG' ? 'var(--green)' : 'var(--red)' }}>{netDelta}</div></div>}
+          {charm       && <div className="stat"><div className="stat-label"><Tooltip tip="Charm is delta decay over time. As options expire, dealers must buy or sell the underlying to stay hedged. BUYING = time decay forcing dealer purchases (supportive). SELLING = decay forcing selling.">Charm Flow</Tooltip></div><div className="stat-val" style={{ fontSize: 10, color: String(charm).toUpperCase() === 'BUYING' ? 'var(--green)' : String(charm).toUpperCase() === 'SELLING' ? 'var(--red)' : 'var(--muted2)' }}>{charm}</div></div>}
+          {vanna       && <div className="stat"><div className="stat-label"><Tooltip tip="Sensitivity of dealer delta to VIX changes. When VIX drops, dealers must sell the underlying to stay hedged (amplifying the move). AMPLIFIED = vol move creates outsized price response.">Vanna</Tooltip></div><div className="stat-val" style={{ fontSize: 10, color: String(vanna).toUpperCase() === 'AMPLIFIED' ? 'var(--red)' : String(vanna).toUpperCase() === 'ELEVATED' ? 'var(--yellow)' : 'var(--muted2)' }}>{vanna}</div></div>}
+          {maxPain != null && <div className="stat"><div className="stat-label"><Tooltip tip="Strike where the most options (by dollar value) expire worthless. Near expiry, market makers benefit from keeping price here. Strongest pull in the final hour of expiration day.">Max Pain</Tooltip></div><div className="stat-val" style={{ fontSize: 10, color: 'var(--yellow)' }}>{fmtNum(maxPain)}</div></div>}
         </div>
       </div>
 
@@ -742,7 +743,7 @@ export default function GEXScreen() {
         return (
           <div className="panel">
             <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              0DTE Pin Risk
+              <Tooltip tip="How strongly the largest same-day GEX strike is pulling price. HIGH = price is within 5 points of a major 0DTE gamma strike (strong magnet effect). MODERATE = within 15 points. LOW = no strong nearby magnet. Strongest effect in the last 2 hours of the session." label="0DTE Pin Risk">0DTE Pin Risk</Tooltip>
               <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: pinColor, background: `rgba(${dist < 5 ? '255,51,68' : dist < 15 ? '234,179,8' : '0,255,136'},0.08)`, border: `1px solid rgba(${dist < 5 ? '255,51,68' : dist < 15 ? '234,179,8' : '0,255,136'},0.25)`, borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>{pinLabel}</span>
             </div>
             {topPin && (
@@ -800,7 +801,7 @@ export default function GEXScreen() {
       {/* ── Top Gamma Strikes ── */}
       {topGamma.length > 0 && (
         <div className="panel">
-          <div className="panel-title">Top Gamma Strikes</div>
+          <div className="panel-title"><Tooltip tip="Strikes with the highest absolute gamma exposure. These act as gravitational levels — price is naturally attracted to them as dealers hedge. Largest bar = strongest magnet. Green = net call GEX (support). Red = net put GEX (resistance)." label="Top Gamma Strikes">Top Gamma Strikes</Tooltip></div>
           {topGamma.map((r: any, i: number) => {
             const netG = r.net_gex ?? ((r.call_gex ?? 0) - (r.put_gex ?? 0))
             const isPos = netG >= 0
@@ -827,7 +828,7 @@ export default function GEXScreen() {
       {/* ── Dealer Positioning Score ── */}
       {score != null && (
         <div className="panel">
-          <div className="panel-title">Dealer Positioning Score</div>
+          <div className="panel-title"><Tooltip tip="Composite score 0–100 measuring the overall bullishness of dealer gamma positioning. Above 65 = dealers positioned bullishly (supportive for longs). Below 35 = bearishly positioned (tailwind for shorts). 50 = neutral/transitioning." label="Dealer Positioning Score">Dealer Positioning Score</Tooltip></div>
           <div className="scorecard">
             <div className="scorecard-header">
               <span className="scorecard-title">Positioning</span>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { SkeletonBox } from './Skeleton'
+import { Tooltip } from './Tooltip'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -92,7 +93,7 @@ export default function SectorHeatmap() {
     <div className="panel" style={{ padding: '10px 12px 8px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="panel-title" style={{ marginBottom: 0 }}>Sector Flow</span>
+          <span className="panel-title" style={{ marginBottom: 0 }}><Tooltip tip="Options flow bull/bear ratio by sector ETF. Measures the percentage of options premium that is bullish (calls) vs bearish (puts). Above 60% = net bullish flow. Below 40% = net bearish. Colors: bright green = strong bullish, red = bearish. Updated every 5 minutes." label="Sector Flow">Sector Flow</Tooltip></span>
           {ts && <span style={{ fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{ts}</span>}
         </div>
         <div style={{ display: 'flex', gap: 10, fontSize: 8, fontFamily: 'var(--mono)' }}>
@@ -116,9 +117,11 @@ export default function SectorHeatmap() {
           }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: 'var(--text)' }}>{s.ticker}</span>
             <span style={{ fontSize: 7, color: 'var(--muted2)', letterSpacing: .3 }}>{s.name}</span>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: flowTextColor(s.bull_ratio) }}>
-              {s.bull_ratio.toFixed(0)}% bull
-            </span>
+            <Tooltip tip={`${s.name} (${s.ticker}). Bull flow: $${(s.bull/1e6).toFixed(0)}M · Bear flow: $${(s.bear/1e6).toFixed(0)}M · Total: $${(s.total/1e6).toFixed(0)}M. A high bull ratio here means institutional options flow is leaning bullish on this sector today.`} iconColor="rgba(255,255,255,0.3)">
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, color: flowTextColor(s.bull_ratio) }}>
+                {s.bull_ratio.toFixed(0)}% bull
+              </span>
+            </Tooltip>
           </div>
         ))}
       </div>

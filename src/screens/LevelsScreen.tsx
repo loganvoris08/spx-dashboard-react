@@ -3,6 +3,7 @@ import { useDashboard } from '../hooks/useDashboard'
 import { useLadders } from '../hooks/useLadders'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
+import { Tooltip } from '../components/Tooltip'
 import { useLiveFlow } from '../hooks/useLiveFlow'
 import LadderPriceLine from '../components/LadderPriceLine'
 import CanvasChart from '../components/CanvasChart'
@@ -561,13 +562,13 @@ export default function LevelsScreen() {
         {/* ── remaining stat boxes ── */}
         {cWall && (
           <div className="lv-stat">
-            <span className="lv-stat-label">Call Wall</span>
+            <span className="lv-stat-label"><Tooltip tip="Strike with the highest call open interest. Acts as a ceiling — dealers are short calls here and must sell the underlying as price approaches, creating resistance. A clean break above the call wall is a very bullish signal.">Call Wall</Tooltip></span>
             <span className="lv-stat-val bull">{fmtNum(cWall)}</span>
           </div>
         )}
         {pWall && (
           <div className="lv-stat">
-            <span className="lv-stat-label">Put Wall</span>
+            <span className="lv-stat-label"><Tooltip tip="Strike with the highest put open interest. Acts as a floor — dealers are short puts here and must buy the underlying as price falls toward it, creating support. A clean break below the put wall is a bearish signal.">Put Wall</Tooltip></span>
             <span className="lv-stat-val bear">{fmtNum(pWall)}</span>
           </div>
         )}
@@ -620,7 +621,7 @@ export default function LevelsScreen() {
         {/* OI column */}
         <div className="lv-col">
           <div className="lv-col-header">
-            <span className="lv-col-header-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>OI Ladder <LiveBadge /></span>
+            <span className="lv-col-header-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Tooltip tip="Open interest by strike — total outstanding contracts. Red bars = put OI (support levels). Green bars = call OI (resistance levels). Yellow row = current price. CW = Call Wall (top resistance). PW = Put Wall (top support)." label="OI Ladder">OI Ladder</Tooltip> <LiveBadge /></span>
             <div className="lv-bucket-tabs">
               <button className={`lv-bucket${oiBucket === 'all' ? ' active' : ''}`} onClick={() => setOiBucket('all')}>All</button>
               <button className={`lv-bucket${oiBucket === 'week' ? ' active' : ''}`} onClick={() => setOiBucket('week')}>Week</button>
@@ -649,7 +650,7 @@ export default function LevelsScreen() {
         {/* GEX column */}
         <div className="lv-col">
           <div className="lv-col-header">
-            <span className="lv-col-header-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>GEX Ladder <LiveBadge /></span>
+            <span className="lv-col-header-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Tooltip tip="Gamma exposure by strike. Red bars = put gamma (dealers short here, amplify moves down). Green bars = call gamma (dealers long here, stabilize). Purple row = GEX flip zone (regime changes if price crosses this). Yellow = current price." label="GEX Ladder">GEX Ladder</Tooltip> <LiveBadge /></span>
             <div className="lv-bucket-tabs">
               <button className={`lv-bucket${gexBucket === '0dte' ? ' active' : ''}`} onClick={() => setGexBucket('0dte')}>0DTE</button>
               <button className={`lv-bucket${gexBucket === 'weekly' ? ' active' : ''}`} onClick={() => setGexBucket('weekly')}>Wk</button>

@@ -3,6 +3,7 @@ import { useDashboard } from '../hooks/useDashboard'
 import { postAiRead } from '../hooks/useLadders'
 import { useSSE } from '../lib/SSEContext'
 import LiveBadge from '../components/LiveBadge'
+import { Tooltip } from '../components/Tooltip'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -234,16 +235,16 @@ export default function VolScreen() {
     <>
       {/* ── Volatility Regime Cards ── */}
       <div className="panel">
-        <div className="panel-title">Volatility Regime</div>
+        <div className="panel-title"><Tooltip tip="Summary of current volatility environment. Combines VIX level, term structure shape, put/call skew, and implied weekly move. High volatility regimes favor wider stops and smaller size." label="Volatility Regime">Volatility Regime</Tooltip></div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 6 }}>
           {[
-            { label: 'VIX', val: vix > 0 ? fmtN(vix, 2) : '--', sub: vixLabel, color: vixColor },
-            { label: 'Term Structure', val: tsLabel, sub: tsNote.slice(0, 40) + (tsNote.length > 40 ? '…' : ''), color: tsColor },
-            { label: 'Vol Skew', val: skew !== 0 ? (skew > 0 ? '+' : '') + fmtN(skew, 1) + ' vol pts' : '--', sub: skewLabel, color: skew > 8 ? 'var(--red)' : skew < 0 ? 'var(--green)' : 'var(--muted2)' },
-            { label: 'Implied Weekly Move', val: implMove > 0 ? '±' + implMove.toFixed(0) + ' pts' : '--', sub: implPct > 0 ? '±' + implPct.toFixed(1) + '%' : '', color: 'var(--yellow)' },
+            { label: 'VIX', tip: 'CBOE 30-day implied volatility index. Below 15 = calm. 15–20 = normal. 20–30 = elevated. 30+ = fear. Higher VIX = wider daily SPX ranges expected.', val: vix > 0 ? fmtN(vix, 2) : '--', sub: vixLabel, color: vixColor },
+            { label: 'Term Structure', tip: 'Shape of VIX across time. CONTANGO = VIX3M above VIX (normal, calm). BACKWARDATION = VIX above VIX3M (near-term panic priced in, often a short-term vol top).', val: tsLabel, sub: tsNote.slice(0, 40) + (tsNote.length > 40 ? '…' : ''), color: tsColor },
+            { label: 'Vol Skew', tip: 'Put IV minus call IV at equal delta. Positive = puts more expensive (hedging active, typical). Very high (>10) = extreme tail-risk fear. Negative = calls more expensive (unusual, call frenzy).', val: skew !== 0 ? (skew > 0 ? '+' : '') + fmtN(skew, 1) + ' vol pts' : '--', sub: skewLabel, color: skew > 8 ? 'var(--red)' : skew < 0 ? 'var(--green)' : 'var(--muted2)' },
+            { label: 'Implied Weekly Move', tip: "Options market's expected SPX range for the week. 68% probability price stays within this range. Use for setting targets and stops — going for more than 2× the implied move is low-probability.", val: implMove > 0 ? '±' + implMove.toFixed(0) + ' pts' : '--', sub: implPct > 0 ? '±' + implPct.toFixed(1) + '%' : '', color: 'var(--yellow)' },
           ].map(c => (
             <div key={c.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
-              <div style={{ fontSize: 8, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.7px', marginBottom: 4 }}>{c.label}</div>
+              <div style={{ fontSize: 8, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.7px', marginBottom: 4 }}><Tooltip tip={c.tip ?? ''}>{c.label}</Tooltip></div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 700, color: c.color }}>{c.val}</div>
               {c.sub && <div style={{ fontSize: 9, color: 'var(--muted2)', marginTop: 3, lineHeight: 1.4 }}>{c.sub}</div>}
             </div>
@@ -257,7 +258,7 @@ export default function VolScreen() {
       {/* ── VIX Term Structure bars ── */}
       <div className="panel">
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>VIX Term Structure</span>
+          <span><Tooltip tip="Compares VIX at 9-day, 30-day, and 3-month tenors. The slope tells you where fear is concentrated. Bars longer to the right = higher vol at that tenor. A steep upward slope is normal (contango). Flat or inverted = near-term stress." label="VIX Term Structure">VIX Term Structure</Tooltip></span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 9, padding: '2px 8px', borderRadius: 3, border: '1px solid var(--border2)', color: tsColor }}>{tsLabel}</span>
         </div>
         {vix9d > 0 && <VixBar label="VIX 9D" val={vix9d} maxV={maxV} />}
@@ -276,19 +277,19 @@ export default function VolScreen() {
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>ATM IV</div>
+              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}><Tooltip tip="At-the-money implied volatility — the annualized volatility the market prices into near-term SPX options right now. 15% = calm, 20–25% = elevated, 30%+ = high fear. Higher = options are more expensive to buy.">ATM IV</Tooltip></div>
               <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--mono)', color: skewTermData.atm_iv > 0.25 ? 'var(--red)' : skewTermData.atm_iv > 0.15 ? 'var(--yellow)' : 'var(--green)' }}>
                 {skewTermData.atm_iv > 0 ? (skewTermData.atm_iv * 100).toFixed(1) + '%' : '--'}
               </div>
             </div>
             <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>25Δ Skew</div>
+              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}><Tooltip tip="25-delta put IV minus 25-delta call IV. Positive = puts more expensive than calls (bearish hedging demand, typical). Negative = calls more expensive (unusual call-side demand, risk-on). Values above +5 = significant hedge buying.">25Δ Skew</Tooltip></div>
               <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--mono)', color: skewTermData.skew > 2 ? 'var(--red)' : skewTermData.skew < -2 ? 'var(--green)' : 'var(--yellow)' }}>
                 {skewTermData.skew != null ? (skewTermData.skew > 0 ? '+' : '') + Number(skewTermData.skew).toFixed(1) : '--'}
               </div>
             </div>
             <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}>IV Regime</div>
+              <div style={{ fontSize: 7, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted2)' }}><Tooltip tip="Implied volatility regime classification. EXTREME = ATM IV above 30% (high fear, sells rich). HIGH = 20–30%. ELEVATED = 15–20%. NORMAL = below 15% (cheap options, good time to buy premium).">IV Regime</Tooltip></div>
               <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: skewTermData.iv_regime === 'EXTREME' || skewTermData.iv_regime === 'HIGH' ? 'var(--red)' : skewTermData.iv_regime === 'ELEVATED' ? 'var(--yellow)' : 'var(--green)' }}>
                 {skewTermData.iv_regime ?? '--'}
               </div>
@@ -321,7 +322,7 @@ export default function VolScreen() {
       {/* ── SPX IV Rank ── */}
       {ivRank != null && (
         <div className="panel">
-          <div className="panel-title">SPX IV Rank</div>
+          <div className="panel-title"><Tooltip tip="Where current SPX implied volatility sits relative to its 52-week range. IVR 0 = lowest IV of the past year (options are cheap — consider buying). IVR 100 = highest IV of the year (options are expensive — consider selling). Above 50 = elevated relative to recent history." label="SPX IV Rank">SPX IV Rank</Tooltip></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
             <div style={{ flex: 1, height: 8, background: 'var(--surface)', borderRadius: 4, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${Math.min(100, ivRank)}%`, borderRadius: 4, background: ivColor, transition: 'width .4s' }} />

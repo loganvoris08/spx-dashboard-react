@@ -7,6 +7,7 @@ import FlowChart from '../components/FlowChart'
 import CanvasChart from '../components/CanvasChart'
 import type { CCSeries } from '../components/CanvasChart'
 import LiveBadge from '../components/LiveBadge'
+import { Tooltip } from '../components/Tooltip'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -347,7 +348,7 @@ export default function FlowScreen() {
       <div className="panel">
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>0DTE Options Pulse</span>
+            <Tooltip tip="Real-time data on options expiring today (0DTE). Shows call/put premium ratio, net dollar flow, and contract volume. 0DTE options now account for ~50% of SPX volume and have enormous intraday impact." label="0DTE Options Pulse">0DTE Options Pulse</Tooltip>
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px' }}>UW</span>
           </div>
           <ExpiryCountdown />
@@ -356,23 +357,23 @@ export default function FlowScreen() {
           <>
             <div className="dte-grid">
               <div className="dte-card">
-                <div className="dte-label">Call / Put</div>
+                <div className="dte-label"><Tooltip tip="Ratio of call premium to put premium in 0DTE options. Above 1.0 = more call buying (bullish lean). Below 1.0 = more put buying (bearish lean). Extreme readings (>2.0 or <0.5) often precede sharp intraday moves.">Call / Put</Tooltip></div>
                 <div className="dte-val" style={{ color: dteRatio != null && parseFloat(String(dteRatio)) > 1 ? 'var(--green)' : dteRatio != null && parseFloat(String(dteRatio)) < 1 ? 'var(--red)' : 'var(--text)' }}>
                   {dteRatio != null ? parseFloat(String(dteRatio)).toFixed(2) : '--'}
                 </div>
               </div>
               <div className="dte-card">
-                <div className="dte-label">Net Premium</div>
+                <div className="dte-label"><Tooltip tip="Total call premium minus total put premium in dollar terms for 0DTE options. Positive = net bullish money flowing in. Negative = net bearish. Size matters — $10M+ is significant institutional activity.">Net Premium</Tooltip></div>
                 <div className="dte-val" style={{ color: dteNetPrem != null && dteNetPrem > 0 ? 'var(--green)' : dteNetPrem != null && dteNetPrem < 0 ? 'var(--red)' : 'var(--text)' }}>
                   {dteNetPrem != null ? (dteNetPrem >= 0 ? '+' : '') + (Math.abs(dteNetPrem) >= 1_000_000 ? (dteNetPrem / 1_000_000).toFixed(1) + 'M' : (dteNetPrem / 1_000).toFixed(0) + 'K') : '--'}
                 </div>
               </div>
               <div className="dte-card">
-                <div className="dte-label">ATM IV</div>
+                <div className="dte-label"><Tooltip tip="At-the-money implied volatility for 0DTE options specifically. This reflects pure intraday fear/greed. Spikes in 0DTE ATM IV often precede sharp intraday moves. Normal range: 10–20%. Above 25% = high intraday fear.">ATM IV</Tooltip></div>
                 <div className="dte-val warn">{dteAtmIv != null ? Number(dteAtmIv).toFixed(1) + '%' : '--'}</div>
               </div>
               <div className="dte-card">
-                <div className="dte-label">0DTE Contracts</div>
+                <div className="dte-label"><Tooltip tip="Number of 0DTE contracts traded today (calls vs puts). Very high volume = institutions are active in the intraday market. The split between calls and puts confirms the directional lean from the premium ratio.">0DTE Contracts</Tooltip></div>
                 <div className="dte-val">{dteCallCnt || dtePutCnt ? `${dteCallCnt} C / ${dtePutCnt} P` : '--'}</div>
               </div>
             </div>
