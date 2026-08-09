@@ -32,7 +32,6 @@ const MENU_ITEMS = [
   { id: 'smartmoney',  label: 'Smart Money' },
   { id: 'journal',     label: 'Journal' },
   { id: 'hotoptions',  label: 'Hot Options' },
-  { id: 'congress',    label: 'Congress' },
   { id: 'admin',       label: 'Admin' },
 ]
 
