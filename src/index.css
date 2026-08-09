@@ -2,6 +2,13 @@
 @import "tailwindcss";
 
 /* ─── Exact copy of old dashboard CSS ─────────────────────────────────────── */
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
+}
+
 :root {
   color-scheme: dark;
   --bg:#020509;--surface:#07090f;--panel:#0c1018;--border:#182030;--border2:#243040;
