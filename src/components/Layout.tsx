@@ -207,7 +207,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
       {/* ── Topbar ── */}
       <div className="topbar">
