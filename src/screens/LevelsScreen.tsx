@@ -9,6 +9,7 @@ import CanvasChart from '../components/CanvasChart'
 import type { CCSeries } from '../components/CanvasChart'
 import LiveBadge from '../components/LiveBadge'
 import { SkeletonBox, SkeletonLine } from '../components/Skeleton'
+import SectorHeatmap from '../components/SectorHeatmap'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -321,6 +322,8 @@ export default function LevelsScreen() {
   // Remaining banner stats
   const cWall       = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
   const pWall       = isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
+  const nyseTick    = data?.nyse_tick != null ? Number(data.nyse_tick) : null
+  const nyseAdd     = data?.nyse_add  != null ? Number(data.nyse_add)  : null
   const netDelta    = !isNdx ? data?.net_delta_dir : null
   const netDeltaDollar = !isNdx ? (data?.net_dealer_delta ?? data?.net_delta_dollar ?? null) : null
   const dhPressure  = !isNdx ? data?.delta_hedging_pressure : null
@@ -583,6 +586,22 @@ export default function LevelsScreen() {
             <span className={`lv-stat-val ${Number(gammaDollar) > 0 ? 'bull' : Number(gammaDollar) < 0 ? 'bear' : 'neut'}`}>{fmtNum(gammaDollar)}</span>
           </div>
         )}
+        {nyseTick !== null && nyseTick !== 0 && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">NYSE TICK</span>
+            <span className={`lv-stat-val ${nyseTick > 400 ? 'bull' : nyseTick < -400 ? 'bear' : 'neut'}`}>
+              {nyseTick > 0 ? '+' : ''}{nyseTick}
+            </span>
+          </div>
+        )}
+        {nyseAdd !== null && nyseAdd !== 0 && (
+          <div className="lv-stat">
+            <span className="lv-stat-label">A/D Line</span>
+            <span className={`lv-stat-val ${nyseAdd > 500 ? 'bull' : nyseAdd < -500 ? 'bear' : 'neut'}`}>
+              {nyseAdd > 0 ? '+' : ''}{nyseAdd}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── lv-body: two columns ── */}
@@ -787,6 +806,9 @@ export default function LevelsScreen() {
           </div>
         </div>
       )}
+
+      {/* ── Sector Heatmap ── */}
+      <SectorHeatmap />
     </>
   )
 }

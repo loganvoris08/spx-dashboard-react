@@ -127,7 +127,11 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   const vixNum  = pn(data?.vix)
   const vixChg  = data?.vix_change
     ?? (vixNum != null && vixPrev != null ? vixNum - vixPrev : null)
-  const vixChgPct = vixNum != null && vixPrev != null && vixPrev !== 0 ? (vixNum - vixPrev) / vixPrev * 100 : null
+  // vixChgPct available for future use
+  const _vixChgPct = vixNum != null && vixPrev != null && vixPrev !== 0 ? (vixNum - vixPrev) / vixPrev * 100 : null
+  void _vixChgPct
+  const vixRegime = data?.vix_regime as string | undefined
+  const vvixNum   = pn(data?.vvix)
 
   function fmtChg(v: any, pct?: any) {
     if (v == null) return null
@@ -246,10 +250,29 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             )}
           </div>
           <div className="ticker">
-            <div className="ticker-label">VIX</div>
+            <div className="ticker-label" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              VIX
+              {vixChg != null && (
+                <span style={{ fontSize: 9, color: vixChg > 0 ? 'var(--red)' : 'var(--green)', lineHeight: 1 }}>
+                  {vixChg > 0 ? '↑' : '↓'}
+                </span>
+              )}
+            </div>
             <div className={`ticker-val vix${vixDir === 'up' ? ' tick-up' : vixDir === 'down' ? ' tick-down' : ''}`}>{animVixFmt}</div>
-            {fmtChg(vixChg, vixChgPct) && (
-              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (vixChg ?? 0) >= 0 ? 'var(--red)' : 'var(--green)', marginTop: 1 }}>{fmtChg(vixChg, vixChgPct)}</div>
+            {vixRegime && (
+              <div style={{
+                fontSize: 6.5, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: .4,
+                marginTop: 1, color:
+                  vixRegime === 'EXTREME FEAR' ? 'var(--red)' :
+                  vixRegime === 'FEAR'         ? '#ff6644' :
+                  vixRegime === 'ELEVATED'     ? 'var(--yellow)' :
+                  vixRegime === 'NORMAL'       ? 'var(--muted2)' : 'var(--green)',
+              }}>{vixRegime}</div>
+            )}
+            {vvixNum != null && vvixNum > 0 && (
+              <div style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--muted2)', marginTop: 0 }}>
+                VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
+              </div>
             )}
           </div>
         </div>

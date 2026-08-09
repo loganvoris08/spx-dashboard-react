@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { useLiveFutures } from '../lib/LiveFuturesContext'
 import { SkeletonLine } from '../components/Skeleton'
+import SectorHeatmap from '../components/SectorHeatmap'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -359,6 +360,9 @@ export default function OptionsSetupScreen() {
           </div>
         )}
       </div>
+
+      {/* ── Sector Heatmap ── */}
+      <SectorHeatmap />
 
       {/* ── Run Button ── */}
       <div style={{ textAlign: 'center', margin: '16px 0 20px' }}>
