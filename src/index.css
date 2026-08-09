@@ -22,7 +22,7 @@ html,body,#root{height:100%;-webkit-font-smoothing:antialiased;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 
-.topbar{display:flex;align-items:center;gap:12px;padding:4px 14px;min-height:54px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;position:relative;}
+.topbar{display:flex;align-items:center;gap:12px;padding:4px 14px;padding-top:calc(4px + env(safe-area-inset-top));min-height:calc(54px + env(safe-area-inset-top));border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;position:relative;}
 .topbar-title{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--green);letter-spacing:2px;white-space:nowrap;}
 .topbar-regime{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:4px;border:1.5px solid;white-space:nowrap;flex-shrink:0;}
 .topbar-regime.gex-pos{color:var(--green);border-color:var(--green);background:rgba(0,255,136,0.08);}
