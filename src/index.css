@@ -8,31 +8,17 @@
   box-sizing: border-box;
 }
 
-/* ── Terminal (desktop default) ── */
+/* ── Hybrid Warm (all screens) ── */
 :root {
   color-scheme: dark;
-  --bg:#070706;--surface:#0d0d0b;--panel:#111109;--border:#1e1d19;--border2:#2a2820;
-  --text:#c8c4bc;--muted:#4a4840;--muted2:#6a6860;
-  --green:#00e536;--red:#ff3020;--yellow:#e8a800;
-  --call:#00e536;--put:#ff3020;--price:#e8a800;
-  --red2:#ff5040;
-  --mono:'Courier New',Courier,monospace;--sans:'Courier New',Courier,monospace;
-  --blue:#6699ff;--orange:#e8a800;
-  --green-bg:rgba(0,229,54,0.06);--red-bg:rgba(255,48,32,0.06);--yellow-bg:rgba(232,168,0,0.07);
-}
-
-/* ── Hybrid Warm (mobile override) ── */
-@media (max-width: 768px) {
-  :root {
-    --bg:#0d1117;--surface:#161b22;--panel:#21262d;--border:#30363d;--border2:#3d444d;
-    --text:#e6edf3;--muted:#4b5563;--muted2:#8b949e;
-    --green:#3fb950;--red:#f85149;--yellow:#f0883e;
-    --call:#3fb950;--put:#f85149;--price:#f0883e;
-    --red2:#f85149;
-    --mono:'SF Mono','Menlo','Courier New',monospace;--sans:system-ui,-apple-system,sans-serif;
-    --blue:#79c0ff;--orange:#f0883e;
-    --green-bg:rgba(63,185,80,0.08);--red-bg:rgba(248,81,73,0.08);--yellow-bg:rgba(240,136,62,0.08);
-  }
+  --bg:#0d1117;--surface:#161b22;--panel:#21262d;--border:#30363d;--border2:#3d444d;
+  --text:#e6edf3;--muted:#4b5563;--muted2:#8b949e;
+  --green:#3fb950;--red:#f85149;--yellow:#f0883e;
+  --call:#3fb950;--put:#f85149;--price:#f0883e;
+  --red2:#f85149;
+  --mono:'SF Mono','Menlo','Courier New',monospace;--sans:system-ui,-apple-system,sans-serif;
+  --blue:#79c0ff;--orange:#f0883e;
+  --green-bg:rgba(63,185,80,0.08);--red-bg:rgba(248,81,73,0.08);--yellow-bg:rgba(240,136,62,0.08);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.4;overflow:hidden;max-width:100vw;overscroll-behavior:none;}
@@ -681,65 +667,3 @@ html,body,#root{height:100%;-webkit-font-smoothing:antialiased;}
   .stat-grid{grid-template-columns:1fr;}
 }
 
-/* ═══════════════════════════════════════════════════
-   TERMINAL overrides — desktop only (min-width:769px)
-   Zero radius, amber topbar accent, scan-line density
-═══════════════════════════════════════════════════ */
-@media(min-width:769px){
-  /* Amber accent line on topbar */
-  .topbar{border-bottom-color:var(--yellow);}
-
-  /* Active tab: amber, no glow */
-  .tab.active{color:var(--yellow);border-bottom-color:var(--yellow);text-shadow:none;}
-  .tab:hover{color:var(--text);}
-
-  /* SPX/NDX logo in topbar */
-  .topbar-title{color:var(--yellow);}
-
-  /* Regime badge: square */
-  .topbar-regime{border-radius:0;}
-  .topbar-regime.gex-pos{color:var(--green);border-color:var(--green);}
-  .topbar-regime.gex-neg{color:var(--red);border-color:var(--red);}
-
-  /* Side toggle: square */
-  .side-btn{border-radius:0;}
-  .side-btn.active{border-color:var(--yellow);color:var(--yellow);background:rgba(232,168,0,0.06);}
-
-  /* Signal banner pill */
-  .sb-pill{border-radius:0;}
-  .sb-pill.long{color:var(--green);}
-  .sb-pill.watch{color:var(--yellow);}
-
-  /* Zero radius everywhere */
-  .panel,.stat,.zl,.swing-panel,.zone-status-box,
-  .brief-panel,.mkt-ctx-panel,.dh-panel,.dh-stat,
-  .sess-bar,.vr-card,.mkt-ctx-item,.vix-ts-item,
-  .lv-col,.lv-stat,.tide-stat,.skeleton,.sk-box,
-  .menu-dropdown,.dh-badge,.swing-pill,.live-badge,
-  .lv-bucket,.tab,.hbar-fill-call,.hbar-fill-put,
-  .tg-bar-wrap,.tg-bar,.flow-bar,.flow-bar-call,.flow-bar-put,
-  .gfill-put,.gfill-call,.sb-bar-track,.sb-bar-fill,
-  .vix-ts-badge,.topbar-regime,.scorecard-factor,
-  .vol-anomaly-row,.brief-panel,.zone-status-box{
-    border-radius:0!important;
-  }
-
-  /* Tighter panel spacing */
-  .panel{padding:8px 12px;}
-  .stat{padding:5px 8px;}
-
-  /* Menu dropdown: no rounding */
-  .menu-dropdown{border-radius:0;border-top:2px solid var(--yellow);}
-  .menu-item.active{color:var(--yellow);}
-
-  /* Bucket tabs on levels screen */
-  .lv-bucket.active{border-color:var(--yellow);color:var(--yellow);background:rgba(232,168,0,0.06);}
-
-  /* Live dot: amber */
-  .dot{background:var(--yellow);}
-  .live-badge.green{color:var(--yellow);background:rgba(232,168,0,0.07);border-color:rgba(232,168,0,0.25);}
-  .live-badge.green .live-badge-dot{background:var(--yellow);}
-
-  /* Scrollbar: amber thumb */
-  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:0;}
-}

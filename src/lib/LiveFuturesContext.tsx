@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 
-const WS_URL  = 'wss://business.massive.com/futures'
+const WS_URL  = 'wss://socket.massive.com/futures'
 const API_KEY = (import.meta.env.VITE_MASSIVE_KEY as string ?? '').trim()
 
 export interface LiveBar {
