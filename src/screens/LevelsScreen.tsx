@@ -322,8 +322,9 @@ export default function LevelsScreen() {
   // Remaining banner stats
   const cWall       = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
   const pWall       = isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
-  const nyseTick    = data?.nyse_tick != null ? Number(data.nyse_tick) : null
-  const nyseAdd     = data?.nyse_add  != null ? Number(data.nyse_add)  : null
+  // Show these boxes whenever we have any data; default 0 until backend sends real values
+  const nyseTick    = data != null ? (data.nyse_tick != null ? Number(data.nyse_tick) : 0) : null
+  const nyseAdd     = data != null ? (data.nyse_add  != null ? Number(data.nyse_add)  : 0) : null
   const netDelta    = !isNdx ? data?.net_delta_dir : null
   const netDeltaDollar = !isNdx ? (data?.net_dealer_delta ?? data?.net_delta_dollar ?? null) : null
   const dhPressure  = !isNdx ? data?.delta_hedging_pressure : null
@@ -586,19 +587,19 @@ export default function LevelsScreen() {
             <span className={`lv-stat-val ${Number(gammaDollar) > 0 ? 'bull' : Number(gammaDollar) < 0 ? 'bear' : 'neut'}`}>{fmtNum(gammaDollar)}</span>
           </div>
         )}
-        {nyseTick !== null && nyseTick !== 0 && (
+        {nyseTick !== null && (
           <div className="lv-stat">
             <span className="lv-stat-label">NYSE TICK</span>
             <span className={`lv-stat-val ${nyseTick > 400 ? 'bull' : nyseTick < -400 ? 'bear' : 'neut'}`}>
-              {nyseTick > 0 ? '+' : ''}{nyseTick}
+              {nyseTick === 0 ? '--' : (nyseTick > 0 ? '+' : '') + nyseTick}
             </span>
           </div>
         )}
-        {nyseAdd !== null && nyseAdd !== 0 && (
+        {nyseAdd !== null && (
           <div className="lv-stat">
             <span className="lv-stat-label">A/D Line</span>
             <span className={`lv-stat-val ${nyseAdd > 500 ? 'bull' : nyseAdd < -500 ? 'bear' : 'neut'}`}>
-              {nyseAdd > 0 ? '+' : ''}{nyseAdd}
+              {nyseAdd === 0 ? '--' : (nyseAdd > 0 ? '+' : '') + nyseAdd}
             </span>
           </div>
         )}

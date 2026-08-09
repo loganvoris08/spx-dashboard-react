@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { SkeletonBox } from './Skeleton'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
@@ -28,13 +29,13 @@ function textColor(pct: number): string {
 }
 
 export default function SectorHeatmap() {
-  const [sectors, setSectors] = useState<Sector[]>([])
+  const [sectors, setSectors] = useState<Sector[] | null>(null)
   const [ts, setTs] = useState('')
 
   const load = useCallback(async () => {
     try {
       const d = await apiFetch('/api/sectors')
-      if (d.sectors) {
+      if (d.sectors?.length) {
         setSectors(d.sectors)
         setTs(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET')
       }
@@ -46,6 +47,17 @@ export default function SectorHeatmap() {
     const id = setInterval(load, 60_000)
     return () => clearInterval(id)
   }, [load])
+
+  if (sectors === null) {
+    return (
+      <div className="panel" style={{ padding: '10px 12px 8px' }}>
+        <div style={{ fontSize: 9, color: 'var(--muted2)', marginBottom: 8, letterSpacing: '.7px', textTransform: 'uppercase' }}>Sector Heatmap</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+          {Array.from({ length: 11 }).map((_, i) => <SkeletonBox key={i} height="52px" />)}
+        </div>
+      </div>
+    )
+  }
 
   if (!sectors.length) return null
 
