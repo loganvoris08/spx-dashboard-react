@@ -68,8 +68,8 @@ function fmtStrike(s: any) {
   return isNaN(n) ? String(s) : String(Math.round(n))
 }
 
-function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut, hotScores }: {
-  row: any; priceStrike: number; callWall: number; putWall: number; maxCall: number; maxPut: number; hotScores: Map<number, number>
+function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut, hotScores, priceRowRef }: {
+  row: any; priceStrike: number; callWall: number; putWall: number; maxCall: number; maxPut: number; hotScores: Map<number, number>; priceRowRef?: React.RefObject<HTMLDivElement | null>
 }) {
   const strike    = parseFloat(String(row.strike).replace(/,/g, ''))
   const skey      = Math.round(strike)
@@ -97,7 +97,7 @@ function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut, hotScores
   const tagColor = isCall ? 'var(--green)' : isPut ? 'var(--red)' : isHot ? 'var(--red)' : isWarm ? 'rgba(234,179,8,0.6)' : 'var(--muted2)'
 
   return (
-    <div className="hbar-row" style={{ background: isHot && !isPrice && !isCall && !isPut ? undefined : bg, animation: isHot && !isPrice && !isCall && !isPut ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
+    <div ref={isPrice ? priceRowRef : undefined} className="hbar-row" style={{ background: isHot && !isPrice && !isCall && !isPut ? undefined : bg, animation: isHot && !isPrice && !isCall && !isPut ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
       <div className="hbar-strike" style={{ color: strikeColor, textAlign: 'right', paddingRight: 5 }}>
         {isHot && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
         {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
@@ -114,8 +114,8 @@ function OIRow({ row, priceStrike, callWall, putWall, maxCall, maxPut, hotScores
   )
 }
 
-function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut, hotScores }: {
-  row: any; priceStrike: number; flipStrike: number; maxCall: number; maxPut: number; hotScores: Map<number, number>
+function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut, hotScores, priceRowRef }: {
+  row: any; priceStrike: number; flipStrike: number; maxCall: number; maxPut: number; hotScores: Map<number, number>; priceRowRef?: React.RefObject<HTMLDivElement | null>
 }) {
   const strike    = parseFloat(String(row.strike).replace(/,/g, ''))
   const skey      = Math.round(strike)
@@ -144,7 +144,7 @@ function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut, hotScores }: {
   const tagColor = isFlip ? '#f0f' : isHot ? 'var(--red)' : isWarm ? 'rgba(234,179,8,0.6)' : 'var(--muted2)'
 
   return (
-    <div className="hbar-row" style={{ background: isHot && !isPrice && !isFlip ? undefined : bg, animation: isHot && !isPrice && !isFlip ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
+    <div ref={isPrice ? priceRowRef : undefined} className="hbar-row" style={{ background: isHot && !isPrice && !isFlip ? undefined : bg, animation: isHot && !isPrice && !isFlip ? 'pulseHot 1.4s ease-in-out infinite' : undefined }}>
       <div className="hbar-strike" style={{ color: strikeColor }}>
         {isHot && <span style={{ fontSize: 7, marginRight: 2, color: 'var(--red)' }}>●</span>}
         {isWarm && <span style={{ fontSize: 7, marginRight: 2, color: 'rgba(234,179,8,0.5)' }}>●</span>}
@@ -178,6 +178,8 @@ export default function LevelsScreen() {
   const sparkCanvasRef  = useRef<HTMLCanvasElement>(null)
   const prevRegimeRef   = useRef<string | null>(null)
   const prevRegimeLabel = useRef<string | null>(null)
+  const oiPriceRowRef   = useRef<HTMLDivElement>(null)
+  const gexPriceRowRef  = useRef<HTMLDivElement>(null)
 
   // Live options flow via SSE WebSocket relay — no polling
   const { alerts: ticker, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
@@ -423,6 +425,14 @@ export default function LevelsScreen() {
   const oiRows  = filterByRange(allOiRows)
   const gexRows = sortDesc(filterByRange(allGexRows))
 
+  useEffect(() => {
+    if (oiRows.length > 0) requestAnimationFrame(() => oiPriceRowRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+  }, [oiRows.length, oiBucket, isNdx])
+
+  useEffect(() => {
+    if (gexRows.length > 0) requestAnimationFrame(() => gexPriceRowRef.current?.scrollIntoView({ block: 'center', behavior: 'instant' }))
+  }, [gexRows.length, gexBucket, isNdx])
+
   const maxOICall = Math.max(...oiRows.map((r: any) => r.call_value || 0), 1)
   const maxOIPut  = Math.max(...oiRows.map((r: any) => r.put_value  || 0), 1)
   const maxGexCall = Math.max(...gexRows.map((r: any) => Math.abs(r.call_gex ?? (r.net_gex > 0 ? r.net_gex : 0))), 1)
@@ -628,7 +638,7 @@ export default function LevelsScreen() {
           <div className="lv-col-scroll" style={{ position: 'relative' }}>
             {oiRows.length > 0
               ? oiRows.map((r: any, i: number) => (
-                  <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxCall={maxOICall} maxPut={maxOIPut} hotScores={hotScores} />
+                  <OIRow key={i} row={r} priceStrike={priceNum} callWall={cwNum} putWall={pwNum} maxCall={maxOICall} maxPut={maxOIPut} hotScores={hotScores} priceRowRef={oiPriceRowRef} />
                 ))
               : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
             }
@@ -655,7 +665,7 @@ export default function LevelsScreen() {
           <div className="lv-col-scroll" style={{ position: 'relative' }}>
             {gexRows.length > 0
               ? gexRows.map((r: any, i: number) => (
-                  <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxCall={maxGexCall} maxPut={maxGexPut} hotScores={hotScores} />
+                  <GEXRow key={i} row={r} priceStrike={priceNum} flipStrike={flipNum} maxCall={maxGexCall} maxPut={maxGexPut} hotScores={hotScores} priceRowRef={gexPriceRowRef} />
                 ))
               : <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--muted)', fontSize: 10 }}>Loading…</div>
             }
