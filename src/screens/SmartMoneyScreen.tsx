@@ -26,9 +26,11 @@ function fmtDate(s?: string) {
 }
 
 function CongressRow({ t }: { t: any }) {
-  const txType = (t.transaction_type || t.trade_type || t.type || '').toLowerCase()
-  const isBuy  = txType.includes('purchase') || txType.includes('buy')
-  const isSell = txType.includes('sale') || txType.includes('sell')
+  const rawType = t.txn_type || t.transaction_type || t.trade_type || t.type || ''
+  const txType  = rawType.toLowerCase()
+  const isBuy   = txType.includes('purchase') || txType.includes('buy')
+  const isSell  = txType.includes('sale') || txType.includes('sell')
+  const displayType = rawType ? rawType.toUpperCase() : 'UNKNOWN'
   return (
     <div style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)', cursor: 'default' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -36,14 +38,14 @@ function CongressRow({ t }: { t: any }) {
           {t.representative ?? t.name ?? 'Unknown'}
         </span>
         <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: isBuy ? 'rgba(0,200,80,0.12)' : isSell ? 'rgba(255,50,60,0.12)' : 'rgba(255,255,255,0.06)', color: isBuy ? 'var(--green)' : isSell ? 'var(--red)' : 'var(--muted2)', flexShrink: 0 }}>
-          {(t.transaction_type || t.trade_type || t.type || 'UNKNOWN').toUpperCase()}
+          {displayType}
         </span>
       </div>
       <div style={{ display: 'flex', gap: 12, fontSize: 9, color: 'var(--muted2)', flexWrap: 'wrap' }}>
-        <span><span style={{ color: 'var(--text)', fontWeight: 700, fontFamily: 'var(--mono)' }}>{t.ticker ?? t.symbol ?? '--'}</span> {t.asset_description ?? t.asset ?? ''}</span>
-        {(t.amount ?? t.range) && <span>{t.amount ?? t.range}</span>}
+        <span><span style={{ color: 'var(--text)', fontWeight: 700, fontFamily: 'var(--mono)' }}>{t.ticker ?? t.symbol ?? '--'}</span> {t.asset_description ?? t.issuer ?? t.asset ?? ''}</span>
+        {(t.amounts ?? t.amount ?? t.range) && <span>{Array.isArray(t.amounts) ? t.amounts.join(', ') : (t.amounts ?? t.amount ?? t.range)}</span>}
         <span>{fmtDate(t.transaction_date ?? t.date)}</span>
-        {t.disclosed_date && <span style={{ color: 'var(--yellow)' }}>filed {fmtDate(t.disclosed_date)}</span>}
+        {(t.filed_at_date ?? t.disclosed_date) && <span style={{ color: 'var(--yellow)' }}>filed {fmtDate(t.filed_at_date ?? t.disclosed_date)}</span>}
       </div>
     </div>
   )

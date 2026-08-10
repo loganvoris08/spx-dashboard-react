@@ -68,14 +68,16 @@ function fmt2(v: any) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function Sparkline({ bars, invert = false }: { bars: {time:number,value:number}[], invert?: boolean }) {
+function Sparkline({ bars, invert = false, baseline }: { bars: {time:number,value:number}[], invert?: boolean, baseline?: number | null }) {
   if (bars.length < 2) return null
   const vals = bars.map(b => b.value)
   const lo = Math.min(...vals), hi = Math.max(...vals)
   const range = hi - lo || 1
   const W = 52, H = 14
   const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * W},${H - ((v - lo) / range) * H}`).join(' ')
-  const up = vals[vals.length - 1] >= vals[0]
+  const last = vals[vals.length - 1]
+  const ref  = baseline != null ? baseline : vals[0]
+  const up   = last >= ref
   const color = invert ? (up ? 'var(--red)' : 'var(--green)') : (up ? 'var(--green)' : 'var(--red)')
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', marginTop: 2 }}>
@@ -283,7 +285,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
-            <Sparkline bars={spxBars.length > 0 && displayNum != null
+            <Sparkline baseline={spxPrev} bars={spxBars.length > 0 && displayNum != null
               ? [...spxBars.slice(0, -1), { ...spxBars[spxBars.length - 1], value: displayNum }]
               : spxBars} />
           </div>
@@ -293,7 +295,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
             )}
-            <Sparkline bars={esBars.length > 0 && esNum != null
+            <Sparkline baseline={esPrev} bars={esBars.length > 0 && esNum != null
               ? [...esBars.slice(0, -1), { ...esBars[esBars.length - 1], value: esNum }]
               : esBars} />
           </div>
