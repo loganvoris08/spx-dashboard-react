@@ -1,8 +1,17 @@
-import { useState, type ReactNode, useRef, useEffect } from 'react'
+import { useState, type ReactNode, useRef, useEffect, useCallback } from 'react'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
 import { usePushNotifications } from '../hooks/usePushNotifications'
+import { Tooltip } from './Tooltip'
+
+const BASE = import.meta.env.VITE_API_URL ?? ''
+function token() { return localStorage.getItem('dash_token') ?? '' }
+async function localFetch(path: string) {
+  const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token()}` } })
+  if (!res.ok) throw new Error(`${path} ${res.status}`)
+  return res.json()
+}
 
 const SPX_TABS = [
   { id: 'levels', label: 'Levels' },
@@ -186,6 +195,15 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
     prevVix.current = vixNum2
   }, [vixNum2])
 
+  // Intraday sparkline
+  const [priceBars, setPriceBars] = useState<{time:number,value:number}[]>([])
+  useEffect(() => {
+    const endpoint = isNdx ? '/api/levels/ndx' : '/api/levels/spx'
+    localFetch(endpoint).then(d => {
+      if (Array.isArray(d?.price_bars) && d.price_bars.length > 1) setPriceBars(d.price_bars)
+    }).catch(() => {})
+  }, [isNdx])
+
   // OI Strip
   const putWall  = parseNum(data?.nearest_put_wall ?? data?.put_wall)
   const callWall = parseNum(data?.nearest_call_wall ?? data?.call_wall)
@@ -238,14 +256,31 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
         <div className="ticker-strip">
           <div className="ticker">
-            <div className="ticker-label">{spxLabel}</div>
+            <div className="ticker-label">
+              <Tooltip tip={`Live ${spxLabel} index price from Polygon. Updates every 15s during market hours.`}>{spxLabel}</Tooltip>
+            </div>
             <div className={`ticker-val spx${spxDir === 'up' ? ' tick-up' : spxDir === 'down' ? ' tick-down' : ''}`}>{animSpxFmt}</div>
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
           </div>
+          {priceBars.length > 1 && (() => {
+            const vals = priceBars.map(b => b.value)
+            const lo = Math.min(...vals), hi = Math.max(...vals)
+            const range = hi - lo || 1
+            const W = 56, H = 22
+            const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * W},${H - ((v - lo) / range) * H}`).join(' ')
+            const color = vals[vals.length-1] >= vals[0] ? 'var(--green)' : 'var(--red)'
+            return (
+              <svg width={W} height={H} style={{ flexShrink: 0, margin: '0 4px' }} viewBox={`0 0 ${W} ${H}`}>
+                <polyline fill="none" stroke={color} strokeWidth="1.2" strokeLinejoin="round" points={pts} />
+              </svg>
+            )
+          })()}
           <div className="ticker">
-            <div className="ticker-label">{esLabel}</div>
+            <div className="ticker-label">
+              <Tooltip tip={`${esLabel} front-month futures — live from Massive WebSocket. Trades nearly 24/5 and often leads SPX moves.`}>{esLabel}</Tooltip>
+            </div>
             <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{animEsFmt}</div>
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
@@ -253,7 +288,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
           </div>
           <div className="ticker">
             <div className="ticker-label" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              VIX
+              <Tooltip tip="CBOE Volatility Index — measures 30-day implied vol of S&P 500 options. Above 20 = elevated fear. Above 30 = high fear. Below 15 = complacency.">VIX</Tooltip>
               {vixChg != null && (
                 <span style={{ fontSize: 9, color: vixChg > 0 ? 'var(--red)' : 'var(--green)', lineHeight: 1 }}>
                   {vixChg > 0 ? '↑' : '↓'}
@@ -269,20 +304,25 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
                   vixRegime === 'FEAR'         ? '#ff6644' :
                   vixRegime === 'ELEVATED'     ? 'var(--yellow)' :
                   vixRegime === 'NORMAL'       ? 'var(--muted2)' : 'var(--green)',
-              }}>{vixRegime}</div>
+              }}>
+                <Tooltip tip={`VIX Regime: ${vixRegime}. CALM = VIX below 15. NORMAL = 15-20. ELEVATED = 20-25. FEAR = 25-30. EXTREME FEAR = above 30.`}>{vixRegime}</Tooltip>
+              </div>
             )}
             {vvixNum != null && vvixNum > 0 && (
               <div style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--muted2)', marginTop: 0 }}>
-              VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
+                <Tooltip tip="VVIX = Volatility of VIX. Measures how fast VIX itself is moving. Above 100 = extreme vol-of-vol, dealer hedging is erratic. Above 120 = crisis-level instability.">VVIX</Tooltip>{' '}
+                <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
               </div>
             )}
           </div>
         </div>
 
         {regime && (
-          <div className={`topbar-regime ${regimeClass(regime)}`}>
-            {regime.toUpperCase()}
-          </div>
+          <Tooltip tip="Dealer gamma positioning regime from Unusual Whales. POS = dealers net long gamma (pinning, low vol). NEG = dealers net short gamma (trending, high vol, larger moves expected). NEUTRAL = transitional.">
+            <div className={`topbar-regime ${regimeClass(regime)}`}>
+              {regime.toUpperCase()}
+            </div>
+          </Tooltip>
         )}
 
         <div className="side-toggle">

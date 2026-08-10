@@ -582,13 +582,13 @@ export default function LevelsScreen() {
         )}
         {gammaTrough != null && (
           <div className="lv-stat">
-            <span className="lv-stat-label">γ Trough</span>
+            <span className="lv-stat-label"><Tooltip tip="Strike where dealer gamma exposure is most negative. Below the trough, dealers are short gamma and will sell into drops, creating acceleration. A move below the gamma trough signals fast, trending downside.">γ Trough</Tooltip></span>
             <span className="lv-stat-val bear">{fmtNum(gammaTrough)}</span>
           </div>
         )}
         {netDelta && (
           <div className="lv-stat">
-            <span className="lv-stat-label">Net Delta</span>
+            <span className="lv-stat-label"><Tooltip tip="Aggregate directional delta exposure of options market makers. LONG = dealers net long delta (must sell into rallies, dampens upside). SHORT = dealers net short delta (must buy into dips, supports downside).">Net Delta</Tooltip></span>
             <span className={`lv-stat-val ${netDelta === 'LONG' ? 'bull' : netDelta === 'SHORT' ? 'bear' : 'neut'}`}>
               {netDelta}{netDeltaDollar != null ? ` ${fmtNum(netDeltaDollar)}` : ''}
             </span>
@@ -596,19 +596,19 @@ export default function LevelsScreen() {
         )}
         {dhPressure && (
           <div className="lv-stat">
-            <span className="lv-stat-label">Pressure</span>
+            <span className="lv-stat-label"><Tooltip tip="Dealer hedging pressure direction. BULLISH = dealers are buying the underlying to delta-hedge (price support). BEARISH = dealers selling to hedge (price headwind). Reflects the mechanical flow from options market makers.">Pressure</Tooltip></span>
             <span className={`lv-stat-val ${String(dhPressure).toUpperCase().includes('BULL') ? 'bull' : String(dhPressure).toUpperCase().includes('BEAR') ? 'bear' : 'neut'}`}>{dhPressure}</span>
           </div>
         )}
         {gammaDollar != null && (
           <div className="lv-stat">
-            <span className="lv-stat-label">Dlr γ/1%</span>
+            <span className="lv-stat-label"><Tooltip tip="Dollar gamma per 1% SPX move. Shows how much hedging flow in dollars dealers must execute for every 1% price change. Large positive = strong mean-reversion force. Near zero or negative = trending environment.">Dlr γ/1%</Tooltip></span>
             <span className={`lv-stat-val ${Number(gammaDollar) > 0 ? 'bull' : Number(gammaDollar) < 0 ? 'bear' : 'neut'}`}>{fmtNum(gammaDollar)}</span>
           </div>
         )}
         {nyseTick !== null && (
           <div className="lv-stat">
-            <span className="lv-stat-label">NYSE TICK</span>
+            <span className="lv-stat-label"><Tooltip tip="NYSE TICK: count of NYSE stocks on an uptick minus stocks on a downtick, right now. Above +400 = broad buying. Below -400 = broad selling. Extreme readings (+1000 / -1000) signal capitulation or exhaustion.">NYSE TICK</Tooltip></span>
             <span className={`lv-stat-val ${nyseTick > 400 ? 'bull' : nyseTick < -400 ? 'bear' : 'neut'}`}>
               {nyseTick === 0 ? '--' : (nyseTick > 0 ? '+' : '') + nyseTick}
             </span>
@@ -616,7 +616,7 @@ export default function LevelsScreen() {
         )}
         {nyseAdd !== null && (
           <div className="lv-stat">
-            <span className="lv-stat-label">A/D Line</span>
+            <span className="lv-stat-label"><Tooltip tip="NYSE Advance/Decline Line: advancing stocks minus declining stocks today. Positive and rising = broad market participation in a rally (healthy). Negative = breadth deteriorating. Divergence from SPX price = warning sign.">A/D Line</Tooltip></span>
             <span className={`lv-stat-val ${nyseAdd > 500 ? 'bull' : nyseAdd < -500 ? 'bear' : 'neut'}`}>
               {nyseAdd === 0 ? '--' : (nyseAdd > 0 ? '+' : '') + nyseAdd}
             </span>
