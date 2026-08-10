@@ -99,9 +99,12 @@ export function useMarketState() {
       })
       if (!res.ok) throw new Error(`${res.status}`)
       const data = await res.json()
+      // Stale-while-revalidate: always keep previous data visible until new
+      // data is ready — never flash empty/loading between refreshes
       setMs(data)
       setError(null)
     } catch (e: any) {
+      // On refresh errors, keep stale data visible — don't clear ms
       setError(e?.message ?? 'Failed to load market state')
     } finally {
       setLoading(false)

@@ -85,13 +85,9 @@ export default function MarketStateScreen() {
   const f = ms?.flow
   const entryIdx = ms ? LIFECYCLE.indexOf(ms.entry_state) : -1
 
-  if (loading && !ms) {
-    return (
-      <div className="panel" style={{ textAlign: 'center', color: 'var(--muted2)', padding: 32 }}>
-        Loading market state…
-      </div>
-    )
-  }
+  // Never show a loading/empty state — always render full layout so the
+  // page doesn't jump on initial load or on every 15s refresh.
+  // Values simply show '--' until the first successful fetch.
 
   return (
     <>
@@ -339,14 +335,17 @@ export default function MarketStateScreen() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-          {([['VIX9D', m?.vix9d], ['VIX3M', m?.vix3m], ['VVIX', m?.vvix]] as [string, number | null | undefined][])
-            .filter(([, v]) => v != null)
-            .map(([label, val]) => (
+          {(['VIX9D', 'VIX3M', 'VVIX'] as const).map(label => {
+            const val = label === 'VIX9D' ? m?.vix9d : label === 'VIX3M' ? m?.vix3m : m?.vvix
+            return (
               <div key={label} style={{ flex: 1, background: 'var(--bg)', borderRadius: 4, padding: '4px 6px' }}>
                 <div style={{ fontSize: 7, color: 'var(--muted2)', letterSpacing: .5 }}>{label}</div>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700 }}>{fmt2(val)}</div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: val == null ? 'var(--muted)' : undefined }}>
+                  {fmt2(val)}
+                </div>
               </div>
-            ))}
+            )
+          })}
         </div>
 
         <Divider />
@@ -442,23 +441,26 @@ export default function MarketStateScreen() {
           <div style={{ fontSize: 8, color: 'var(--muted)', marginTop: 2 }}>NYSE TICK/ADD + RUT/SPX rel + VIX dir (estimated)</div>
         </div>
 
-        {/* Recent sweeps / unusual */}
-        {f != null && (f.sweep_count > 0 || f.large_count > 0) && (
-          <>
-            <Divider />
-            {(f.call_sweeps > 0 || f.put_sweeps > 0) && (
-              <div className="tooltip-row">
-                <span style={{ color: 'var(--muted2)' }}>Sweeps (last 20)</span>
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>
-                  {f.call_sweeps > 0 && <span style={{ color: 'var(--green)' }}>{f.call_sweeps}C</span>}
-                  {f.call_sweeps > 0 && f.put_sweeps > 0 && <span style={{ color: 'var(--muted2)' }}> / </span>}
-                  {f.put_sweeps > 0 && <span style={{ color: 'var(--red)' }}>{f.put_sweeps}P</span>}
-                </span>
-              </div>
-            )}
-            <Row label="⚡ Unusual" value={f.large_count > 0 ? `${f.large_count} trades` : null} col="var(--yellow)" mono />
-          </>
-        )}
+        {/* Recent sweeps / unusual — always rendered for layout stability */}
+        <Divider />
+        <div className="tooltip-row">
+          <span style={{ color: 'var(--muted2)' }}>Sweeps (last 20)</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>
+            {f != null && (f.call_sweeps > 0 || f.put_sweeps > 0) ? (
+              <>
+                {f.call_sweeps > 0 && <span style={{ color: 'var(--green)' }}>{f.call_sweeps}C</span>}
+                {f.call_sweeps > 0 && f.put_sweeps > 0 && <span style={{ color: 'var(--muted2)' }}> / </span>}
+                {f.put_sweeps > 0  && <span style={{ color: 'var(--red)'   }}>{f.put_sweeps}P</span>}
+              </>
+            ) : <span style={{ color: 'var(--muted)' }}>--</span>}
+          </span>
+        </div>
+        <div className="tooltip-row">
+          <span style={{ color: 'var(--muted2)' }}>⚡ Unusual</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: f?.large_count ? 'var(--yellow)' : 'var(--muted)' }}>
+            {f?.large_count ? `${f.large_count} trades` : '--'}
+          </span>
+        </div>
       </div>
 
       {/* ── WHY / REASONING ── */}
