@@ -441,6 +441,7 @@ export default function GEXScreen() {
   const [loadingDealer, setLoadingDealer] = useState(false)
   const [gexStrikes,   setGexStrikes]   = useState<any[]>([])
   const [gexByExpiry,  setGexByExpiry]  = useState<any[]>([])
+  const [gexBuckets,   setGexBuckets]   = useState<Record<string, any[]>>({'0dte': [], 'weekly': [], 'monthly': []})
   const ladders = useLadders(true)
   const gexPriceRowRef = useRef<HTMLDivElement>(null)
   const gexScrollRef   = useRef<HTMLDivElement>(null)
@@ -457,21 +458,30 @@ export default function GEXScreen() {
       .catch(() => {})
   }, [isNdx])
 
+  const loadGexBuckets = useCallback(() => {
+    apiFetch(isNdx ? '/api/ndx-gex-buckets' : '/api/gex-buckets')
+      .then(d => setGexBuckets(d))
+      .catch(() => {})
+  }, [isNdx])
+
   useEffect(() => {
     setGexStrikes([])
     setGexByExpiry([])
+    setGexBuckets({'0dte': [], 'weekly': [], 'monthly': []})
     loadGexStrikes()
     loadGexByExpiry()
+    loadGexBuckets()
     const off1 = on('update', () => loadGexStrikes())
     const off2 = on('update', () => loadGexByExpiry())
-    return () => { off1(); off2() }
-  }, [isNdx, loadGexStrikes, loadGexByExpiry, on])
+    const off3 = on('update', () => loadGexBuckets())
+    return () => { off1(); off2(); off3() }
+  }, [isNdx, loadGexStrikes, loadGexByExpiry, loadGexBuckets, on])
 
   const nd = data?.ndx ?? {}
 
   const oiRows = isNdx
-    ? (ladders?.ndx?.oi_ladder_buckets?.all ?? ladders?.ndx?.ladder_rows ?? [])
-    : (ladders?.oi_ladder_buckets?.all ?? ladders?.ladder_rows ?? [])
+    ? (ladders?.ndx?.oi_ladder_buckets?.[bucket] ?? ladders?.ndx?.oi_ladder_buckets?.all ?? ladders?.ndx?.ladder_rows ?? [])
+    : (ladders?.oi_ladder_buckets?.[bucket] ?? ladders?.oi_ladder_buckets?.all ?? ladders?.ladder_rows ?? [])
 
   const priceNum = isNdx
     ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
@@ -548,11 +558,12 @@ export default function GEXScreen() {
   const sortDesc = (rows: any[]) => [...rows].sort((a: any, b: any) =>
     (parseFloat(String(b.strike).replace(/,/g,''))||0) - (parseFloat(String(a.strike).replace(/,/g,''))||0)
   )
-  const rangeFiltered = gexStrikes.filter((r: any) => {
+  const activeGexRows = bucket === 'all' ? gexStrikes : (gexBuckets[bucket] ?? [])
+  const rangeFiltered = activeGexRows.filter((r: any) => {
     const s = parseFloat(String(r.strike).replace(/,/g, ''))
     return Math.abs(s - priceNum) <= range
   })
-  const bucketData = sortDesc(rangeFiltered.length > 0 ? rangeFiltered : gexStrikes)
+  const bucketData = sortDesc(rangeFiltered.length > 0 ? rangeFiltered : activeGexRows)
 
   const hotScores = new Map<number, number>(
     [...computeHotScores(oiRows, bucketData, priceNum).entries()].filter(([, s]) => s >= 50)
