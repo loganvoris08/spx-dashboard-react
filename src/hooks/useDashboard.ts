@@ -31,6 +31,8 @@ function applyUpdate(prev: any, msg: any): any {
   if (msg.vanna_flow    != null) patch.vanna_flow                = msg.vanna_flow
   if (msg.net_delta_dir != null) patch.net_delta_dir             = msg.net_delta_dir
   if (msg.net_delta_dollar != null) patch.net_dealer_delta       = msg.net_delta_dollar
+  if (msg.nyse_tick != null) patch.nyse_tick                     = msg.nyse_tick
+  if (msg.nyse_add  != null) patch.nyse_add                      = msg.nyse_add
 
   // NDX fields go into ndx sub-object
   if (msg.ndx        != null) nd.price              = msg.ndx
