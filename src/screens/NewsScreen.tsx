@@ -17,7 +17,7 @@ async function apiPost(path: string) {
 
 function fmtD(s?: string) {
   if (!s) return '--'
-  try { return new Date(s).toLocaleDateString([], { month: 'short', day: 'numeric' }) } catch { return s }
+  try { return new Date(s).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) } catch { return s }
 }
 
 function Chip({ label, ok }: { label: string; ok?: boolean }) {
@@ -291,7 +291,9 @@ export default function NewsScreen() {
                     {tag && <span style={{ fontSize: 7, fontFamily: 'var(--mono)', fontWeight: 700, color: impCfg.color, opacity: 0.8, background: impCfg.bg, border: `1px solid ${impCfg.border}`, borderRadius: 3, padding: '1px 4px' }}>{tag}</span>}
                   </div>
                   <div style={{ fontSize: 11, fontWeight: importanceLevel === 'HIGH' ? 600 : 400, color: importanceLevel === 'HIGH' ? 'var(--text)' : 'var(--muted)' }}>{evName}</div>
-                  {ev.time && <div style={{ fontSize: 9, color: 'var(--muted2)', fontFamily: 'var(--mono)', marginTop: 2 }}>{ev.time}</div>}
+                  <div style={{ fontSize: 9, color: 'var(--muted2)', fontFamily: 'var(--mono)', marginTop: 2 }}>
+                    {fmtD(ev.date || ev.day)}{ev.time ? ` · ${ev.time}` : ''}
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right', minWidth: 72, paddingLeft: 8 }}>
                   {ev.forecast != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Fcst: {ev.forecast}</div>}
