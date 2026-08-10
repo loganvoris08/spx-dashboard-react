@@ -66,7 +66,7 @@ function regimeColor(r: string) {
 const LIFECYCLE = ['EARLY', 'SETTING UP', 'READY', 'CONFIRMED', 'LATE', 'EXHAUSTED']
 
 export default function MarketStateScreen() {
-  const { ms, loading } = useMarketState()
+  const { ms } = useMarketState()
   const { data } = useDashboard()
   const { esPrice, nqPrice } = useLiveFutures()
 
