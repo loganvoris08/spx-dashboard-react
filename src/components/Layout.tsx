@@ -283,7 +283,9 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
-            <Sparkline bars={spxBars} />
+            <Sparkline bars={spxBars.length > 0 && displayNum != null
+              ? [...spxBars.slice(0, -1), { ...spxBars[spxBars.length - 1], value: displayNum }]
+              : spxBars} />
           </div>
           <div className="ticker">
             <div className="ticker-label">{esLabel}</div>
@@ -291,7 +293,9 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
             )}
-            <Sparkline bars={esBars} />
+            <Sparkline bars={esBars.length > 0 && esNum != null
+              ? [...esBars.slice(0, -1), { ...esBars[esBars.length - 1], value: esNum }]
+              : esBars} />
           </div>
           <div className="ticker">
             <div className="ticker-label" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -318,7 +322,9 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
                 VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
               </div>
             )}
-            <Sparkline bars={vixBars} invert />
+            <Sparkline bars={vixBars.length > 0 && vixNum2 != null
+              ? [...vixBars.slice(0, -1), { ...vixBars[vixBars.length - 1], value: vixNum2 }]
+              : vixBars} invert />
           </div>
         </div>
 
