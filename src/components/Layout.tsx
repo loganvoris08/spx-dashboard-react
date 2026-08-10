@@ -215,7 +215,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
     prevVix.current = vixNum2
   }, [vixNum2])
 
-  // Intraday sparklines
+  // Intraday sparklines — historical base fetched once, live ticks appended
   const [spxBars, setSpxBars] = useState<{time:number,value:number}[]>([])
   const [esBars,  setEsBars]  = useState<{time:number,value:number}[]>([])
   const [vixBars, setVixBars] = useState<{time:number,value:number}[]>([])
@@ -227,6 +227,36 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
     localFetch(esEp).then(d  => setEsBars(extract(d))).catch(() => {})
     localFetch('/api/vix-bars').then(d => setVixBars(extract(d))).catch(() => {})
   }, [isNdx])
+
+  // Append live price ticks so sparkline shape updates in real time
+  const MAX_LIVE = 300
+  useEffect(() => {
+    if (displayNum == null) return
+    setSpxBars(prev => {
+      if (!prev.length) return prev
+      const t = Date.now()
+      const appended = [...prev, { time: t, value: displayNum }]
+      return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
+    })
+  }, [displayNum])
+  useEffect(() => {
+    if (esNum == null) return
+    setEsBars(prev => {
+      if (!prev.length) return prev
+      const t = Date.now()
+      const appended = [...prev, { time: t, value: esNum }]
+      return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
+    })
+  }, [esNum])
+  useEffect(() => {
+    if (vixNum2 == null) return
+    setVixBars(prev => {
+      if (!prev.length) return prev
+      const t = Date.now()
+      const appended = [...prev, { time: t, value: vixNum2 }]
+      return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
+    })
+  }, [vixNum2])
 
   // OI Strip
   const putWall  = parseNum(data?.nearest_put_wall ?? data?.put_wall)
@@ -285,9 +315,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
-            <Sparkline baseline={spxPrev} bars={spxBars.length > 0 && displayNum != null
-              ? [...spxBars.slice(0, -1), { ...spxBars[spxBars.length - 1], value: displayNum }]
-              : spxBars} />
+            <Sparkline baseline={spxPrev} bars={spxBars} />
           </div>
           <div className="ticker">
             <div className="ticker-label">{esLabel}</div>
@@ -295,9 +323,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
             )}
-            <Sparkline baseline={esPrev} bars={esBars.length > 0 && esNum != null
-              ? [...esBars.slice(0, -1), { ...esBars[esBars.length - 1], value: esNum }]
-              : esBars} />
+            <Sparkline baseline={esPrev} bars={esBars} />
           </div>
           <div className="ticker">
             <div className="ticker-label" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -324,9 +350,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
                 VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
               </div>
             )}
-            <Sparkline bars={vixBars.length > 0 && vixNum2 != null
-              ? [...vixBars.slice(0, -1), { ...vixBars[vixBars.length - 1], value: vixNum2 }]
-              : vixBars} invert />
+            <Sparkline bars={vixBars} invert />
           </div>
         </div>
 
