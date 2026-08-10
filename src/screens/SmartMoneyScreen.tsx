@@ -26,8 +26,9 @@ function fmtDate(s?: string) {
 }
 
 function CongressRow({ t }: { t: any }) {
-  const isBuy = (t.transaction_type || t.type || '').toLowerCase().includes('purchase') || (t.transaction_type || '').toLowerCase().includes('buy')
-  const isSell = (t.transaction_type || t.type || '').toLowerCase().includes('sale') || (t.transaction_type || '').toLowerCase().includes('sell')
+  const txType = (t.transaction_type || t.trade_type || t.type || '').toLowerCase()
+  const isBuy  = txType.includes('purchase') || txType.includes('buy')
+  const isSell = txType.includes('sale') || txType.includes('sell')
   return (
     <div style={{ padding: '9px 12px', borderBottom: '1px solid var(--border)', cursor: 'default' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -35,7 +36,7 @@ function CongressRow({ t }: { t: any }) {
           {t.representative ?? t.name ?? 'Unknown'}
         </span>
         <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: isBuy ? 'rgba(0,200,80,0.12)' : isSell ? 'rgba(255,50,60,0.12)' : 'rgba(255,255,255,0.06)', color: isBuy ? 'var(--green)' : isSell ? 'var(--red)' : 'var(--muted2)', flexShrink: 0 }}>
-          {(t.transaction_type ?? t.type ?? 'UNKNOWN').toUpperCase()}
+          {(t.transaction_type || t.trade_type || t.type || 'UNKNOWN').toUpperCase()}
         </span>
       </div>
       <div style={{ display: 'flex', gap: 12, fontSize: 9, color: 'var(--muted2)', flexWrap: 'wrap' }}>
