@@ -1,4 +1,4 @@
-import { useState, type ReactNode, useRef, useEffect, useCallback } from 'react'
+import { useState, type ReactNode, useRef, useEffect } from 'react'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
