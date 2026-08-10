@@ -32,7 +32,8 @@ const NDX_EXTRA = [
 ]
 
 const MENU_ITEMS = [
-  { id: 'optionssetup',label: 'Options Setup' },
+  { id: 'marketstate',  label: 'Market State' },
+  { id: 'optionssetup', label: 'Options Setup' },
   { id: 'signal',      label: 'Signal' },
   { id: 'engine',      label: 'Engine' },
   { id: 'playbook',    label: 'MM Playbook' },

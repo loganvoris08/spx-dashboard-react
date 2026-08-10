@@ -26,6 +26,7 @@ import JournalScreen from './screens/JournalScreen'
 import AdminScreen from './screens/AdminScreen'
 import OptionsSetupScreen from './screens/OptionsSetupScreen'
 import HotOptionsScreen from './screens/HotOptionsScreen'
+import MarketStateScreen from './screens/MarketStateScreen'
 import TradingHaltBanner from './components/TradingHaltBanner'
 import './index.css'
 
@@ -61,7 +62,8 @@ function Dashboard() {
         {tab === 'journal'     && <JournalScreen />}
         {tab === 'admin'       && <AdminScreen />}
         {tab === 'optionssetup'&& <OptionsSetupScreen />}
-        {tab === 'hotoptions'  && <HotOptionsScreen />}
+        {tab === 'hotoptions'   && <HotOptionsScreen />}
+        {tab === 'marketstate'  && <MarketStateScreen />}
       </Layout>
     </SideProvider>
     </LiveFuturesProvider>
