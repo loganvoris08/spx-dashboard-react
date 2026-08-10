@@ -3,8 +3,6 @@ import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
 import { usePushNotifications } from '../hooks/usePushNotifications'
-import { Tooltip } from './Tooltip'
-
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
 async function localFetch(path: string) {
@@ -198,7 +196,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   // Intraday sparkline
   const [priceBars, setPriceBars] = useState<{time:number,value:number}[]>([])
   useEffect(() => {
-    const endpoint = isNdx ? '/api/levels/ndx' : '/api/levels/spx'
+    const endpoint = isNdx ? '/api/ndx-levels-history' : '/api/levels-history'
     localFetch(endpoint).then(d => {
       if (Array.isArray(d?.price_bars) && d.price_bars.length > 1) setPriceBars(d.price_bars)
     }).catch(() => {})
@@ -256,9 +254,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
         <div className="ticker-strip">
           <div className="ticker">
-            <div className="ticker-label">
-              <Tooltip tip={`Live ${spxLabel} index price from Polygon. Updates every 15s during market hours.`}>{spxLabel}</Tooltip>
-            </div>
+            <div className="ticker-label">{spxLabel}</div>
             <div className={`ticker-val spx${spxDir === 'up' ? ' tick-up' : spxDir === 'down' ? ' tick-down' : ''}`}>{animSpxFmt}</div>
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
@@ -278,9 +274,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             )
           })()}
           <div className="ticker">
-            <div className="ticker-label">
-              <Tooltip tip={`${esLabel} front-month futures — live from Massive WebSocket. Trades nearly 24/5 and often leads SPX moves.`}>{esLabel}</Tooltip>
-            </div>
+            <div className="ticker-label">{esLabel}</div>
             <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{animEsFmt}</div>
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
@@ -288,7 +282,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
           </div>
           <div className="ticker">
             <div className="ticker-label" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Tooltip tip="CBOE Volatility Index — measures 30-day implied vol of S&P 500 options. Above 20 = elevated fear. Above 30 = high fear. Below 15 = complacency.">VIX</Tooltip>
+              VIX
               {vixChg != null && (
                 <span style={{ fontSize: 9, color: vixChg > 0 ? 'var(--red)' : 'var(--green)', lineHeight: 1 }}>
                   {vixChg > 0 ? '↑' : '↓'}
@@ -304,25 +298,20 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
                   vixRegime === 'FEAR'         ? '#ff6644' :
                   vixRegime === 'ELEVATED'     ? 'var(--yellow)' :
                   vixRegime === 'NORMAL'       ? 'var(--muted2)' : 'var(--green)',
-              }}>
-                <Tooltip tip={`VIX Regime: ${vixRegime}. CALM = VIX below 15. NORMAL = 15-20. ELEVATED = 20-25. FEAR = 25-30. EXTREME FEAR = above 30.`}>{vixRegime}</Tooltip>
-              </div>
+              }}>{vixRegime}</div>
             )}
             {vvixNum != null && vvixNum > 0 && (
               <div style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--muted2)', marginTop: 0 }}>
-                <Tooltip tip="VVIX = Volatility of VIX. Measures how fast VIX itself is moving. Above 100 = extreme vol-of-vol, dealer hedging is erratic. Above 120 = crisis-level instability.">VVIX</Tooltip>{' '}
-                <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
+                VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
               </div>
             )}
           </div>
         </div>
 
         {regime && (
-          <Tooltip tip="Dealer gamma positioning regime from Unusual Whales. POS = dealers net long gamma (pinning, low vol). NEG = dealers net short gamma (trending, high vol, larger moves expected). NEUTRAL = transitional.">
-            <div className={`topbar-regime ${regimeClass(regime)}`}>
-              {regime.toUpperCase()}
-            </div>
-          </Tooltip>
+          <div className={`topbar-regime ${regimeClass(regime)}`}>
+            {regime.toUpperCase()}
+          </div>
         )}
 
         <div className="side-toggle">
