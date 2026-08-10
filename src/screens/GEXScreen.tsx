@@ -458,9 +458,16 @@ export default function GEXScreen() {
       .catch(() => {})
   }, [isNdx])
 
+  const bucketRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGexBuckets = useCallback(() => {
+    if (bucketRetryRef.current) clearTimeout(bucketRetryRef.current)
     apiFetch(isNdx ? '/api/ndx-gex-buckets' : '/api/gex-buckets')
-      .then(d => setGexBuckets(d))
+      .then(d => {
+        setGexBuckets(d)
+        // backend may be refreshing; if all buckets empty, retry once after 4s
+        const allEmpty = Object.values(d as Record<string, any[]>).every(v => v.length === 0)
+        if (allEmpty) bucketRetryRef.current = setTimeout(loadGexBuckets, 4000)
+      })
       .catch(() => {})
   }, [isNdx])
 
