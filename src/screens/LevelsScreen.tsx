@@ -5,6 +5,7 @@ import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { Tooltip } from '../components/Tooltip'
 import { useLiveFlow } from '../hooks/useLiveFlow'
+import { useSSE } from '../lib/SSEContext'
 import LadderPriceLine from '../components/LadderPriceLine'
 import CanvasChart from '../components/CanvasChart'
 import type { CCSeries } from '../components/CanvasChart'
@@ -166,11 +167,13 @@ export default function LevelsScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const live = useLivePrice()
+  const { on } = useSSE()
   const isNdx = side === 'ndx'
   const [oiBucket, setOiBucket]   = useState<OIBucket>('all')
   const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
   const [lvRange, setLvRange]     = useState(150)
   const [gexStrikes, setGexStrikes] = useState<any[]>([])
+  const [gexBuckets, setGexBuckets] = useState<Record<string, any[]>>({'0dte': [], 'weekly': [], 'monthly': []})
   const [darkPool, setDarkPool]     = useState<any[]>([])
   const [dpLoaded, setDpLoaded]     = useState(false)
   const ladders = useLadders(true)
@@ -193,6 +196,24 @@ export default function LevelsScreen() {
       .then(d => setGexStrikes(d.strikes ?? []))
       .catch(() => {})
   }, [isNdx])
+
+  const bucketRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    setGexBuckets({'0dte': [], 'weekly': [], 'monthly': []})
+    const load = () => {
+      if (bucketRetryRef.current) clearTimeout(bucketRetryRef.current)
+      apiFetch(isNdx ? '/api/ndx-gex-buckets' : '/api/gex-buckets')
+        .then(d => {
+          setGexBuckets(d)
+          const allEmpty = Object.values(d as Record<string, any[]>).every(v => v.length === 0)
+          if (allEmpty) bucketRetryRef.current = setTimeout(load, 4000)
+        })
+        .catch(() => {})
+    }
+    load()
+    const off = on('update', load)
+    return () => { off(); if (bucketRetryRef.current) clearTimeout(bucketRetryRef.current) }
+  }, [isNdx, on])
 
   useEffect(() => { setLvRange(isNdx ? 1000 : 150) }, [isNdx])
 
@@ -416,7 +437,7 @@ export default function LevelsScreen() {
   const allOiRows = isNdx
     ? (ladders?.ndx?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ndx?.ladder_rows ?? [])
     : (ladders?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ladder_rows ?? [])
-  const allGexRows = gexStrikes
+  const allGexRows = gexBucket === 'all' ? gexStrikes : (gexBuckets[gexBucket] ?? [])
 
   const ps = (v: any) => parseFloat(String(v).replace(/,/g, '')) || 0
   const sortDesc = (rows: any[]) => [...rows].sort((a, b) => ps(b.strike) - ps(a.strike))
