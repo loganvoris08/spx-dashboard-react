@@ -490,23 +490,30 @@ export default function VolScreen() {
             const anomaly  = spxData.anomaly  || {}
             const char_    = spxData.character || {}
             const vrp      = spxData.vrp       || {}
-            const anomScore = parseFloat(anomaly.score ?? anomaly.anomaly_score ?? '0') || 0
-            const charLabel = char_.character || char_.regime || '--'
-            const vrpVal    = parseFloat(vrp.vrp ?? vrp.variance_risk_premium ?? '0') || 0
-            const anomColor = anomScore > 0.7 ? 'var(--red)' : anomScore > 0.4 ? 'var(--yellow)' : 'var(--green)'
-            const vrpColor  = vrpVal > 3 ? 'var(--green)' : vrpVal < -1 ? 'var(--red)' : 'var(--muted2)'
+            // UW returns scores inside .latest or last item of .history array
+            const anomLatest = anomaly.latest ?? (anomaly.history || []).at(-1) ?? {}
+            const charLatest = char_.latest   ?? (char_.history   || []).at(-1) ?? {}
+            const anomScore = Math.abs(parseFloat(anomLatest.score ?? anomaly.score ?? anomaly.anomaly_score ?? '0') || 0)
+            const charLabel = charLatest.character || charLatest.regime || char_.character || char_.regime || '--'
+            const vrpVal    = parseFloat(vrp.risk_premium ?? vrp.vrp ?? vrp.variance_risk_premium ?? '0') || 0
+            // risk_premium from UW is a decimal fraction (e.g. -0.014 = -1.4% VRP)
+            const vrpPct    = vrpVal * 100
+            // UW anomaly score: -100 to +100 range; direction: long_vol / short_vol / neutral
+            const anomDir   = (anomLatest.direction ?? '').toLowerCase()
+            const anomColor = anomScore > 40 ? 'var(--yellow)' : anomScore > 20 ? 'var(--muted2)' : 'var(--green)'
+            const vrpColor  = vrpPct > 2 ? 'var(--green)' : vrpPct < -1 ? 'var(--red)' : 'var(--muted2)'
             const charColor = charLabel.toLowerCase().includes('trend') ? 'var(--yellow)' : charLabel.toLowerCase().includes('mean') ? 'var(--green)' : 'var(--muted2)'
             return (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
                 <div style={{ background: 'var(--surface)', borderRadius: 5, padding: '8px 10px' }}>
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--muted2)', marginBottom: 4 }}>
-                    <Tooltip tip="Volatility Anomaly Score (0–1). High score means current IV behavior is statistically unusual relative to historical norms. Above 0.7 = significant anomaly worth noting.">ANOMALY SCORE</Tooltip>
+                    <Tooltip tip="Volatility Anomaly Score from Unusual Whales. Magnitude indicates how unusual IV behavior is. Direction: long_vol (buy vol), short_vol (sell vol), neutral.">ANOMALY SCORE</Tooltip>
                   </div>
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 700, color: anomColor }}>
-                    {anomScore > 0 ? anomScore.toFixed(2) : '--'}
+                    {anomScore > 0 ? anomScore.toFixed(1) : '--'}
                   </div>
                   <div style={{ fontSize: 9, color: anomColor, marginTop: 2 }}>
-                    {anomScore > 0.7 ? 'HIGH ANOMALY' : anomScore > 0.4 ? 'ELEVATED' : anomScore > 0 ? 'NORMAL' : '--'}
+                    {anomDir === 'long_vol' ? 'LONG VOL' : anomDir === 'short_vol' ? 'SHORT VOL' : anomScore > 0 ? 'NEUTRAL' : '--'}
                   </div>
                 </div>
                 <div style={{ background: 'var(--surface)', borderRadius: 5, padding: '8px 10px' }}>
@@ -522,10 +529,10 @@ export default function VolScreen() {
                     <Tooltip tip="Variance Risk Premium (VRP) = Implied Vol minus Realized Vol. Positive VRP means options are expensive — sellers collect a premium above actual moves. Negative VRP means options are cheap relative to realized vol — buyers have an edge.">VRP</Tooltip>
                   </div>
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 700, color: vrpColor }}>
-                    {vrpVal !== 0 ? (vrpVal > 0 ? '+' : '') + vrpVal.toFixed(1) : '--'}
+                    {vrpVal !== 0 ? (vrpPct > 0 ? '+' : '') + vrpPct.toFixed(1) + '%' : '--'}
                   </div>
                   <div style={{ fontSize: 9, color: vrpColor, marginTop: 2 }}>
-                    {vrpVal > 3 ? 'SELL VOL' : vrpVal > 0 ? 'VOL RICH' : vrpVal < -1 ? 'BUY VOL' : vrpVal < 0 ? 'VOL CHEAP' : '--'}
+                    {vrpPct > 2 ? 'SELL VOL' : vrpPct > 0 ? 'VOL RICH' : vrpPct < -1 ? 'BUY VOL' : vrpPct < 0 ? 'VOL CHEAP' : '--'}
                   </div>
                 </div>
               </div>
