@@ -40,15 +40,25 @@ export default function MMPlaybookScreen() {
   const { data } = useDashboard()
 
   const mmData      = data?.mm_data ?? {}
-  const spreadWidth = mmData.spread_width ?? data?.mm_spread_width
-  const spreadPct   = mmData.spread_pct   ?? data?.mm_spread_pct
+  const spreadWidth = mmData.spread_width ?? data?.mm_spread_width ?? data?.avg_ntm_spread_width
+  const spreadPct   = mmData.spread_pct   ?? data?.mm_spread_pct   ?? data?.avg_ntm_spread_pct
   const spreadReg   = mmData.spread_regime ?? data?.mm_spread_regime
-  const spreadDesc  = mmData.spread_desc  ?? data?.mm_spread_desc
   const spreadTrend = mmData.spread_trend ?? data?.mm_spread_trend
-  const trendDesc   = mmData.spread_trend_desc ?? data?.mm_trend_desc
-  const dhPressure  = mmData.dealer_delta_lean ?? data?.dealer_delta_lean ?? data?.dh_pressure
-  const dhDelta     = mmData.dh_delta    ?? data?.dh_delta
-  const dhDesc      = mmData.dh_desc     ?? data?.mm_dh_desc
+  // Generate descriptions from available data when explicit desc fields are missing
+  const spreadDesc  = mmData.spread_desc ?? data?.mm_spread_desc ??
+    (spreadWidth != null && Number(spreadWidth) > 0
+      ? `Avg NTM spread is ${Number(spreadWidth).toFixed(2)} pts (${Number(spreadPct ?? 0).toFixed(1)}%) — ${
+          Number(spreadPct ?? 0) < 5 ? 'tight, good liquidity' :
+          Number(spreadPct ?? 0) < 10 ? 'moderate spread' : 'wide, use limit orders'}.`
+      : null)
+  const trendDesc   = mmData.spread_trend_desc ?? data?.mm_trend_desc ??
+    (spreadTrend === 'STABLE' ? 'Spreads stable across strikes — liquidity is consistent.' :
+     spreadTrend === 'WIDENING' ? 'Spreads widening — MMs becoming more uncertain, use limit orders.' :
+     spreadTrend === 'TIGHTENING' ? 'Spreads tightening — liquidity improving, easier fills.' : null)
+  const dhPressure  = mmData.dealer_delta_lean ?? data?.dealer_delta_lean ?? data?.dh_pressure ?? data?.delta_hedging_pressure
+  const dhDelta     = mmData.dh_delta ?? data?.dh_delta ?? (data?.net_dealer_delta != null ? `${(data.net_dealer_delta / 1e6).toFixed(1)}M` : null)
+  const dhDesc      = mmData.dh_desc ?? data?.mm_dh_desc ??
+    (dhPressure ? `Dealer delta lean is ${dhPressure} — dealers are hedging in this direction, creating structural flow support.` : null)
   const gammaReg    = data?.uw_gamma_regime ?? data?.gamma_state
   const gexFlip     = data?.gex_flip_zone_raw ?? data?.gex_flip_zone
 
@@ -66,8 +76,8 @@ export default function MMPlaybookScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         <MonitorCard
           title="NTM Spread Width"
-          val={spreadWidth != null ? String(spreadWidth) : '--'}
-          sub={`${spreadPct != null ? Number(spreadPct).toFixed(1) : '--'}% avg · ${spreadReg ?? '--'}`}
+          val={spreadWidth ? fmtN(spreadWidth) : '--'}
+          sub={`${spreadPct ? Number(spreadPct).toFixed(1) : '--'}% avg · ${spreadReg ?? '--'}`}
           desc={spreadDesc ?? 'Waiting for options data...'}
         />
         <MonitorCard
