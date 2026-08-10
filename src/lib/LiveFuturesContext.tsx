@@ -46,7 +46,8 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
   const liveBar     = useRef<LiveBar | null>(null)
   const cumDelta    = useRef(0)
   const sessionVol  = useRef(0)
-  const prevPrice   = useRef<number | null>(null)
+  const prevPrice   = useRef<number | null>(null)  // for T-tick delta
+  const prevClose   = useRef<number | null>(null)  // for A-agg delta fallback
   const sessionTs   = useRef(sessionStartMs())
   const vwapNum     = useRef(0)   // sum(price × size)
   const vwapDen     = useRef(0)   // sum(size)
@@ -89,10 +90,10 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
             console.error('[LiveFutures] Auth failed — check VITE_MASSIVE_KEY and futures subscription')
           }
 
-          // Second aggregate — build live minute bar
+          // Second aggregate — build live minute bar + cumDelta fallback
           if (m.ev === 'A' && (m.sym === 'ES1!' || m.T === 'ES1!')) {
             const startMs  = m.s ?? m.start_timestamp ?? 0
-            const minTs    = Math.floor(startMs / 60000) * 60  // unix seconds, minute-aligned
+            const minTs    = Math.floor(startMs / 60000) * 60
             const o = parseFloat(m.o ?? m.open  ?? 0)
             const h = parseFloat(m.h ?? m.high  ?? 0)
             const l = parseFloat(m.l ?? m.low   ?? 0)
@@ -102,36 +103,46 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
 
             const cur = liveBar.current
             if (!cur || minTs > cur.time) {
-              // New minute — start fresh bar
               liveBar.current = { time: minTs, open: o || c, high: h || c, low: l || c, close: c, volume: v }
             } else if (minTs === cur.time) {
-              // Same minute — extend
               liveBar.current = {
-                time: cur.time,
-                open:   cur.open,
-                high:   Math.max(cur.high, h),
-                low:    Math.min(cur.low, l),
-                close:  c,
-                volume: cur.volume + v,
+                time: cur.time, open: cur.open,
+                high: Math.max(cur.high, h), low: Math.min(cur.low, l),
+                close: c, volume: cur.volume + v,
               }
             }
             sessionVol.current += v
+
+            // Aggregate-based cumDelta: direction of close vs prev close × volume
+            // Used as primary source since T (tick) events may not be in plan tier
+            if (prevClose.current !== null && v > 0) {
+              if (c > prevClose.current)      cumDelta.current += v
+              else if (c < prevClose.current) cumDelta.current -= v
+            }
+            prevClose.current = c
+
+            // VWAP from aggregates (vw field = volume-weighted price for the second)
+            const vw = parseFloat(m.vw ?? 0)
+            if (vw > 0 && v > 0) {
+              vwapNum.current += vw * v
+              vwapDen.current += v
+            }
             changed = true
           }
 
-          // Individual trade — cumulative delta
+          // Individual trade ticks — higher-res cumDelta if available in plan
           if (m.ev === 'T' && (m.sym === 'ES1!' || m.T === 'ES1!')) {
             const price = parseFloat(m.p ?? 0)
             const size  = parseFloat(m.s ?? m.size ?? 1)
             const tMs   = m.t ?? m.timestamp ?? 0
             if (!price) return
 
-            // Reset session stats at session open
             if (tMs > 0 && tMs < sessionTs.current) {
               cumDelta.current   = 0
               sessionVol.current = 0
               vwapNum.current    = 0
               vwapDen.current    = 0
+              prevClose.current  = null
               sessionTs.current  = sessionStartMs()
             }
 
@@ -140,8 +151,6 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
               else if (price < prevPrice.current) cumDelta.current -= size
             }
             prevPrice.current = price
-
-            // VWAP accumulation
             vwapNum.current += price * size
             vwapDen.current += size
             changed = true
