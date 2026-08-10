@@ -862,7 +862,8 @@ export default function GEXScreen() {
 
       {/* ── GEX by Expiry ── */}
       {gexByExpiry.length > 0 && (() => {
-        const maxAbs = Math.max(...gexByExpiry.map((r: any) => Math.abs(r.net_gex ?? r.gamma ?? 0)), 1)
+        const netOf = (r: any) => r.net_gex ?? r.gamma ?? (parseFloat(r.call_gex || 0) + parseFloat(r.put_gex || 0))
+        const maxAbs = Math.max(...gexByExpiry.map((r: any) => Math.abs(netOf(r))), 1)
         return (
           <div className="panel">
             <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -871,7 +872,7 @@ export default function GEXScreen() {
             </div>
             <div style={{ fontSize: 8, color: 'var(--muted)', marginBottom: 8 }}>Net dealer gamma per expiry date. Largest bars = most hedging activity concentrated here.</div>
             {gexByExpiry.slice(0, 10).map((r: any, i: number) => {
-              const net  = r.net_gex ?? r.gamma ?? 0
+              const net  = netOf(r)
               const isPos = net >= 0
               const pct  = Math.min(95, Math.abs(net) / maxAbs * 90) + 5
               const exp  = r.expiry ?? r.expiration_date ?? r.date ?? ''
