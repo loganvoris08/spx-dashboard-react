@@ -683,8 +683,18 @@ export default function GEXScreen() {
           <span style={{ color: 'var(--green)' }}>CALL GEX ▶</span>
         </div>
         <div ref={gexScrollRef} style={{ position: 'relative', maxHeight: '60vh', overflowY: 'auto' }}>
-          <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} hotScores={hotScores} priceRowRef={gexPriceRowRef} />
-          <LadderPriceLine rows={bucketData} price={priceNum} />
+          {bucket !== 'all' && bucketData.length === 0 ? (
+            <div style={{ padding: '20px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>
+              {bucket === '0dte'
+                ? '0DTE opens at market open'
+                : `No ${bucket} data available`}
+            </div>
+          ) : (
+            <>
+              <GEXHBars rows={bucketData} priceStrike={priceNum} flipStrike={flipNum} hotScores={hotScores} priceRowRef={gexPriceRowRef} />
+              <LadderPriceLine rows={bucketData} price={priceNum} />
+            </>
+          )}
         </div>
         {gexStrikes.length === 0 && <div style={{ padding: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>Loading…</div>}
       </div>

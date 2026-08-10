@@ -185,6 +185,7 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
 
     const sock = new WebSocket(WS_URL)
     ws.current = sock
+    let pingInterval: ReturnType<typeof setInterval> | null = null
 
     sock.onopen = () => {
       sock.send(JSON.stringify({ action: 'auth', params: API_KEY }))
@@ -204,6 +205,13 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
             sock.send(JSON.stringify({ action: 'subscribe', params: sub }))
             setState(s => ({ ...s, connected: true }))
             console.log(`[LiveFutures] Subscribed to ${sub}`)
+            // keepalive — prevents idle timeout disconnects
+            if (pingInterval) clearInterval(pingInterval)
+            pingInterval = setInterval(() => {
+              if (sock.readyState === WebSocket.OPEN) {
+                sock.send(JSON.stringify({ action: 'ping' }))
+              }
+            }, 15000)
           }
 
           if (m.ev === 'status' && m.status === 'auth_failed') {
@@ -228,6 +236,7 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
     }
 
     sock.onclose = () => {
+      if (pingInterval) clearInterval(pingInterval)
       setState(s => ({ ...s, connected: false }))
       if (dead.current) return
       retry.current = setTimeout(connect, 4000)
