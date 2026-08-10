@@ -66,6 +66,22 @@ function fmt2(v: any) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function Sparkline({ bars, invert = false }: { bars: {time:number,value:number}[], invert?: boolean }) {
+  if (bars.length < 2) return null
+  const vals = bars.map(b => b.value)
+  const lo = Math.min(...vals), hi = Math.max(...vals)
+  const range = hi - lo || 1
+  const W = 52, H = 14
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * W},${H - ((v - lo) / range) * H}`).join(' ')
+  const up = vals[vals.length - 1] >= vals[0]
+  const color = invert ? (up ? 'var(--red)' : 'var(--green)') : (up ? 'var(--green)' : 'var(--red)')
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', marginTop: 2 }}>
+      <polyline fill="none" stroke={color} strokeWidth="1.2" strokeLinejoin="round" points={pts} />
+    </svg>
+  )
+}
+
 export default function Layout({ activeTab, setTab, data, children }: Props) {
   const { side, setSide } = useSide()
   const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
@@ -193,13 +209,17 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
     prevVix.current = vixNum2
   }, [vixNum2])
 
-  // Intraday sparkline
-  const [priceBars, setPriceBars] = useState<{time:number,value:number}[]>([])
+  // Intraday sparklines
+  const [spxBars, setSpxBars] = useState<{time:number,value:number}[]>([])
+  const [esBars,  setEsBars]  = useState<{time:number,value:number}[]>([])
+  const [vixBars, setVixBars] = useState<{time:number,value:number}[]>([])
   useEffect(() => {
-    const endpoint = isNdx ? '/api/ndx-levels-history' : '/api/levels-history'
-    localFetch(endpoint).then(d => {
-      if (Array.isArray(d?.price_bars) && d.price_bars.length > 1) setPriceBars(d.price_bars)
-    }).catch(() => {})
+    const spxEp = isNdx ? '/api/ndx-levels-history' : '/api/levels-history'
+    const esEp  = isNdx ? '/api/nq-bars' : '/api/es-bars'
+    const extract = (d: any) => Array.isArray(d?.price_bars) && d.price_bars.length > 1 ? d.price_bars : []
+    localFetch(spxEp).then(d => setSpxBars(extract(d))).catch(() => {})
+    localFetch(esEp).then(d  => setEsBars(extract(d))).catch(() => {})
+    localFetch('/api/vix-bars').then(d => setVixBars(extract(d))).catch(() => {})
   }, [isNdx])
 
   // OI Strip
@@ -259,26 +279,15 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
             {fmtChg(spxChg, spxChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
             )}
+            <Sparkline bars={spxBars} />
           </div>
-          {priceBars.length > 1 && (() => {
-            const vals = priceBars.map(b => b.value)
-            const lo = Math.min(...vals), hi = Math.max(...vals)
-            const range = hi - lo || 1
-            const W = 56, H = 22
-            const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * W},${H - ((v - lo) / range) * H}`).join(' ')
-            const color = vals[vals.length-1] >= vals[0] ? 'var(--green)' : 'var(--red)'
-            return (
-              <svg width={W} height={H} style={{ flexShrink: 0, margin: '0 4px' }} viewBox={`0 0 ${W} ${H}`}>
-                <polyline fill="none" stroke={color} strokeWidth="1.2" strokeLinejoin="round" points={pts} />
-              </svg>
-            )
-          })()}
           <div className="ticker">
             <div className="ticker-label">{esLabel}</div>
             <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{animEsFmt}</div>
             {fmtChg(esChg, esChgPct) && (
               <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
             )}
+            <Sparkline bars={esBars} />
           </div>
           <div className="ticker">
             <div className="ticker-label" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -305,6 +314,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
                 VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
               </div>
             )}
+            <Sparkline bars={vixBars} invert />
           </div>
         </div>
 
