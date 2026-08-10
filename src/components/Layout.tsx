@@ -3,6 +3,7 @@ import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
 import { usePushNotifications } from '../hooks/usePushNotifications'
+import { useLiveFutures } from '../lib/LiveFuturesContext'
 const BASE = import.meta.env.VITE_API_URL ?? ''
 function token() { return localStorage.getItem('dash_token') ?? '' }
 async function localFetch(path: string) {
@@ -108,7 +109,8 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
   const isNdx = side === 'ndx'
   const tabs = [...SPX_TABS, ...(isNdx ? NDX_EXTRA : [])]
-  const live = useLivePrice()
+  const live    = useLivePrice()
+  const futures = useLiveFutures()
 
   // Tickers — live WebSocket price takes precedence, fall back to polled data
   const spxNum  = live.spx ?? (isNdx
@@ -119,25 +121,28 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
 
   const displayNum = isNdx ? ndxNum : spxNum
   const spxFmt  = displayNum != null && !isNaN(displayNum) ? fmt2(displayNum) : '--'
-  const esRaw   = isNdx
-    ? (data?.ndx?.nq ?? data?.nq ?? data?.nq_price)
-    : (data?.es_price ?? data?.es)
-  const esFmt   = esRaw != null ? fmt2(parseFloat(String(esRaw).replace(/,/g, ''))) : '--'
+
+  // ES/NQ: WebSocket live price takes priority over polled data
+  const pn = (v: any) => v != null ? parseFloat(String(v).replace(/,/g, '')) : null
+  const esPolled = pn(isNdx ? (data?.ndx?.nq ?? data?.nq ?? data?.nq_price) : (data?.es_price ?? data?.es))
+  const esLive   = isNdx ? futures.nqPrice : futures.esPrice
+  const esNum    = esLive ?? esPolled
+
+
   const vixFmt  = vixNum2 != null ? vixNum2.toFixed(2) : '--'
 
   // Animated display values — smoothly count between price updates
   const animDisplayNum = useAnimatedNumber(displayNum)
-  const animEsRawNum   = useAnimatedNumber(esRaw != null ? parseFloat(String(esRaw).replace(/,/g,'')) : null)
+  const animEsNum      = useAnimatedNumber(esNum)
   const animVixNum     = useAnimatedNumber(vixNum2)
   const animSpxFmt  = animDisplayNum != null && !isNaN(animDisplayNum) ? fmt2(animDisplayNum) : spxFmt
-  const animEsFmt   = animEsRawNum  != null ? fmt2(animEsRawNum) : esFmt
-  const animVixFmt  = animVixNum    != null ? animVixNum.toFixed(2) : vixFmt
+  const animEsFmt   = animEsNum  != null ? fmt2(animEsNum) : (esPolled != null ? fmt2(esPolled) : '--')
+  const animVixFmt  = animVixNum != null ? animVixNum.toFixed(2) : vixFmt
 
   const spxLabel = isNdx ? 'NDX' : 'SPX'
   const esLabel  = isNdx ? 'NQ'  : 'ES'
 
   // Day change — compute from prev_close if pre-computed field missing
-  const pn = (v: any) => v != null ? parseFloat(String(v).replace(/,/g, '')) : null
   const spxPrev = pn(isNdx ? data?.ndx_prev_close : data?.prev_close)
   const esPrev  = pn(isNdx ? data?.nq_prev_close  : data?.es_prev_close)
   const vixPrev = pn(data?.vix_prev_close)
@@ -145,10 +150,9 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
     ?? (spxNum != null && spxPrev != null ? spxNum - spxPrev : null)
   const spxChgPct = data?.spx_change_pct ?? data?.day_change_pct
     ?? (spxNum != null && spxPrev != null && spxPrev !== 0 ? (spxNum - spxPrev) / spxPrev * 100 : null)
-  const esRawNum = pn(esRaw)
   const esChg   = data?.es_change
-    ?? (esRawNum != null && esPrev != null ? esRawNum - esPrev : null)
-  const esChgPct = esRawNum != null && esPrev != null && esPrev !== 0 ? (esRawNum - esPrev) / esPrev * 100 : null
+    ?? (esNum != null && esPrev != null ? esNum - esPrev : null)
+  const esChgPct = esNum != null && esPrev != null && esPrev !== 0 ? (esNum - esPrev) / esPrev * 100 : null
   const vixNum  = pn(data?.vix)
   const vixChg  = data?.vix_change
     ?? (vixNum != null && vixPrev != null ? vixNum - vixPrev : null)
@@ -186,16 +190,15 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
   }, [displayNum])
 
   useEffect(() => {
-    const n = parseNum(esRaw)
-    if (n == null) return
-    if (prevEs.current != null && n !== prevEs.current) {
-      const d = n > prevEs.current ? 'up' : 'down'
+    if (esNum == null) return
+    if (prevEs.current != null && esNum !== prevEs.current) {
+      const d = esNum > prevEs.current ? 'up' : 'down'
       setEsDir(d)
       const t = setTimeout(() => setEsDir(null), 500)
       return () => clearTimeout(t)
     }
-    prevEs.current = n
-  }, [esRaw])
+    prevEs.current = esNum
+  }, [esNum])
 
   useEffect(() => {
     if (vixNum2 == null) return

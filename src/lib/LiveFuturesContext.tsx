@@ -4,7 +4,7 @@ const WS_URL  = 'wss://socket.massive.com/futures'
 const API_KEY = (import.meta.env.VITE_MASSIVE_KEY as string ?? '').trim()
 
 export interface LiveBar {
-  time:   number   // unix seconds (minute-aligned)
+  time:   number
   open:   number
   high:   number
   low:    number
@@ -13,20 +13,42 @@ export interface LiveBar {
 }
 
 export interface FuturesState {
-  esLiveBar:    LiveBar | null   // current building minute bar
-  esCumDelta:   number           // running buy − sell volume today
-  esSessionVol: number           // total ES volume this session
-  esVwap:       number | null    // session VWAP from trade ticks
+  esLiveBar:    LiveBar | null
+  esPrice:      number | null   // live ES price from WebSocket
+  esCumDelta:   number
+  esSessionVol: number
+  esVwap:       number | null
+  nqLiveBar:    LiveBar | null
+  nqPrice:      number | null   // live NQ price from WebSocket
+  nqCumDelta:   number
+  nqSessionVol: number
+  nqVwap:       number | null
   connected:    boolean
 }
 
 const Ctx = createContext<FuturesState>({
-  esLiveBar: null, esCumDelta: 0, esSessionVol: 0, esVwap: null, connected: false,
+  esLiveBar: null, esPrice: null, esCumDelta: 0, esSessionVol: 0, esVwap: null,
+  nqLiveBar: null, nqPrice: null, nqCumDelta: 0, nqSessionVol: 0, nqVwap: null,
+  connected: false,
 })
 
 export function useLiveFutures() { return useContext(Ctx) }
 
-// Session start = 9:30 ET = 13:30 UTC on a normal day
+// Compute CME front-month contract ticker (e.g. ESU26, NQU26)
+function frontMonth(base: string): string {
+  const now = new Date()
+  const et  = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const year = et.getFullYear()
+  const contracts: [number, string][] = [[3,'H'],[6,'M'],[9,'U'],[12,'Z']]
+  for (const [month, code] of contracts) {
+    const firstDay = new Date(year, month - 1, 1)
+    const firstFri = 1 + (4 - firstDay.getDay() + 7) % 7
+    const rollDate = new Date(year, month - 1, firstFri + 14)
+    if (et < rollDate) return `${base}${code}${String(year).slice(2)}`
+  }
+  return `${base}H${String(year + 1).slice(2)}`
+}
+
 function sessionStartMs(): number {
   const now = new Date()
   const et  = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
@@ -35,31 +57,121 @@ function sessionStartMs(): number {
   return open.getTime() - (et.getTime() - now.getTime())
 }
 
+function makeBarRefs() {
+  return {
+    liveBar:   { current: null as LiveBar | null },
+    livePrice: { current: null as number | null },
+    cumDelta:  { current: 0 },
+    sessionVol:{ current: 0 },
+    prevPrice: { current: null as number | null },
+    prevClose: { current: null as number | null },
+    vwapNum:   { current: 0 },
+    vwapDen:   { current: 0 },
+  }
+}
+
 export function LiveFuturesProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<FuturesState>({
-    esLiveBar: null, esCumDelta: 0, esSessionVol: 0, esVwap: null, connected: false,
+    esLiveBar: null, esPrice: null, esCumDelta: 0, esSessionVol: 0, esVwap: null,
+    nqLiveBar: null, nqPrice: null, nqCumDelta: 0, nqSessionVol: 0, nqVwap: null,
+    connected: false,
   })
 
-  const ws          = useRef<WebSocket | null>(null)
-  const dead        = useRef(false)
-  const retry       = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const liveBar     = useRef<LiveBar | null>(null)
-  const cumDelta    = useRef(0)
-  const sessionVol  = useRef(0)
-  const prevPrice   = useRef<number | null>(null)  // for T-tick delta
-  const prevClose   = useRef<number | null>(null)  // for A-agg delta fallback
-  const sessionTs   = useRef(sessionStartMs())
-  const vwapNum     = useRef(0)   // sum(price × size)
-  const vwapDen     = useRef(0)   // sum(size)
+  const ws         = useRef<WebSocket | null>(null)
+  const dead       = useRef(false)
+  const retry      = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sessionTs  = useRef(sessionStartMs())
+  const es         = useRef(makeBarRefs())
+  const nq         = useRef(makeBarRefs())
+  // Store tickers so the message handler can match them
+  const esTicker   = useRef(frontMonth('ES'))
+  const nqTicker   = useRef(frontMonth('NQ'))
 
   function flush() {
+    const e = es.current, n = nq.current
     setState({
-      esLiveBar:    liveBar.current ? { ...liveBar.current } : null,
-      esCumDelta:   cumDelta.current,
-      esSessionVol: sessionVol.current,
-      esVwap:       vwapDen.current > 0 ? vwapNum.current / vwapDen.current : null,
+      esLiveBar:    e.liveBar.current   ? { ...e.liveBar.current }   : null,
+      esPrice:      e.livePrice.current,
+      esCumDelta:   e.cumDelta.current,
+      esSessionVol: e.sessionVol.current,
+      esVwap:       e.vwapDen.current > 0 ? e.vwapNum.current / e.vwapDen.current : null,
+      nqLiveBar:    n.liveBar.current   ? { ...n.liveBar.current }   : null,
+      nqPrice:      n.livePrice.current,
+      nqCumDelta:   n.cumDelta.current,
+      nqSessionVol: n.sessionVol.current,
+      nqVwap:       n.vwapDen.current > 0 ? n.vwapNum.current / n.vwapDen.current : null,
       connected:    true,
     })
+  }
+
+  function handleAggregate(m: any, r: ReturnType<typeof makeBarRefs>) {
+    const startMs = m.s ?? 0
+    const minTs   = Math.floor(startMs / 60000) * 60
+    const o = parseFloat(m.o ?? 0)
+    const h = parseFloat(m.h ?? 0)
+    const l = parseFloat(m.l ?? 0)
+    const c = parseFloat(m.c ?? 0)
+    const v = parseFloat(m.v ?? 0)
+    if (!c || !minTs) return false
+
+    r.livePrice.current = c
+
+    const cur = r.liveBar.current
+    if (!cur || minTs > cur.time) {
+      r.liveBar.current = { time: minTs, open: o || c, high: h || c, low: l || c, close: c, volume: v }
+    } else if (minTs === cur.time) {
+      r.liveBar.current = {
+        time: cur.time, open: cur.open,
+        high: Math.max(cur.high, h), low: Math.min(cur.low, l),
+        close: c, volume: cur.volume + v,
+      }
+    }
+    r.sessionVol.current += v
+
+    if (r.prevClose.current !== null && v > 0) {
+      if (c > r.prevClose.current)      r.cumDelta.current += v
+      else if (c < r.prevClose.current) r.cumDelta.current -= v
+    }
+    r.prevClose.current = c
+
+    const vw = parseFloat(m.vw ?? 0)
+    if (vw > 0 && v > 0) {
+      r.vwapNum.current += vw * v
+      r.vwapDen.current += v
+    }
+    return true
+  }
+
+  function handleTrade(m: any, r: ReturnType<typeof makeBarRefs>) {
+    // Massive futures T tick prices: integer format (e.g. 606450 = 6064.50)
+    const rawP = parseFloat(m.p ?? 0)
+    if (!rawP) return false
+    // Heuristic: if price > 10× what a reasonable futures price would be, divide by 100
+    // ES/NQ trade around 4000–8000, so if rawP > 80000 it's the integer format
+    const price = rawP > 80000 ? rawP / 100 : rawP
+    const size  = parseFloat(m.s ?? 1)
+    const tMs   = m.t ?? 0
+
+    if (tMs > 0 && tMs < sessionTs.current) {
+      r.cumDelta.current  = 0
+      r.sessionVol.current = 0
+      r.vwapNum.current   = 0
+      r.vwapDen.current   = 0
+      r.prevClose.current = null
+      r.prevPrice.current = null
+      sessionTs.current   = sessionStartMs()
+    }
+
+    r.livePrice.current = price
+
+    if (r.prevPrice.current !== null) {
+      if (price > r.prevPrice.current)      r.cumDelta.current += size
+      else if (price < r.prevPrice.current) r.cumDelta.current -= size
+    }
+    r.prevPrice.current  = price
+    r.vwapNum.current   += price * size
+    r.vwapDen.current   += size
+    return true
   }
 
   function connect() {
@@ -67,6 +179,10 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
       console.warn('[LiveFutures] No API key — set VITE_MASSIVE_KEY in Vercel env vars')
       return
     }
+    // Refresh front-month tickers on each connect (handles roll)
+    esTicker.current = frontMonth('ES')
+    nqTicker.current = frontMonth('NQ')
+
     const sock = new WebSocket(WS_URL)
     ws.current = sock
 
@@ -80,80 +196,30 @@ export function LiveFuturesProvider({ children }: { children: ReactNode }) {
         let changed = false
 
         msgs.forEach(m => {
-          // Auth success → subscribe to ES trades + second aggregates
           if (m.ev === 'status' && m.status === 'auth_success') {
-            sock.send(JSON.stringify({ action: 'subscribe', params: 'T.ES1!,A.ES1!' }))
+            const sub = [
+              `T.${esTicker.current}`, `A.${esTicker.current}`,
+              `T.${nqTicker.current}`, `A.${nqTicker.current}`,
+            ].join(',')
+            sock.send(JSON.stringify({ action: 'subscribe', params: sub }))
             setState(s => ({ ...s, connected: true }))
+            console.log(`[LiveFutures] Subscribed to ${sub}`)
           }
-          // Auth failed
+
           if (m.ev === 'status' && m.status === 'auth_failed') {
-            console.error('[LiveFutures] Auth failed — check VITE_MASSIVE_KEY and futures subscription')
+            console.error('[LiveFutures] Auth failed — check VITE_MASSIVE_KEY')
           }
 
-          // Second aggregate — build live minute bar + cumDelta fallback
-          if (m.ev === 'A' && (m.sym === 'ES1!' || m.T === 'ES1!')) {
-            const startMs  = m.s ?? m.start_timestamp ?? 0
-            const minTs    = Math.floor(startMs / 60000) * 60
-            const o = parseFloat(m.o ?? m.open  ?? 0)
-            const h = parseFloat(m.h ?? m.high  ?? 0)
-            const l = parseFloat(m.l ?? m.low   ?? 0)
-            const c = parseFloat(m.c ?? m.close ?? 0)
-            const v = parseFloat(m.v ?? m.volume ?? 0)
-            if (!c || !minTs) return
+          const sym = m.sym ?? m.T ?? ''
 
-            const cur = liveBar.current
-            if (!cur || minTs > cur.time) {
-              liveBar.current = { time: minTs, open: o || c, high: h || c, low: l || c, close: c, volume: v }
-            } else if (minTs === cur.time) {
-              liveBar.current = {
-                time: cur.time, open: cur.open,
-                high: Math.max(cur.high, h), low: Math.min(cur.low, l),
-                close: c, volume: cur.volume + v,
-              }
-            }
-            sessionVol.current += v
-
-            // Aggregate-based cumDelta: direction of close vs prev close × volume
-            // Used as primary source since T (tick) events may not be in plan tier
-            if (prevClose.current !== null && v > 0) {
-              if (c > prevClose.current)      cumDelta.current += v
-              else if (c < prevClose.current) cumDelta.current -= v
-            }
-            prevClose.current = c
-
-            // VWAP from aggregates (vw field = volume-weighted price for the second)
-            const vw = parseFloat(m.vw ?? 0)
-            if (vw > 0 && v > 0) {
-              vwapNum.current += vw * v
-              vwapDen.current += v
-            }
-            changed = true
+          if (m.ev === 'A') {
+            if (sym === esTicker.current)      changed = handleAggregate(m, es.current) || changed
+            else if (sym === nqTicker.current) changed = handleAggregate(m, nq.current) || changed
           }
 
-          // Individual trade ticks — higher-res cumDelta if available in plan
-          if (m.ev === 'T' && (m.sym === 'ES1!' || m.T === 'ES1!')) {
-            const price = parseFloat(m.p ?? 0)
-            const size  = parseFloat(m.s ?? m.size ?? 1)
-            const tMs   = m.t ?? m.timestamp ?? 0
-            if (!price) return
-
-            if (tMs > 0 && tMs < sessionTs.current) {
-              cumDelta.current   = 0
-              sessionVol.current = 0
-              vwapNum.current    = 0
-              vwapDen.current    = 0
-              prevClose.current  = null
-              sessionTs.current  = sessionStartMs()
-            }
-
-            if (prevPrice.current !== null) {
-              if (price > prevPrice.current)      cumDelta.current += size
-              else if (price < prevPrice.current) cumDelta.current -= size
-            }
-            prevPrice.current = price
-            vwapNum.current += price * size
-            vwapDen.current += size
-            changed = true
+          if (m.ev === 'T') {
+            if (sym === esTicker.current)      changed = handleTrade(m, es.current) || changed
+            else if (sym === nqTicker.current) changed = handleTrade(m, nq.current) || changed
           }
         })
 

@@ -20,11 +20,19 @@ function pn(v: any) { const n = parseFloat(String(v ?? '').replace(/,/g, '')); r
 export default function EsChartScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
-  const { esLiveBar, esCumDelta, esSessionVol, esVwap, connected } = useLiveFutures()
+  const { esLiveBar, nqLiveBar, esPrice: esLive, nqPrice: nqLive,
+          esCumDelta, nqCumDelta, esSessionVol, nqSessionVol,
+          esVwap, nqVwap, connected } = useLiveFutures()
   const isNdx = side === 'ndx'
 
-  const esPrice = pn(data?.es)
-  const nqPrice = pn(data?.nq)
+  // Live WebSocket price takes priority over polled data
+  const esPrice = esLive ?? pn(data?.es)
+  const nqPrice = nqLive ?? pn(data?.nq)
+
+  const activeBar     = isNdx ? nqLiveBar  : esLiveBar
+  const activeCumDelta = isNdx ? nqCumDelta : esCumDelta
+  const activeVol     = isNdx ? nqSessionVol : esSessionVol
+  const activeVwap    = isNdx ? nqVwap     : esVwap
 
   // Key levels for the ES chart
   const esLevels = useMemo<LevelLine[]>(() => {
@@ -34,14 +42,14 @@ export default function EsChartScreen() {
     const call  = pn(data.nearest_call_wall)
     const put   = pn(data.nearest_put_wall)
     // Prefer live tick-by-tick VWAP; fall back to session VWAP from backend
-    const vwap  = esVwap ?? pn(data.spx_vwap)
-    const isLiveVwap = esVwap != null
+    const vwap  = activeVwap ?? pn(data.spx_vwap)
+    const isLiveVwap = activeVwap != null
     if (flip)  lines.push({ price: flip,  color: 'rgba(168,85,247,0.85)',  label: 'Flip',      dashed: true,  width: 1 })
     if (call)  lines.push({ price: call,  color: 'rgba(0,255,136,0.75)',   label: 'Call Wall', dashed: true,  width: 1 })
     if (put)   lines.push({ price: put,   color: 'rgba(255,51,68,0.75)',   label: 'Put Wall',  dashed: true,  width: 1 })
     if (vwap)  lines.push({ price: vwap,  color: isLiveVwap ? 'rgba(64,196,255,0.9)' : 'rgba(64,196,255,0.55)', label: 'VWAP', dashed: false, width: 2 })
     return lines
-  }, [data, esVwap])
+  }, [data, activeVwap])
 
   // NDX chart: use NDX-specific levels
   const ndxLevels = useMemo<LevelLine[]>(() => {
@@ -70,11 +78,11 @@ export default function EsChartScreen() {
     )
   }
 
-  const deltaColor  = esCumDelta > 0 ? 'var(--green)' : esCumDelta < 0 ? 'var(--red)' : 'var(--muted2)'
-  const deltaLabel  = esCumDelta > 0 ? 'BUYERS LEADING' : esCumDelta < 0 ? 'SELLERS LEADING' : 'BALANCED'
-  const deltaBg     = esCumDelta > 0 ? 'rgba(0,255,136,0.06)' : esCumDelta < 0 ? 'rgba(255,51,68,0.06)' : 'transparent'
-  const barPct      = connected && esSessionVol > 0
-    ? Math.min(100, Math.abs(esCumDelta) / esSessionVol * 100 * 4)
+  const deltaColor  = activeCumDelta > 0 ? 'var(--green)' : activeCumDelta < 0 ? 'var(--red)' : 'var(--muted2)'
+  const deltaLabel  = activeCumDelta > 0 ? 'BUYERS LEADING' : activeCumDelta < 0 ? 'SELLERS LEADING' : 'BALANCED'
+  const deltaBg     = activeCumDelta > 0 ? 'rgba(0,255,136,0.06)' : activeCumDelta < 0 ? 'rgba(255,51,68,0.06)' : 'transparent'
+  const barPct      = connected && activeVol > 0
+    ? Math.min(100, Math.abs(activeCumDelta) / activeVol * 100 * 4)
     : 50
 
   return (
@@ -85,7 +93,7 @@ export default function EsChartScreen() {
         zonesEndpoint="/es-zones"
         timeVisible={false}
         livePrice={esPrice}
-        liveBar={esLiveBar}
+        liveBar={activeBar}
         levels={esLevels}
       />
 
@@ -94,7 +102,7 @@ export default function EsChartScreen() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 9, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: 1 }}>
-              ES Cumulative Delta
+              {isNdx ? 'NQ' : 'ES'} Cumulative Delta
             </span>
             <LiveBadge
               label={connected ? 'LIVE' : HAS_KEY ? 'NO FEED' : 'NO KEY'}
@@ -113,7 +121,7 @@ export default function EsChartScreen() {
           {connected && (
             <div style={{
               position: 'absolute',
-              left:   esCumDelta >= 0 ? '50%' : `${50 - barPct / 2}%`,
+              left:   activeCumDelta >= 0 ? '50%' : `${50 - barPct / 2}%`,
               width:  `${barPct / 2}%`,
               height: '100%',
               background: deltaColor,
@@ -127,14 +135,14 @@ export default function EsChartScreen() {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--muted2)' }}>
           <span style={{ color: 'var(--red)' }}>← SELL</span>
           <span style={{ color: deltaColor, fontWeight: 700, fontSize: 12 }}>
-            {connected ? fmtDelta(esCumDelta) : '--'}
+            {connected ? fmtDelta(activeCumDelta) : '--'}
           </span>
           <span style={{ color: 'var(--green)' }}>BUY →</span>
         </div>
 
-        {connected && esSessionVol > 0 && (
+        {connected && activeVol > 0 && (
           <div style={{ marginTop: 6, fontSize: 8, color: 'var(--muted2)', fontFamily: 'var(--mono)', textAlign: 'center' }}>
-            Session vol: {esSessionVol >= 1000 ? (esSessionVol / 1000).toFixed(1) + 'K' : esSessionVol} contracts
+            Session vol: {activeVol >= 1000 ? (activeVol / 1000).toFixed(1) + 'K' : activeVol} contracts
           </div>
         )}
       </div>
