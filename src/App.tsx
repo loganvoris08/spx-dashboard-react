@@ -27,6 +27,8 @@ import AdminScreen from './screens/AdminScreen'
 import OptionsSetupScreen from './screens/OptionsSetupScreen'
 import HotOptionsScreen from './screens/HotOptionsScreen'
 import MarketStateScreen from './screens/MarketStateScreen'
+import CorrelationScreen from './screens/CorrelationScreen'
+import ReplayScreen from './screens/ReplayScreen'
 import TradingHaltBanner from './components/TradingHaltBanner'
 import './index.css'
 
@@ -92,6 +94,8 @@ function Dashboard() {
         <div style={show('optionssetup')}>{visitedRef.current.has('optionssetup') && <OptionsSetupScreen />}</div>
         <div style={show('hotoptions')}>{visitedRef.current.has('hotoptions') && <HotOptionsScreen />}</div>
         <div style={show('marketstate')}>{visitedRef.current.has('marketstate') && <MarketStateScreen />}</div>
+        <div style={show('correlation')}>{visitedRef.current.has('correlation') && <CorrelationScreen />}</div>
+        <div style={show('replay')}>{visitedRef.current.has('replay') && <ReplayScreen />}</div>
         {/* Chart tabs are stateless/cheap — remount is fine */}
         {tab === 'spx'   && <ChartScreen />}
         {tab === 'es'    && <EsChartScreen />}

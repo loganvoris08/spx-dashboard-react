@@ -36,6 +36,8 @@ const MENU_ITEMS = [
   { id: 'optionssetup', label: 'Options Setup' },
   { id: 'signal',      label: 'Signal' },
   { id: 'engine',      label: 'Engine' },
+  { id: 'correlation', label: 'Correlation' },
+  { id: 'replay',      label: 'Replay' },
   { id: 'playbook',    label: 'MM Playbook' },
   { id: 'learn',       label: 'Learn' },
   { id: 'smartmoney',  label: 'Smart Money' },

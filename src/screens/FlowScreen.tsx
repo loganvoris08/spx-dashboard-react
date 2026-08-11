@@ -328,6 +328,27 @@ export default function FlowScreen() {
     } catch {}
   }, [])
 
+  // ── Flow Scanner state ──
+  const [scanPrem,    setScanPrem]    = useState(500_000)
+  const [scanCond,    setScanCond]    = useState('')
+  const [scanSide,    setScanSide]    = useState('')
+  const [scanResults, setScanResults] = useState<any[]>([])
+  const [loadingScan, setLoadingScan] = useState(false)
+
+  const runScan = useCallback(async (prem = scanPrem, cond = scanCond, side = scanSide) => {
+    setLoadingScan(true)
+    try {
+      const params = new URLSearchParams({ min_prem: String(prem) })
+      if (cond) params.set('cond', cond)
+      if (side) params.set('side', side)
+      const d = await apiFetch(`/api/flow-scanner?${params}`)
+      setScanResults(d.contracts ?? [])
+    } catch { setScanResults([]) }
+    setLoadingScan(false)
+  }, [scanPrem, scanCond, scanSide])
+
+  useEffect(() => { runScan() }, []) // initial load
+
   useEffect(() => {
     setBlockItems([])
     setDpItems([])
@@ -372,6 +393,91 @@ export default function FlowScreen() {
 
   return (
     <>
+      {/* ── Flow Scanner ── */}
+      <div className="panel">
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Flow Scanner</span>
+          <button onClick={() => runScan()} disabled={loadingScan} style={{ fontSize: 9, fontFamily: 'var(--mono)', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted2)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer' }}>
+            {loadingScan ? 'SCANNING…' : 'SCAN'}
+          </button>
+        </div>
+
+        {/* Filter pills */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+          {/* Min premium */}
+          <div>
+            <div style={{ fontSize: 8, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 4 }}>Min Premium</div>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {[['$100K', 100_000], ['$500K', 500_000], ['$1M', 1_000_000], ['$5M', 5_000_000]].map(([label, val]) => (
+                <button key={String(val)} onClick={() => { setScanPrem(val as number); runScan(val as number, scanCond, scanSide) }}
+                  style={{ fontSize: 9, fontFamily: 'var(--mono)', padding: '3px 9px', borderRadius: 12, cursor: 'pointer', border: '1px solid', borderColor: scanPrem === val ? 'var(--green)' : 'var(--border)', background: scanPrem === val ? 'rgba(0,255,136,0.1)' : 'var(--surface)', color: scanPrem === val ? 'var(--green)' : 'var(--muted2)' }}>
+                  {label as string}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Side */}
+          <div>
+            <div style={{ fontSize: 8, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 4 }}>Side</div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {[['All', ''], ['Calls', 'call'], ['Puts', 'put']].map(([label, val]) => {
+                const active = scanSide === val
+                return (
+                  <button key={label} onClick={() => { setScanSide(val); runScan(scanPrem, scanCond, val) }}
+                    style={{ fontSize: 9, fontFamily: 'var(--mono)', padding: '3px 9px', borderRadius: 12, cursor: 'pointer', border: '1px solid', borderColor: active ? (val === 'call' ? 'var(--green)' : val === 'put' ? 'var(--red)' : 'var(--text)') : 'var(--border)', background: active ? (val === 'call' ? 'rgba(0,255,136,0.1)' : val === 'put' ? 'rgba(255,51,68,0.1)' : 'rgba(255,255,255,0.05)') : 'var(--surface)', color: active ? (val === 'call' ? 'var(--green)' : val === 'put' ? 'var(--red)' : 'var(--text)') : 'var(--muted2)' }}>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          {/* Condition */}
+          <div>
+            <div style={{ fontSize: 8, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 4 }}>Condition</div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {[['All', ''], ['Sweeps', 'sweep'], ['Floors', 'floor']].map(([label, val]) => {
+                const active = scanCond === val
+                return (
+                  <button key={label} onClick={() => { setScanCond(val); runScan(scanPrem, val, scanSide) }}
+                    style={{ fontSize: 9, fontFamily: 'var(--mono)', padding: '3px 9px', borderRadius: 12, cursor: 'pointer', border: '1px solid', borderColor: active ? 'var(--yellow)' : 'var(--border)', background: active ? 'rgba(250,204,21,0.1)' : 'var(--surface)', color: active ? 'var(--yellow)' : 'var(--muted2)' }}>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Results */}
+        {loadingScan ? (
+          <div style={{ textAlign: 'center', color: 'var(--muted2)', padding: '12px 0', fontSize: 10 }}>Scanning…</div>
+        ) : scanResults.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--muted2)', padding: '12px 0', fontSize: 10 }}>No results — try a lower premium filter or check market hours.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {scanResults.slice(0, 20).map((c: any, i: number) => {
+              const isCall = (c.type || '').toLowerCase() === 'call'
+              const color = isCall ? 'var(--green)' : 'var(--red)'
+              const prem = c.premium >= 1e6 ? '$' + (c.premium / 1e6).toFixed(1) + 'M' : c.premium >= 1000 ? '$' + (c.premium / 1000).toFixed(0) + 'K' : '$' + Math.round(c.premium || 0)
+              const exp = c.expiry ? String(c.expiry).replace(/^\d{4}-/, '').replace(/-/g, '/') : ''
+              const cond = (c.cond_label || '').toUpperCase()
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderBottom: '1px solid rgba(255,255,255,0.04)', fontFamily: 'var(--mono)', fontSize: 10, borderLeft: `2px solid ${color}` }}>
+                  <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: isCall ? 'rgba(0,255,136,0.15)' : 'rgba(255,51,68,0.15)', color, flexShrink: 0 }}>{isCall ? 'C' : 'P'}</span>
+                  <span style={{ fontWeight: 700, color }}>{c.strike}</span>
+                  <span style={{ color: 'var(--muted2)', fontSize: 9 }}>{exp}</span>
+                  {cond && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 3, background: 'rgba(250,204,21,0.1)', color: 'var(--yellow)', marginLeft: 'auto' }}>{cond}</span>}
+                  <span style={{ fontWeight: 700, color, marginLeft: cond ? 0 : 'auto' }}>{prem}</span>
+                </div>
+              )
+            })}
+            {scanResults.length > 20 && (
+              <div style={{ fontSize: 9, color: 'var(--muted2)', textAlign: 'center', padding: '6px 0' }}>+{scanResults.length - 20} more</div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* ── 0DTE Options Pulse ── */}
       <div className="panel">
         <div className="panel-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

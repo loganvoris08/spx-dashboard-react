@@ -435,6 +435,8 @@ export default function GEXScreen() {
   const live = useLivePrice()
   const { on } = useSSE()
   const isNdx = side === 'ndx'
+  type GexTicker = 'spx' | 'ndx' | 'qqq' | 'iwm'
+  const [gexTicker, setGexTicker] = useState<GexTicker>(isNdx ? 'ndx' : 'spx')
   const [bucket, setBucket]       = useState<Bucket>('all')
   const [range, setRange]         = useState(150)
   const [dealerText, setDealerText] = useState('')
@@ -442,78 +444,97 @@ export default function GEXScreen() {
   const [gexStrikes,   setGexStrikes]   = useState<any[]>([])
   const [gexByExpiry,  setGexByExpiry]  = useState<any[]>([])
   const [gexBuckets,   setGexBuckets]   = useState<Record<string, any[]>>({'0dte': [], 'weekly': [], 'monthly': []})
+  const [qiwmLevels,   setQiwmLevels]   = useState<any>(null)
   const ladders = useLadders(true)
   const gexPriceRowRef = useRef<HTMLDivElement>(null)
   const gexScrollRef   = useRef<HTMLDivElement>(null)
 
-  const loadGexStrikes = useCallback(() => {
-    apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
-      .then(d => setGexStrikes(d.strikes ?? []))
-      .catch(() => {})
-  }, [isNdx])
+  // Sync gexTicker when global side changes
+  useEffect(() => { setGexTicker(isNdx ? 'ndx' : 'spx') }, [isNdx])
 
-  const loadGexByExpiry = useCallback(() => {
-    apiFetch(isNdx ? '/api/ndx-gex-by-expiry' : '/api/gex-by-expiry')
-      .then(d => setGexByExpiry(d.data ?? []))
-      .catch(() => {})
-  }, [isNdx])
-
-  const bucketRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const loadGexBuckets = useCallback(() => {
-    if (bucketRetryRef.current) clearTimeout(bucketRetryRef.current)
-    apiFetch(isNdx ? '/api/ndx-gex-buckets' : '/api/gex-buckets')
+  const loadGexStrikes = useCallback((ticker: GexTicker = gexTicker) => {
+    const isQIWM = ticker === 'qqq' || ticker === 'iwm'
+    const path = ticker === 'ndx' ? '/api/ndx-gex-strikes'
+               : ticker === 'qqq' ? '/api/qqq-gex-strikes'
+               : ticker === 'iwm' ? '/api/iwm-gex-strikes'
+               : '/api/gex-strikes'
+    apiFetch(path)
       .then(d => {
-        setGexBuckets(d)
-        // backend may be refreshing; if all buckets empty, retry once after 4s
-        const allEmpty = Object.values(d as Record<string, any[]>).every(v => v.length === 0)
-        if (allEmpty) bucketRetryRef.current = setTimeout(loadGexBuckets, 4000)
+        setGexStrikes(d.strikes ?? [])
+        if (isQIWM) setQiwmLevels(d.levels ?? null)
+        else setQiwmLevels(null)
       })
       .catch(() => {})
-  }, [isNdx])
+  }, [gexTicker])
+
+  const loadGexByExpiry = useCallback((ticker: GexTicker = gexTicker) => {
+    if (ticker === 'qqq' || ticker === 'iwm') return
+    apiFetch(ticker === 'ndx' ? '/api/ndx-gex-by-expiry' : '/api/gex-by-expiry')
+      .then(d => setGexByExpiry(d.data ?? []))
+      .catch(() => {})
+  }, [gexTicker])
+
+  const bucketRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadGexBuckets = useCallback((ticker: GexTicker = gexTicker) => {
+    if (ticker === 'qqq' || ticker === 'iwm') return
+    if (bucketRetryRef.current) clearTimeout(bucketRetryRef.current)
+    apiFetch(ticker === 'ndx' ? '/api/ndx-gex-buckets' : '/api/gex-buckets')
+      .then(d => {
+        setGexBuckets(d)
+        const allEmpty = Object.values(d as Record<string, any[]>).every(v => v.length === 0)
+        if (allEmpty) bucketRetryRef.current = setTimeout(() => loadGexBuckets(ticker), 4000)
+      })
+      .catch(() => {})
+  }, [gexTicker])
 
   useEffect(() => {
     setGexStrikes([])
     setGexByExpiry([])
     setGexBuckets({'0dte': [], 'weekly': [], 'monthly': []})
-    loadGexStrikes()
-    loadGexByExpiry()
-    loadGexBuckets()
-    const off1 = on('update', () => loadGexStrikes())
-    const off2 = on('update', () => loadGexByExpiry())
-    const off3 = on('update', () => loadGexBuckets())
+    setQiwmLevels(null)
+    loadGexStrikes(gexTicker)
+    loadGexByExpiry(gexTicker)
+    loadGexBuckets(gexTicker)
+    const off1 = on('update', () => loadGexStrikes(gexTicker))
+    const off2 = on('update', () => loadGexByExpiry(gexTicker))
+    const off3 = on('update', () => loadGexBuckets(gexTicker))
     return () => { off1(); off2(); off3() }
-  }, [isNdx, loadGexStrikes, loadGexByExpiry, loadGexBuckets, on])
+  }, [gexTicker, loadGexStrikes, loadGexByExpiry, loadGexBuckets, on])
 
   const nd = data?.ndx ?? {}
+  const isQIWM = gexTicker === 'qqq' || gexTicker === 'iwm'
 
   const oiRows = isNdx
     ? (ladders?.ndx?.oi_ladder_buckets?.[bucket] ?? ladders?.ndx?.oi_ladder_buckets?.all ?? ladders?.ndx?.ladder_rows ?? [])
     : (ladders?.oi_ladder_buckets?.[bucket] ?? ladders?.oi_ladder_buckets?.all ?? ladders?.ladder_rows ?? [])
 
-  const priceNum = isNdx
-    ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
-    : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
-  const regime   = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
-  const flip     = isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
-  const maxPain  = !isNdx ? data?.max_pain_strike : null
-  const maxPainDte = !isNdx ? (data?.max_pain_dte ?? data?.max_pain_days ?? null) : null
-  const cWall    = isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
-  const pWall    = isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
-  const netDelta = !isNdx ? data?.net_delta_dir : null
-  const flowBias = isNdx ? (nd.flow_bias ?? data?.ndx_flow_bias) : data?.flow_bias
-  const pcRatio  = !isNdx ? data?.put_call_ratio : null
+  const priceNum = isQIWM
+    ? (qiwmLevels?.price ?? 0)
+    : isNdx
+      ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
+      : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
+  const regime   = isQIWM ? null : isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
+  const flip     = isQIWM ? qiwmLevels?.flip : isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
+  const maxPain  = !isNdx && !isQIWM ? data?.max_pain_strike : null
+  const maxPainDte = !isNdx && !isQIWM ? (data?.max_pain_dte ?? data?.max_pain_days ?? null) : null
+  const cWall    = isQIWM ? qiwmLevels?.call_wall : isNdx ? (nd.nearest_call_wall ?? nd.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.gex_nearest_call_wall)
+  const pWall    = isQIWM ? qiwmLevels?.put_wall  : isNdx ? (nd.nearest_put_wall  ?? nd.gex_nearest_put_wall)  : (data?.nearest_put_wall  ?? data?.gex_nearest_put_wall)
+  const netDelta = !isNdx && !isQIWM ? data?.net_delta_dir : null
+  const flowBias = isQIWM ? null : isNdx ? (nd.flow_bias ?? data?.ndx_flow_bias) : data?.flow_bias
+  const pcRatio  = !isNdx && !isQIWM ? data?.put_call_ratio : null
 
   const callPct  = isNdx ? (nd.flow_call_pct ?? 50) : (data?.flow_call_pct ?? 50)
   const putPct   = isNdx ? (nd.flow_put_pct  ?? 50) : (data?.flow_put_pct  ?? 50)
-  const gammaPerPct = !isNdx ? data?.dealer_gamma_dollar_per_pct : null
-  const dhPressure  = isNdx ? nd.delta_hedging_pressure : data?.delta_hedging_pressure
-  const charm    = isNdx ? nd.charm_flow  : data?.charm_flow
-  const vanna    = isNdx ? nd.vanna_flow  : data?.vanna_flow
-  const netDeltaDisplay = !isNdx ? data?.net_dealer_delta : null
+  const gammaPerPct = !isNdx && !isQIWM ? data?.dealer_gamma_dollar_per_pct : null
+  const dhPressure  = isQIWM ? null : isNdx ? nd.delta_hedging_pressure : data?.delta_hedging_pressure
+  const charm    = isQIWM ? null : isNdx ? nd.charm_flow  : data?.charm_flow
+  const vanna    = isQIWM ? null : isNdx ? nd.vanna_flow  : data?.vanna_flow
+  const netDeltaDisplay = !isNdx && !isQIWM ? data?.net_dealer_delta : null
 
   // Compute dealer score client-side (mirrors _updateScorecard in old dashboard)
   type ScFactor = { label: string; val: string; cls: string }
   const dealerScore = (() => {
+    if (isQIWM) return null  // no dealer score for ETFs
     const src = isNdx ? nd : (data ?? {})
     if (!data) return null
     let sc = 50
@@ -673,13 +694,24 @@ export default function GEXScreen() {
 
       {/* ── GEX Ladder ── */}
       <div className="panel" style={{ padding: 0 }}>
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
           <span className="panel-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Tooltip tip="Net dealer gamma at each strike. Green bars = call GEX (dealers long gamma here, stabilizing). Red bars = put GEX (dealers short gamma here, amplifying). Largest bars = biggest hedging flows when price approaches that strike." label="Gamma by Strike">Gamma Exposure by Strike</Tooltip>
             <span style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>LIVE</span>
           </span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {BUCKETS.map(b => (
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Ticker selector */}
+            {(['spx','ndx','qqq','iwm'] as const).map(t => (
+              <span key={t} onClick={() => setGexTicker(t)}
+                style={{ fontSize: 8, fontFamily: 'var(--mono)', padding: '2px 7px', borderRadius: 10, cursor: 'pointer', border: '1px solid', userSelect: 'none',
+                  borderColor: gexTicker === t ? 'var(--yellow)' : 'var(--border)',
+                  background:  gexTicker === t ? 'rgba(250,204,21,0.12)' : 'transparent',
+                  color:       gexTicker === t ? 'var(--yellow)' : 'var(--muted2)',
+                  fontWeight:  gexTicker === t ? 700 : 400,
+                }}>{t.toUpperCase()}</span>
+            ))}
+            {/* Expiry bucket pills — not available for QQQ/IWM */}
+            {!isQIWM && BUCKETS.map(b => (
               <span key={b} className={`expiry-btn${bucket === b ? ' active' : ''}`} onClick={() => setBucket(b)}>{b}</span>
             ))}
           </div>
