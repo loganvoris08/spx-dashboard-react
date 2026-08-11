@@ -446,8 +446,9 @@ export default function GEXScreen() {
   const [gexBuckets,   setGexBuckets]   = useState<Record<string, any[]>>({'0dte': [], 'weekly': [], 'monthly': []})
   const [qiwmLevels,   setQiwmLevels]   = useState<any>(null)
   const ladders = useLadders(true)
-  const gexPriceRowRef = useRef<HTMLDivElement>(null)
-  const gexScrollRef   = useRef<HTMLDivElement>(null)
+  const gexPriceRowRef  = useRef<HTMLDivElement>(null)
+  const gexScrollRef    = useRef<HTMLDivElement>(null)
+  const gexAutoScrolled = useRef(false)
 
   // Sync gexTicker when global side changes
   useEffect(() => { setGexTicker(isNdx ? 'ndx' : 'spx') }, [isNdx])
@@ -597,13 +598,20 @@ export default function GEXScreen() {
     [...computeHotScores(oiRows, bucketData, priceNum).entries()].filter(([, s]) => s >= 50)
   )
 
+  // Reset auto-scroll flag whenever the ticker or bucket changes
+  useEffect(() => { gexAutoScrolled.current = false }, [gexTicker, bucket])
+
   useEffect(() => {
-    if (!bucketData.length || !priceNum) return
-    requestAnimationFrame(() => {
+    if (gexAutoScrolled.current || !bucketData.length) return
+    if (isQIWM && !priceNum) return  // wait until QQQ/IWM levels load price
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       const c = gexScrollRef.current, r = gexPriceRowRef.current
-      if (c && r) c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
-    })
-  }, [bucketData.length, bucket, isNdx])
+      if (c && r) {
+        c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
+        gexAutoScrolled.current = true
+      }
+    }))
+  }, [bucketData.length, bucket, gexTicker, priceNum, isQIWM])
 
   // Top gamma strikes: sort by absolute net_gex
   const topGamma = [...gexStrikes]
