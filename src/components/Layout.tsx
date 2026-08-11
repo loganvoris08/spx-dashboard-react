@@ -49,7 +49,7 @@ interface Props {
   setTab: (t: string) => void
   data: any
   children: ReactNode
-  contentRef?: React.RefObject<HTMLDivElement>
+  contentRef?: React.RefObject<HTMLDivElement | null>
 }
 
 function regimeClass(r?: string) {

@@ -30,9 +30,6 @@ import MarketStateScreen from './screens/MarketStateScreen'
 import TradingHaltBanner from './components/TradingHaltBanner'
 import './index.css'
 
-// Tabs that stay mounted after first visit to preserve scroll + avoid re-fetch
-const PERSISTENT_TABS = ['signal','levels','gex','oi','flow','tide','vol','news','engine','playbook','learn','smartmoney','journal','admin','optionssetup','hotoptions','marketstate']
-
 function Dashboard() {
   const [tab, setTab] = useState('levels')
   const { data } = useDashboard()
