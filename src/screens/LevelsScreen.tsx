@@ -5,7 +5,6 @@ import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { Tooltip } from '../components/Tooltip'
 import { useLiveFlow } from '../hooks/useLiveFlow'
-import { useSSE } from '../lib/SSEContext'
 import LadderPriceLine from '../components/LadderPriceLine'
 import CanvasChart from '../components/CanvasChart'
 import type { CCSeries } from '../components/CanvasChart'
@@ -167,7 +166,7 @@ export default function LevelsScreen() {
   const { data } = useDashboard()
   const { side } = useSide()
   const live = useLivePrice()
-  const { on } = useSSE()
+
   const isNdx = side === 'ndx'
   const [oiBucket, setOiBucket]   = useState<OIBucket>('all')
   const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
@@ -186,6 +185,8 @@ export default function LevelsScreen() {
   const gexPriceRowRef  = useRef<HTMLDivElement>(null)
   const oiScrollRef     = useRef<HTMLDivElement>(null)
   const gexScrollRef    = useRef<HTMLDivElement>(null)
+  const oiAutoScrolled  = useRef(false)
+  const gexAutoScrolled = useRef(false)
 
   // Live options flow via SSE WebSocket relay — no polling
   const { alerts: ticker, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
@@ -198,6 +199,7 @@ export default function LevelsScreen() {
   }, [isNdx])
 
   const bucketRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bucketIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => {
     setGexBuckets({'0dte': [], 'weekly': [], 'monthly': []})
     const load = () => {
@@ -211,9 +213,13 @@ export default function LevelsScreen() {
         .catch(() => {})
     }
     load()
-    const off = on('update', load)
-    return () => { off(); if (bucketRetryRef.current) clearTimeout(bucketRetryRef.current) }
-  }, [isNdx, on])
+    // Refresh every 3 minutes — GEX buckets change slowly, not on every SSE tick
+    bucketIntervalRef.current = setInterval(load, 3 * 60 * 1000)
+    return () => {
+      if (bucketIntervalRef.current) clearInterval(bucketIntervalRef.current)
+      if (bucketRetryRef.current) clearTimeout(bucketRetryRef.current)
+    }
+  }, [isNdx])
 
   useEffect(() => { setLvRange(isNdx ? 1000 : 150) }, [isNdx])
 
@@ -449,19 +455,33 @@ export default function LevelsScreen() {
   const oiRows  = filterByRange(allOiRows)
   const gexRows = sortDesc(filterByRange(allGexRows))
 
+  // Reset auto-scroll flag when side or bucket changes so we re-center on the new data
+  useEffect(() => { oiAutoScrolled.current = false }, [oiBucket, isNdx])
+  useEffect(() => { gexAutoScrolled.current = false }, [gexBucket, isNdx])
+
+  // Center the ladder on the current price row — only once per load/side/bucket change.
+  // Without the guard, this fires on every data refresh and fights the user's scroll.
   useEffect(() => {
-    if (oiRows.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (oiAutoScrolled.current || oiRows.length === 0) return
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       const c = oiScrollRef.current, r = oiPriceRowRef.current
-      if (c && r) c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
+      if (c && r) {
+        c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
+        oiAutoScrolled.current = true
+      }
     }))
-  }, [oiRows.length, oiBucket, isNdx])
+  }, [oiRows.length])
 
   useEffect(() => {
-    if (gexRows.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (gexAutoScrolled.current || gexRows.length === 0) return
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       const c = gexScrollRef.current, r = gexPriceRowRef.current
-      if (c && r) c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
+      if (c && r) {
+        c.scrollTop = r.offsetTop - c.clientHeight / 2 + r.clientHeight / 2
+        gexAutoScrolled.current = true
+      }
     }))
-  }, [gexRows.length, gexBucket, isNdx])
+  }, [gexRows.length])
 
   const maxOICall = Math.max(...oiRows.map((r: any) => r.call_value || 0), 1)
   const maxOIPut  = Math.max(...oiRows.map((r: any) => r.put_value  || 0), 1)
@@ -704,13 +724,15 @@ export default function LevelsScreen() {
         </div>
       </div>
 
-      {/* ── Hot Strikes Today ── */}
-      {topHotStrikes.length > 0 && (
-        <div className="panel" style={{ flexShrink: 0 }}>
-          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <span style={{ color: 'var(--red)', fontSize: 7, animation: 'pulseHot 1.4s ease-in-out infinite', display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(255,51,68,0.12)', border: '1px solid rgba(255,51,68,0.3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>● HOT</span>
-            <span>Hot Strikes — Intraday</span>
-          </div>
+      {/* ── Hot Strikes Today ── always rendered to prevent layout shifts */}
+      <div className="panel" style={{ flexShrink: 0 }}>
+        <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: topHotStrikes.length > 0 ? 8 : 4 }}>
+          <span style={{ color: 'var(--red)', fontSize: 7, animation: 'pulseHot 1.4s ease-in-out infinite', display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(255,51,68,0.12)', border: '1px solid rgba(255,51,68,0.3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>● HOT</span>
+          <span>Hot Strikes — Intraday</span>
+        </div>
+        {topHotStrikes.length === 0 ? (
+          <div style={{ color: 'var(--muted2)', fontSize: 10, padding: '2px 0 4px' }}>No high-conviction strikes right now</div>
+        ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '60px 32px 1fr 1fr', gap: '2px 8px', fontFamily: 'var(--mono)', fontSize: 8 }}>
             <span style={{ color: 'var(--muted2)', fontWeight: 700 }}>STRIKE</span>
             <span style={{ color: 'var(--muted2)', fontWeight: 700 }}>SCORE</span>
@@ -727,8 +749,8 @@ export default function LevelsScreen() {
               ]
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── UW LIVE badge strip ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', background: 'rgba(0,255,136,0.03)', borderBottom: '1px solid rgba(0,255,136,0.08)', flexShrink: 0 }}>
