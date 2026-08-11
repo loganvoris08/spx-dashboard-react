@@ -414,8 +414,8 @@ export default function LevelsScreen() {
   const cwNum    = parseFloat(String(cWall ?? '').replace(/,/g, '')) || 0
   const pwNum    = parseFloat(String(pWall ?? '').replace(/,/g, '')) || 0
 
-  // Regime card computed values
-  const dayOpen     = parseFloat(String(data?.daily_open ?? 0)) || 0
+  // Regime card computed values — use NDX daily open in NDX mode
+  const dayOpen     = parseFloat(String(isNdx ? (nd?.daily_open ?? data?.ndx_daily_open ?? 0) : (data?.daily_open ?? 0))) || 0
   const sinceOpen   = dayOpen > 0 && priceNum > 0 ? priceNum - dayOpen : null
   const price15mAgo = useMemo(() => {
     const priceData: { time: number; value: number }[] = flipChSeries[0]?.data ?? []

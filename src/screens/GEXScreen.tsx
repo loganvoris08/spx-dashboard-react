@@ -896,8 +896,8 @@ export default function GEXScreen() {
         )
       })()}
 
-      {/* ── Intraday GEX 1-Min ── */}
-      {(data?.spot_exposures?.length > 0) && (
+      {/* ── Intraday GEX 1-Min — SPX only (no NDX equivalent) ── */}
+      {!isNdx && (data?.spot_exposures?.length > 0) && (
         <GexSparkline rows={data.spot_exposures} />
       )}
 

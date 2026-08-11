@@ -197,14 +197,14 @@ export default function OIScreen() {
           <div className="kl-item">
             <div className="kl-label">Call Wall</div>
             <div className="kl-val call">{fmtNum(cWall)}</div>
-            {data?.dist_to_call && <div className="kl-dist">{data.dist_to_call}</div>}
+            {!isNdx && data?.dist_to_call && <div className="kl-dist">{data.dist_to_call}</div>}
           </div>
         )}
         {pWall && (
           <div className="kl-item">
             <div className="kl-label">Put Wall</div>
             <div className="kl-val put">{fmtNum(pWall)}</div>
-            {data?.dist_to_put && <div className="kl-dist">{data.dist_to_put}</div>}
+            {!isNdx && data?.dist_to_put && <div className="kl-dist">{data.dist_to_put}</div>}
           </div>
         )}
         {trueRes && (

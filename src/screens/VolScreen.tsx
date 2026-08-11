@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDashboard } from '../hooks/useDashboard'
 import { postAiRead } from '../hooks/useLadders'
 import { useSSE } from '../lib/SSEContext'
+import { useSide } from '../lib/SideContext'
 import LiveBadge from '../components/LiveBadge'
 import { Tooltip } from '../components/Tooltip'
 
@@ -120,6 +121,7 @@ function TermStructureCanvas({ rows, atm_iv }: { rows: any[]; atm_iv: number }) 
 export default function VolScreen() {
   const { data } = useDashboard()
   const { on } = useSSE()
+  const { isNdx } = useSide()
   const [termData,   setTermData]   = useState<any[]>([])
   const [rrData25,   setRrData25]   = useState<any[]>([])
   const [rrData10,   setRrData10]   = useState<any[]>([])
@@ -254,8 +256,10 @@ export default function VolScreen() {
           {[
             { label: 'VIX', tip: 'CBOE 30-day implied volatility index. Below 15 = calm. 15–20 = normal. 20–30 = elevated. 30+ = fear. Higher VIX = wider daily SPX ranges expected.', val: vix > 0 ? fmtN(vix, 2) : '--', sub: vixLabel, color: vixColor },
             { label: 'Term Structure', tip: 'Shape of VIX across time. CONTANGO = VIX3M above VIX (normal, calm). BACKWARDATION = VIX above VIX3M (near-term panic priced in, often a short-term vol top).', val: tsLabel, sub: tsNote.slice(0, 40) + (tsNote.length > 40 ? '…' : ''), color: tsColor },
-            { label: 'Vol Skew', tip: 'Put IV minus call IV at equal delta. Positive = puts more expensive (hedging active, typical). Very high (>10) = extreme tail-risk fear. Negative = calls more expensive (unusual, call frenzy).', val: skew !== 0 ? (skew > 0 ? '+' : '') + fmtN(skew, 1) + ' vol pts' : '--', sub: skewLabel, color: skew > 8 ? 'var(--red)' : skew < 0 ? 'var(--green)' : 'var(--muted2)' },
-            { label: 'Implied Weekly Move', tip: "Options market's expected SPX range for the week. 68% probability price stays within this range. Use for setting targets and stops — going for more than 2× the implied move is low-probability.", val: implMove > 0 ? '±' + implMove.toFixed(0) + ' pts' : '--', sub: implPct > 0 ? '±' + implPct.toFixed(1) + '%' : '', color: 'var(--yellow)' },
+            ...(!isNdx ? [
+              { label: 'Vol Skew', tip: 'Put IV minus call IV at equal delta. Positive = puts more expensive (hedging active, typical). Very high (>10) = extreme tail-risk fear. Negative = calls more expensive (unusual, call frenzy).', val: skew !== 0 ? (skew > 0 ? '+' : '') + fmtN(skew, 1) + ' vol pts' : '--', sub: skewLabel, color: skew > 8 ? 'var(--red)' : skew < 0 ? 'var(--green)' : 'var(--muted2)' },
+              { label: 'Implied Weekly Move', tip: "Options market's expected SPX range for the week. 68% probability price stays within this range. Use for setting targets and stops — going for more than 2× the implied move is low-probability.", val: implMove > 0 ? '±' + implMove.toFixed(0) + ' pts' : '--', sub: implPct > 0 ? '±' + implPct.toFixed(1) + '%' : '', color: 'var(--yellow)' },
+            ] : []),
           ].map(c => (
             <div key={c.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
               <div style={{ fontSize: 8, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '.7px', marginBottom: 4 }}><Tooltip tip={c.tip ?? ''}>{c.label}</Tooltip></div>
@@ -281,8 +285,8 @@ export default function VolScreen() {
         {tsNote && <div style={{ marginTop: 8, fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--muted2)', lineHeight: 1.6 }}>{tsNote}</div>}
       </div>
 
-      {/* ── Live Skew Monitor ── */}
-      {skewTermData && (
+      {/* ── Live Skew Monitor — SPX only ── */}
+      {!isNdx && skewTermData && (
         <div className="panel">
           <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             Live Skew Monitor
@@ -333,8 +337,8 @@ export default function VolScreen() {
         </div>
       )}
 
-      {/* ── SPX IV Rank ── */}
-      {ivRank != null && (
+      {/* ── SPX IV Rank — SPX only ── */}
+      {!isNdx && ivRank != null && (
         <div className="panel">
           <div className="panel-title"><Tooltip tip="Where current SPX implied volatility sits relative to its 52-week range. IVR 0 = lowest IV of the past year (options are cheap — consider buying). IVR 100 = highest IV of the year (options are expensive — consider selling). Above 50 = elevated relative to recent history." label="SPX IV Rank">SPX IV Rank</Tooltip></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
@@ -356,8 +360,8 @@ export default function VolScreen() {
       )}
 
 
-      {/* ── SPX Risk Reversal Skew ── */}
-      {(rrData25.length > 0 || rrData10.length > 0) && (() => {
+      {/* ── SPX Risk Reversal Skew — SPX only ── */}
+      {!isNdx && (rrData25.length > 0 || rrData10.length > 0) && (() => {
         function rrLast(rows: any[]) {
           for (let i = rows.length - 1; i >= 0; i--) {
             const v = parseFloat(rows[i].risk_reversal ?? rows[i].skew ?? rows[i].rr ?? rows[i].value ?? '')

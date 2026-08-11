@@ -150,9 +150,9 @@ export default function Layout({ activeTab, setTab, data, children, contentRef }
   const spxPrev = pn(isNdx ? data?.ndx_prev_close : data?.prev_close)
   const esPrev  = pn(isNdx ? data?.nq_prev_close  : data?.es_prev_close)
   const vixPrev = pn(data?.vix_prev_close)
-  const spxChg  = data?.spx_change ?? data?.day_change
+  const spxChg  = (isNdx ? null : (data?.spx_change ?? data?.day_change))
     ?? (spxNum != null && spxPrev != null ? spxNum - spxPrev : null)
-  const spxChgPct = data?.spx_change_pct ?? data?.day_change_pct
+  const spxChgPct = (isNdx ? null : (data?.spx_change_pct ?? data?.day_change_pct))
     ?? (spxNum != null && spxPrev != null && spxPrev !== 0 ? (spxNum - spxPrev) / spxPrev * 100 : null)
   const esChg   = data?.es_change
     ?? (esNum != null && esPrev != null ? esNum - esPrev : null)
@@ -265,10 +265,11 @@ export default function Layout({ activeTab, setTab, data, children, contentRef }
     })
   }, [vixNum2])
 
-  // OI Strip
-  const putWall  = parseNum(data?.nearest_put_wall ?? data?.put_wall)
-  const callWall = parseNum(data?.nearest_call_wall ?? data?.call_wall)
-  const gexFlip  = parseNum(data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
+  // OI Strip — use NDX keys when side is NDX
+  const nd = (data as any)?.ndx
+  const putWall  = parseNum(isNdx ? (nd?.nearest_put_wall ?? nd?.gex_nearest_put_wall)   : (data?.nearest_put_wall ?? data?.put_wall))
+  const callWall = parseNum(isNdx ? (nd?.nearest_call_wall ?? nd?.gex_nearest_call_wall) : (data?.nearest_call_wall ?? data?.call_wall))
+  const gexFlip  = parseNum(isNdx ? (nd?.gex_flip_zone_raw ?? nd?.gex_flip_zone)         : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone))
   const hasOiStrip = putWall || gexFlip || callWall
 
   // Flip Alert — show when within 5 pts of flip zone
@@ -276,8 +277,10 @@ export default function Layout({ activeTab, setTab, data, children, contentRef }
   const flipDist = gexFlip && spxPrice ? Math.abs(spxPrice - gexFlip) : null
   const showFlipAlert = flipDist != null && flipDist < 5
 
-  // Regime
-  const regime = data?.uw_gamma_regime ?? data?.gamma_state ?? data?.net_gex_state
+  // Regime — use NDX regime when side is NDX
+  const regime = isNdx
+    ? (nd?.uw_gamma_regime ?? nd?.net_gex_state ?? data?.ndx_uw_gamma_regime)
+    : (data?.uw_gamma_regime ?? data?.gamma_state ?? data?.net_gex_state)
   const isLive = !!data
 
   function selectTab(id: string) {
