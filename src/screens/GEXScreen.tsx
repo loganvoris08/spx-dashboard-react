@@ -514,7 +514,7 @@ export default function GEXScreen() {
     : isNdx
       ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
       : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
-  const regime   = isQIWM ? null : isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
+  const regime   = isQIWM ? null : isNdx ? (nd.net_gex_state ?? nd.uw_gamma_regime) : (data?.net_gex_state ?? data?.uw_gamma_regime ?? data?.gamma_state)
   const flip     = isQIWM ? qiwmLevels?.flip : isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
   const maxPain  = !isNdx && !isQIWM ? data?.max_pain_strike : null
   const maxPainDte = !isNdx && !isQIWM ? (data?.max_pain_dte ?? data?.max_pain_days ?? null) : null
@@ -541,10 +541,10 @@ export default function GEXScreen() {
     let sc = 50
     const factors: ScFactor[] = []
     const fmtD = (v: number) => { const a = Math.abs(v); if (a >= 1e9) return (a/1e9).toFixed(2)+'B'; if (a >= 1e6) return (a/1e6).toFixed(1)+'M'; if (a >= 1e3) return (a/1e3).toFixed(0)+'K'; return a.toFixed(1) }
-    const gamma = isNdx ? String(src.net_gex_state ?? '') : String(src.uw_gamma_regime ?? '')
-    if (gamma.includes('Positive')) { sc -= 15; factors.push({ label: 'Gamma', val: 'POSITIVE GAMMA', cls: 'bull' }) }
-    else if (gamma.includes('Negative')) { sc += 15; factors.push({ label: 'Gamma', val: 'NEGATIVE GAMMA', cls: 'bear' }) }
-    else { factors.push({ label: 'Gamma', val: 'NEUTRAL GAMMA', cls: 'warn' }) }
+    const gamma = String(src.net_gex_state ?? '')
+    if (gamma.includes('Positive')) { sc -= 15; factors.push({ label: 'Gamma', val: gamma.includes('Strong') ? 'STRONG POSITIVE' : 'POSITIVE GAMMA', cls: 'bull' }) }
+    else if (gamma.includes('Negative')) { sc += 15; factors.push({ label: 'Gamma', val: gamma.includes('Strong') ? 'STRONG NEGATIVE' : 'NEGATIVE GAMMA', cls: 'bear' }) }
+    else { factors.push({ label: 'Gamma', val: 'TRANSITION', cls: 'warn' }) }
     const dh = src.delta_hedging_pressure ?? 'NEUTRAL'
     const ndVal = parseFloat(src.net_delta_val ?? 0) || 0
     if (dh === 'BULLISH') { sc += 15; factors.push({ label: 'Delta', val: `BUYING +$${fmtD(ndVal)}`, cls: 'bull' }) }
@@ -556,9 +556,9 @@ export default function GEXScreen() {
     const flipR = parseFloat(src.gex_flip_zone_raw ?? 0) || 0
     if (flipR > 0 && prN > 0) {
       const dist = prN - flipR
-      if (dist > 5) { sc += 12; factors.push({ label: 'Flip', val: `ABOVE +${dist.toFixed(0)}pts`, cls: 'bull' }) }
-      else if (dist < -5) { sc -= 12; factors.push({ label: 'Flip', val: `BELOW ${dist.toFixed(0)}pts`, cls: 'bear' }) }
-      else { factors.push({ label: 'Flip', val: 'AT FLIP', cls: 'warn' }) }
+      if (Math.abs(dist) <= 5) { factors.push({ label: 'Flip', val: 'AT FLIP', cls: 'warn' }) }
+      else if (dist > 0) { factors.push({ label: 'Flip', val: `ABOVE +${dist.toFixed(0)}pts`, cls: 'neut' }) }
+      else { factors.push({ label: 'Flip', val: `BELOW ${Math.abs(dist).toFixed(0)}pts`, cls: 'neut' }) }
     } else { factors.push({ label: 'Flip', val: '--', cls: 'neut' }) }
     const flow = src.flow_bias ?? 'BALANCED'
     if (flow === 'CALL HEAVY') { sc += 10; factors.push({ label: 'Flow', val: 'CALL HEAVY', cls: 'bull' }) }
@@ -961,7 +961,7 @@ export default function GEXScreen() {
                 const factorTips: Record<string, string> = {
                   Gamma:  'Whether dealers are in positive or negative gamma. Positive = dealers stabilize price (easier to hold trades). Negative = dealers amplify moves (higher volatility, wider stops needed).',
                   Delta:  'Net delta hedging direction from all dealers. BUYING = dealers need to buy the underlying (tailwind for longs). SELLING = need to sell (headwind). Dollar value shows magnitude.',
-                  Flip:   'How far price is from the GEX flip zone. Above flip = positive gamma, price more stable. Below flip = negative gamma, moves can accelerate. AT FLIP = danger zone.',
+                  Flip:   'Distance from the GEX flip zone. Above = positive gamma environment (dealers stabilize). Below = negative gamma (dealers amplify moves — good for momentum trades). AT FLIP = transition zone, regime is uncertain. Shown for context, does not adjust the score.',
                   Flow:   'Current options premium flow bias. CALL HEAVY = institutions buying calls (bullish lean). PUT HEAVY = buying puts (bearish or hedging). BALANCED = no strong conviction.',
                   Charm:  'Delta decay effect — as options lose time value, dealers must rebalance. BUYING = time decay forces dealer purchases (supportive). SELLING = forced selling as options expire.',
                   Vanna:  'Sensitivity of dealer delta to VIX changes. AMPLIFIED = a VIX move causes large forced hedging (watch for vol-driven price spikes). MUTED = vol changes have little impact.',
