@@ -288,14 +288,16 @@ export default function LevelsScreen() {
 
   // Draw sparkline: price deviation from flip zone, flip always centered
   useEffect(() => {
+    let cancelled = false
+    const draw = () => {
     const canvas = sparkCanvasRef.current
-    if (!canvas) return
+    if (!canvas || cancelled) return
     const priceData = flipChSeries[0]?.data ?? []
     const flipData  = flipChSeries[1]?.data ?? []
     if (!priceData.length) return
     const dpr = window.devicePixelRatio || 1
     const W = canvas.clientWidth, H = canvas.clientHeight
-    if (!W || !H) return
+    if (!W || !H) { requestAnimationFrame(draw); return }
     canvas.width  = W * dpr
     canvas.height = H * dpr
     const ctx = canvas.getContext('2d')!
@@ -349,6 +351,9 @@ export default function LevelsScreen() {
     const last = devPoints[devPoints.length - 1]
     ctx.beginPath(); ctx.arc(last.x, py(last.dev), 2.5, 0, Math.PI * 2)
     ctx.fillStyle = lineColor; ctx.fill()
+    } // end draw
+    requestAnimationFrame(() => requestAnimationFrame(draw))
+    return () => { cancelled = true }
   }, [flipChSeries, regime, flipNum_e])
 
   // Remaining banner stats
