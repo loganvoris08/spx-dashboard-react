@@ -61,6 +61,15 @@ function fmtNum(v: any, d = 0) {
   return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 }
 
+function regimeColor(r: string | null | undefined): string {
+  const s = (r ?? '').toUpperCase()
+  if (s === 'EXTREME POSITIVE') return '#00ffaa'
+  if (s === 'POSITIVE')          return 'var(--green)'
+  if (s === 'EXTREME NEGATIVE')  return '#ff2244'
+  if (s === 'NEGATIVE')          return 'var(--red)'
+  return 'var(--muted2)'  // TRANSITION or unknown
+}
+
 function GEXHBars({ rows, priceStrike, flipStrike, hotScores, priceRowRef }: { rows: any[]; priceStrike: number; flipStrike: number; hotScores: Map<number, number>; priceRowRef?: React.RefObject<HTMLDivElement | null> }) {
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No ladder data</div>
@@ -514,7 +523,7 @@ export default function GEXScreen() {
     : isNdx
       ? (live.ndx ?? (typeof nd.price === 'string' ? parseFloat(nd.price.replace(/,/g, '')) : nd.price ?? 0))
       : (live.spx ?? (typeof data?.spx === 'string' ? parseFloat(String(data?.spx).replace(/,/g, '')) : data?.spx ?? 0))
-  const regime   = isQIWM ? null : isNdx ? (nd.net_gex_state ?? nd.uw_gamma_regime) : (data?.net_gex_state ?? data?.uw_gamma_regime ?? data?.gamma_state)
+  const regime   = isQIWM ? null : isNdx ? (nd.gamma_regime ?? nd.uw_gamma_regime) : (data?.gamma_regime ?? data?.uw_gamma_regime ?? data?.gamma_state)
   const flip     = isQIWM ? qiwmLevels?.flip : isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
   const maxPain  = !isNdx && !isQIWM ? data?.max_pain_strike : null
   const maxPainDte = !isNdx && !isQIWM ? (data?.max_pain_dte ?? data?.max_pain_days ?? null) : null
@@ -541,9 +550,11 @@ export default function GEXScreen() {
     let sc = 50
     const factors: ScFactor[] = []
     const fmtD = (v: number) => { const a = Math.abs(v); if (a >= 1e9) return (a/1e9).toFixed(2)+'B'; if (a >= 1e6) return (a/1e6).toFixed(1)+'M'; if (a >= 1e3) return (a/1e3).toFixed(0)+'K'; return a.toFixed(1) }
-    const gamma = String(src.net_gex_state ?? '')
-    if (gamma.includes('Positive')) { sc -= 15; factors.push({ label: 'Gamma', val: gamma.includes('Strong') ? 'STRONG POSITIVE' : 'POSITIVE GAMMA', cls: 'bull' }) }
-    else if (gamma.includes('Negative')) { sc += 15; factors.push({ label: 'Gamma', val: gamma.includes('Strong') ? 'STRONG NEGATIVE' : 'NEGATIVE GAMMA', cls: 'bear' }) }
+    const gamma = String(src.gamma_regime ?? src.uw_gamma_regime ?? src.gamma_state ?? '').toUpperCase()
+    if (gamma === 'EXTREME POSITIVE') { sc -= 20; factors.push({ label: 'Gamma', val: 'EXTREME POSITIVE', cls: 'bull' }) }
+    else if (gamma === 'POSITIVE')    { sc -= 15; factors.push({ label: 'Gamma', val: 'POSITIVE',         cls: 'bull' }) }
+    else if (gamma === 'EXTREME NEGATIVE') { sc += 20; factors.push({ label: 'Gamma', val: 'EXTREME NEGATIVE', cls: 'bear' }) }
+    else if (gamma === 'NEGATIVE')    { sc += 15; factors.push({ label: 'Gamma', val: 'NEGATIVE',         cls: 'bear' }) }
     else { factors.push({ label: 'Gamma', val: 'TRANSITION', cls: 'warn' }) }
     const dh = src.delta_hedging_pressure ?? 'NEUTRAL'
     const ndVal = parseFloat(src.net_delta_val ?? 0) || 0
@@ -642,7 +653,7 @@ export default function GEXScreen() {
         {regime && (
           <div className="kl-item">
             <div className="kl-label"><Tooltip tip="Current gamma regime. Positive = dealers long gamma, they sell rallies and buy dips (price-stabilizing). Negative = dealers short gamma, they chase moves in the same direction (price-amplifying).">Regime</Tooltip></div>
-            <div className="kl-val" style={{ fontSize: 9, color: regime.toUpperCase().includes('NEG') ? 'var(--red)' : regime.toUpperCase().includes('POS') ? 'var(--green)' : 'var(--muted2)' }}>{regime}</div>
+            <div className="kl-val" style={{ fontSize: 9, color: regimeColor(regime) }}>{regime}</div>
           </div>
         )}
         {flip && (

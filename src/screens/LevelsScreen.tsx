@@ -272,7 +272,7 @@ export default function LevelsScreen() {
   const nd = data?.ndx ?? {}
 
   // Banner stats (declared early so useEffects below can reference them)
-  const regime      = isNdx ? (nd.uw_gamma_regime ?? data?.ndx_uw_gamma_regime) : (data?.uw_gamma_regime ?? data?.gamma_state)
+  const regime      = isNdx ? (nd.gamma_regime ?? nd.uw_gamma_regime) : (data?.gamma_regime ?? data?.uw_gamma_regime ?? data?.gamma_state)
   const flip        = isNdx ? (nd.gex_flip_zone_raw ?? nd.gex_flip_zone) : (data?.gex_flip_zone_raw ?? data?.gex_flip_zone)
   const flipNum_e   = parseFloat(String(flip ?? '').replace(/,/g, '')) || 0
 
@@ -371,10 +371,12 @@ export default function LevelsScreen() {
     let sc = 50
     const factors: ScFactor[] = []
     const fmtD = (v: number) => { const a = Math.abs(v); if (a >= 1e9) return (a/1e9).toFixed(2)+'B'; if (a >= 1e6) return (a/1e6).toFixed(1)+'M'; if (a >= 1e3) return (a/1e3).toFixed(0)+'K'; return a.toFixed(1) }
-    const gamma = isNdx ? String(src.net_gex_state ?? '') : String(src.uw_gamma_regime ?? '')
-    if (gamma.includes('Positive')) { sc -= 15; factors.push({ label: 'Gamma', val: 'POSITIVE GAMMA', cls: 'bull' }) }
-    else if (gamma.includes('Negative')) { sc += 15; factors.push({ label: 'Gamma', val: 'NEGATIVE GAMMA', cls: 'bear' }) }
-    else { factors.push({ label: 'Gamma', val: 'NEUTRAL GAMMA', cls: 'warn' }) }
+    const gamma = String(src.gamma_regime ?? src.uw_gamma_regime ?? src.gamma_state ?? '').toUpperCase()
+    if (gamma === 'EXTREME POSITIVE') { sc -= 20; factors.push({ label: 'Gamma', val: 'EXTREME POSITIVE', cls: 'bull' }) }
+    else if (gamma === 'POSITIVE')    { sc -= 15; factors.push({ label: 'Gamma', val: 'POSITIVE',         cls: 'bull' }) }
+    else if (gamma === 'EXTREME NEGATIVE') { sc += 20; factors.push({ label: 'Gamma', val: 'EXTREME NEGATIVE', cls: 'bear' }) }
+    else if (gamma === 'NEGATIVE')    { sc += 15; factors.push({ label: 'Gamma', val: 'NEGATIVE',         cls: 'bear' }) }
+    else { factors.push({ label: 'Gamma', val: 'TRANSITION', cls: 'warn' }) }
     const dh = src.delta_hedging_pressure ?? 'NEUTRAL'
     const ndVal = parseFloat(src.net_delta_val ?? 0) || 0
     if (dh === 'BULLISH') { sc += 15; factors.push({ label: 'Delta', val: `BUYING +$${fmtD(ndVal)}`, cls: 'bull' }) }
@@ -386,9 +388,9 @@ export default function LevelsScreen() {
       : (typeof data?.spx === 'string' ? parseFloat(String(data.spx).replace(/,/g, '')) : data?.spx ?? 0)
     if (flipR > 0 && prN > 0) {
       const dist = prN - flipR
-      if (dist > 5) { sc += 12; factors.push({ label: 'Flip', val: `ABOVE +${dist.toFixed(0)}pts`, cls: 'bull' }) }
-      else if (dist < -5) { sc -= 12; factors.push({ label: 'Flip', val: `BELOW ${dist.toFixed(0)}pts`, cls: 'bear' }) }
-      else { factors.push({ label: 'Flip', val: 'AT FLIP', cls: 'warn' }) }
+      if (Math.abs(dist) <= 5) { factors.push({ label: 'Flip', val: 'AT FLIP', cls: 'warn' }) }
+      else if (dist > 0) { factors.push({ label: 'Flip', val: `ABOVE +${dist.toFixed(0)}pts`, cls: 'neut' }) }
+      else { factors.push({ label: 'Flip', val: `BELOW ${Math.abs(dist).toFixed(0)}pts`, cls: 'neut' }) }
     } else { factors.push({ label: 'Flip', val: '--', cls: 'neut' }) }
     const flow = src.flow_bias ?? 'BALANCED'
     if (flow === 'CALL HEAVY') { sc += 10; factors.push({ label: 'Flow', val: 'CALL HEAVY', cls: 'bull' }) }
@@ -524,17 +526,18 @@ export default function LevelsScreen() {
     .filter(([, s]) => s >= 70)
     .sort((a, b) => b[1] - a[1])
 
-  const regimeCls = (r?: string) => {
-    if (!r) return 'neut'
-    const u = r.toUpperCase()
-    if (u.includes('NEG')) return 'bear'
-    if (u.includes('POS')) return 'bull'
-    return 'neut'
+  function regimeColor5(r?: string): string {
+    const u = (r ?? '').toUpperCase()
+    if (u === 'EXTREME POSITIVE') return '#00ffaa'
+    if (u === 'POSITIVE')          return 'var(--green)'
+    if (u === 'EXTREME NEGATIVE')  return '#ff2244'
+    if (u === 'NEGATIVE')          return 'var(--red)'
+    return 'var(--muted2)'
   }
 
   const scoreBarW = score != null ? `${score}%` : '50%'
 
-  const regimeColor    = regimeCls(regime) === 'bear' ? 'var(--red)' : regimeCls(regime) === 'bull' ? 'var(--green)' : 'var(--muted2)'
+  const regimeColor    = regimeColor5(regime)
   const flipDistColor  = flipDistPts == null ? 'var(--muted2)' : flipDistPts > 0 ? 'var(--green)' : 'var(--red)'
   const sinceOpenColor = sinceOpen == null ? 'var(--muted2)' : sinceOpen >= 0 ? 'var(--green)' : 'var(--red)'
   const last15mColor   = last15m == null ? 'var(--muted2)' : last15m >= 0 ? 'var(--green)' : 'var(--red)'
