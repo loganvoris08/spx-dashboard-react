@@ -1,4 +1,4 @@
-import { useState, type ReactNode, useRef, useEffect } from 'react'
+import { useState, type ReactNode, useRef, useEffect, Fragment } from 'react'
 import { useSide } from '../lib/SideContext'
 import { useLivePrice } from '../lib/LivePriceContext'
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
@@ -321,46 +321,61 @@ export default function Layout({ activeTab, setTab, data, children, contentRef }
         <div className="ticker-strip">
           <div className="ticker">
             <div className="ticker-label">{spxLabel}</div>
-            <div className={`ticker-val spx${spxDir === 'up' ? ' tick-up' : spxDir === 'down' ? ' tick-down' : ''}`}>{animSpxFmt}</div>
-            {fmtChg(spxChg, spxChgPct) && (
-              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
-            )}
-            <Sparkline baseline={spxPrev} bars={spxBars} />
+            {!isLive
+              ? <Fragment><div className="skeleton sk-line lg" style={{ width: 64, marginTop: 2 }} /><div className="skeleton sk-line sm" style={{ width: 44, marginTop: 4 }} /></Fragment>
+              : <Fragment>
+                  <div className={`ticker-val spx${spxDir === 'up' ? ' tick-up' : spxDir === 'down' ? ' tick-down' : ''}`}>{animSpxFmt}</div>
+                  {fmtChg(spxChg, spxChgPct) && (
+                    <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (spxChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(spxChg, spxChgPct)}</div>
+                  )}
+                  <Sparkline baseline={spxPrev} bars={spxBars} />
+                </Fragment>
+            }
           </div>
           <div className="ticker">
             <div className="ticker-label">{esLabel}</div>
-            <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{animEsFmt}</div>
-            {fmtChg(esChg, esChgPct) && (
-              <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
-            )}
-            <Sparkline baseline={esPrev} bars={esBars} />
+            {!isLive
+              ? <Fragment><div className="skeleton sk-line lg" style={{ width: 64, marginTop: 2 }} /><div className="skeleton sk-line sm" style={{ width: 44, marginTop: 4 }} /></Fragment>
+              : <Fragment>
+                  <div className={`ticker-val es${esDir === 'up' ? ' tick-up' : esDir === 'down' ? ' tick-down' : ''}`}>{animEsFmt}</div>
+                  {fmtChg(esChg, esChgPct) && (
+                    <div style={{ fontSize: 8, fontFamily: 'var(--mono)', color: (esChg ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', marginTop: 1 }}>{fmtChg(esChg, esChgPct)}</div>
+                  )}
+                  <Sparkline baseline={esPrev} bars={esBars} />
+                </Fragment>
+            }
           </div>
           <div className="ticker">
             <div className="ticker-label" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               VIX
-              {vixChg != null && (
+              {!isLive ? null : vixChg != null && (
                 <span style={{ fontSize: 9, color: vixChg > 0 ? 'var(--red)' : 'var(--green)', lineHeight: 1 }}>
                   {vixChg > 0 ? '↑' : '↓'}
                 </span>
               )}
             </div>
-            <div className={`ticker-val vix${vixDir === 'up' ? ' tick-up' : vixDir === 'down' ? ' tick-down' : ''}`}>{animVixFmt}</div>
-            {vixRegime && (
-              <div style={{
-                fontSize: 6.5, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: .4,
-                marginTop: 1, color:
-                  vixRegime === 'EXTREME FEAR' ? 'var(--red)' :
-                  vixRegime === 'FEAR'         ? '#ff6644' :
-                  vixRegime === 'ELEVATED'     ? 'var(--yellow)' :
-                  vixRegime === 'NORMAL'       ? 'var(--muted2)' : 'var(--green)',
-              }}>{vixRegime}</div>
-            )}
-            {vvixNum != null && vvixNum > 0 && (
-              <div style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--muted2)', marginTop: 0 }}>
-                VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
-              </div>
-            )}
-            <Sparkline bars={vixBars} invert />
+            {!isLive
+              ? <div className="skeleton sk-line lg" style={{ width: 44, marginTop: 2 }} />
+              : <Fragment>
+                  <div className={`ticker-val vix${vixDir === 'up' ? ' tick-up' : vixDir === 'down' ? ' tick-down' : ''}`}>{animVixFmt}</div>
+                  {vixRegime && (
+                    <div style={{
+                      fontSize: 6.5, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: .4,
+                      marginTop: 1, color:
+                        vixRegime === 'EXTREME FEAR' ? 'var(--red)' :
+                        vixRegime === 'FEAR'         ? '#ff6644' :
+                        vixRegime === 'ELEVATED'     ? 'var(--yellow)' :
+                        vixRegime === 'NORMAL'       ? 'var(--muted2)' : 'var(--green)',
+                    }}>{vixRegime}</div>
+                  )}
+                  {vvixNum != null && vvixNum > 0 && (
+                    <div style={{ fontSize: 7, fontFamily: 'var(--mono)', color: 'var(--muted2)', marginTop: 0 }}>
+                      VVIX <span style={{ color: vvixNum >= 120 ? 'var(--red)' : vvixNum >= 100 ? 'var(--yellow)' : 'var(--muted2)' }}>{vvixNum.toFixed(1)}</span>
+                    </div>
+                  )}
+                  <Sparkline bars={vixBars} invert />
+                </Fragment>
+            }
           </div>
         </div>
 

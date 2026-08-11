@@ -165,6 +165,14 @@ export default function SignalScreen() {
 
   return (
     <>
+      {/* ── NDX mode notice — signals/stats are ES/SPX-derived ── */}
+      {isNdx && (
+        <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 6, padding: '8px 12px', margin: '0 0 2px', fontSize: 10, color: 'var(--muted2)', lineHeight: 1.6 }}>
+          <span style={{ color: '#60a5fa', fontWeight: 700, fontFamily: 'var(--mono)', fontSize: 9, marginRight: 6 }}>NQ / NDX MODE</span>
+          Signal, session stats, zones, and market states run on ES / SPX — use them as structural reference when trading NQ. NDX-specific levels are shown in the GEX and Levels tabs.
+        </div>
+      )}
+
       {/* ── Signal Banner (tab-level) ── */}
       <div className="signal-banner" style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
         <div className={`sb-pill ${cls}`}>{signal}</div>
@@ -186,7 +194,7 @@ export default function SignalScreen() {
         )}
       </div>
 
-      {/* ── Session Stats Bar ── */}
+      {/* ── Session Stats Bar — ES/SPX data ── */}
       {hasSessionStats && (
         <div className="sess-bar">
           {prevClose && <div className="sess-item"><div className="sess-label"><Tooltip tip="Yesterday's regular session closing price at 4pm ET.">Prev Close</Tooltip></div><div className="sess-val">{fmtN(prevClose, 2)}</div></div>}
@@ -230,7 +238,7 @@ export default function SignalScreen() {
               )}
             </div>
           )}
-          {(implPts || esBasis || volSkew) && (
+          {!isNdx && (implPts || esBasis || volSkew) && (
             <div className="mkt-ctx-grid">
               {(implPts || implPct) && (
                 <div className="mkt-ctx-item">
@@ -318,7 +326,7 @@ export default function SignalScreen() {
 
       {/* ── Scalp Signal ── */}
       <div className="panel">
-        <div className="panel-title"><Tooltip tip="Short-term trade setup based on 10-minute ES zones. Entry = zone boundary to initiate from. Target = next zone level. Stop = invalidation point. Score = how many confluence conditions are met (more = higher conviction)." label="Scalp Signal">Scalp Signal — 10m Zone to Zone</Tooltip></div>
+        <div className="panel-title"><Tooltip tip="Short-term trade setup based on 10-minute ES zones. Entry = zone boundary to initiate from. Target = next zone level. Stop = invalidation point. Score = how many confluence conditions are met (more = higher conviction)." label="Scalp Signal">Scalp Signal — 10m Zone to Zone{isNdx && <span style={{ fontSize: 8, color: 'var(--muted2)', marginLeft: 6, fontWeight: 400 }}>(ES/SPX ref)</span>}</Tooltip></div>
         <div className="td-row">
           <div className="td-label"><Tooltip tip="Zone boundary to initiate the trade from. For longs: buy the zone bot on a pullback. For shorts: sell the zone top on a failed breakout.">Entry</Tooltip></div>
           <div className="td-val green">{entry ?? '--'}</div>
@@ -372,7 +380,7 @@ export default function SignalScreen() {
 
       {/* ── Swing Signal ── */}
       <div className="panel">
-        <div className="panel-title"><Tooltip tip="Multi-day trade setup based on daily SPX zone breaks. Requires a confirmed close above or below a key daily level. Entries here are for overnight holds or 1–3 day swings, not intraday scalps." label="Swing Signal">Swing Signal — Daily Zone</Tooltip></div>
+        <div className="panel-title"><Tooltip tip="Multi-day trade setup based on daily SPX zone breaks. Requires a confirmed close above or below a key daily level. Entries here are for overnight holds or 1–3 day swings, not intraday scalps." label="Swing Signal">Swing Signal — Daily Zone{isNdx && <span style={{ fontSize: 8, color: 'var(--muted2)', marginLeft: 6, fontWeight: 400 }}>(ES/SPX ref)</span>}</Tooltip></div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontSize: 10, color: 'var(--muted2)' }}>Daily Zone Break</span>
           <span className={`sb-pill ${swCls}`} style={{ fontSize: 10, padding: '3px 10px' }}>{swing ?? 'NO SWING'}</span>
@@ -386,16 +394,6 @@ export default function SignalScreen() {
           </>
         )}
       </div>
-
-      {/* ── NDX Zone Note ── */}
-      {isNdx && (
-        <div className="panel">
-          <div className="panel-title" style={{ color: 'var(--green)', marginBottom: 6 }}>NQ / NDX Context</div>
-          <div style={{ fontSize: 10, color: 'var(--muted2)', lineHeight: 1.6 }}>
-            Zone logic runs on ES/SPX. The zones and signals below show ES/SPX levels — use them as reference even when trading NQ, since SPX zones are the primary structural anchors.
-          </div>
-        </div>
-      )}
 
       {/* ── ES 10M Zone ── */}
       {(es10Bot || es10Top) && (
@@ -430,7 +428,7 @@ export default function SignalScreen() {
       {/* ── Market States ── */}
       {marketState.length > 0 && (
         <div className="panel">
-          <div className="panel-title"><Tooltip tip="Composite view of current market conditions derived from GEX, options flow, open interest, and price structure. Each state updates every 30 seconds. Tap any label for a full explanation." label="Market States">Market States</Tooltip></div>
+          <div className="panel-title"><Tooltip tip="Composite view of current market conditions derived from GEX, options flow, open interest, and price structure. Each state updates every 30 seconds. Tap any label for a full explanation." label="Market States">Market States{isNdx && <span style={{ fontSize: 8, color: 'var(--muted2)', marginLeft: 6, fontWeight: 400 }}>(ES/SPX ref)</span>}</Tooltip></div>
           <div className="stat-grid">
             {marketState.map((r, i) => (
               <div key={i} className="stat">
