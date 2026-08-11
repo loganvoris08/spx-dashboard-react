@@ -38,13 +38,6 @@ function ReplayChart({ rows, priceBars, cursorIdx }: { rows: any[]; priceBars: a
   const iW = W - PAD.l - PAD.r
   const iH = H - PAD.t - PAD.b
 
-  const allTs = useMemo(() => {
-    const s = new Set<number>()
-    rows.forEach(r => s.add(r.ts))
-    priceBars.forEach(r => s.add(r.t ?? r.ts))
-    return Array.from(s).sort((a, b) => a - b)
-  }, [rows, priceBars])
-
   const combined = useMemo(() => {
     const priceMap = new Map<number, number>()
     priceBars.forEach(b => priceMap.set(b.t ?? b.ts, b.c ?? b.close ?? b.value ?? 0))
