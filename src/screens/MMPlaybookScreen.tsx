@@ -59,7 +59,7 @@ export default function MMPlaybookScreen() {
   const dhDelta     = mmData.dh_delta ?? data?.dh_delta ?? (data?.net_dealer_delta != null ? `${(data.net_dealer_delta / 1e6).toFixed(1)}M` : null)
   const dhDesc      = mmData.dh_desc ?? data?.mm_dh_desc ??
     (dhPressure ? `Dealer delta lean is ${dhPressure} — dealers are hedging in this direction, creating structural flow support.` : null)
-  const gammaReg    = data?.uw_gamma_regime ?? data?.gamma_state
+  const gammaReg    = data?.gamma_regime ?? data?.uw_gamma_regime ?? data?.gamma_state
   const gexFlip     = data?.gex_flip_zone_raw ?? data?.gex_flip_zone
 
   const ladder: any[] = data?.mm_spread_ladder ?? data?.spread_ladder ?? []

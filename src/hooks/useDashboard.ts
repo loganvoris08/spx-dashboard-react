@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useTransition } from 'react'
-import { fetchData } from '../lib/api'
+import { fetchData, fetchAnalytics } from '../lib/api'
 import { useSSE } from '../lib/SSEContext'
 
 // Fallback poll interval — SSE handles real-time; this catches ladder/OI data updates
-const POLL_MS = 60_000
+const POLL_MS  = 60_000
+const ANLY_MS  = 90_000
 
 // Map SSE update fields into the live_data shape
 function applyUpdate(prev: any, msg: any): any {
@@ -23,6 +24,7 @@ function applyUpdate(prev: any, msg: any): any {
   if (msg.cwall         != null) patch.nearest_call_wall         = msg.cwall
   if (msg.pwall         != null) patch.nearest_put_wall          = msg.pwall
   if (msg.regime        != null) patch.uw_gamma_regime           = msg.regime
+  if (msg.gamma_regime  != null) patch.gamma_regime              = msg.gamma_regime
   if (msg.dealer_gamma  != null) patch.dealer_gamma_dollar_per_pct = msg.dealer_gamma
   if (msg.net_gex_state != null) patch.net_gex_state             = msg.net_gex_state
   if (msg.flow_bias     != null) patch.flow_bias                 = msg.flow_bias
@@ -73,7 +75,6 @@ export function useDashboard() {
   const refresh = useCallback(async () => {
     try {
       const d = await fetchData()
-      // Non-urgent: don't block user interactions or cause scroll jumps
       startTransition(() => {
         setData(d)
         setLastUpdated(new Date())
@@ -84,11 +85,30 @@ export function useDashboard() {
     }
   }, [])
 
-  useEffect(() => {
-    // Initial full fetch (urgent — first paint)
-    refresh()
+  const refreshAnalytics = useCallback(async () => {
+    try {
+      const a = await fetchAnalytics()
+      startTransition(() => {
+        setData((prev: any) => {
+          if (!prev) return prev
+          const nd = { ...(typeof prev.ndx === 'object' && prev.ndx ? prev.ndx : {}) }
+          nd.hot_strikes    = a.ndx_hot_strikes    ?? nd.hot_strikes    ?? []
+          nd.dp_price_levels = a.ndx_dp_price_levels ?? nd.dp_price_levels ?? []
+          return {
+            ...prev,
+            hot_strikes:     a.hot_strikes     ?? prev.hot_strikes     ?? [],
+            dp_price_levels: a.dp_price_levels ?? prev.dp_price_levels ?? [],
+            ndx: nd,
+          }
+        })
+      })
+    } catch { /* analytics failure is non-fatal */ }
+  }, [])
 
-    // SSE real-time patches — also deferred so they don't interrupt scroll
+  useEffect(() => {
+    refresh()
+    refreshAnalytics()
+
     const off = on('update', (msg) => {
       startTransition(() => {
         setData((prev: any) => applyUpdate(prev, msg))
@@ -96,14 +116,15 @@ export function useDashboard() {
       })
     })
 
-    // Fallback poll every 60s for ladder/OI data that doesn't come via SSE
-    const timer = setInterval(refresh, POLL_MS)
+    const timer      = setInterval(refresh, POLL_MS)
+    const anlyTimer  = setInterval(refreshAnalytics, ANLY_MS)
 
     return () => {
       off()
       clearInterval(timer)
+      clearInterval(anlyTimer)
     }
-  }, [refresh, on])
+  }, [refresh, refreshAnalytics, on])
 
   return { data, lastUpdated, error, refresh }
 }

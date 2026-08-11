@@ -551,10 +551,10 @@ export default function GEXScreen() {
     const factors: ScFactor[] = []
     const fmtD = (v: number) => { const a = Math.abs(v); if (a >= 1e9) return (a/1e9).toFixed(2)+'B'; if (a >= 1e6) return (a/1e6).toFixed(1)+'M'; if (a >= 1e3) return (a/1e3).toFixed(0)+'K'; return a.toFixed(1) }
     const gamma = String(src.gamma_regime ?? src.uw_gamma_regime ?? src.gamma_state ?? '').toUpperCase()
-    if (gamma === 'EXTREME POSITIVE') { sc -= 20; factors.push({ label: 'Gamma', val: 'EXTREME POSITIVE', cls: 'bull' }) }
-    else if (gamma === 'POSITIVE')    { sc -= 15; factors.push({ label: 'Gamma', val: 'POSITIVE',         cls: 'bull' }) }
-    else if (gamma === 'EXTREME NEGATIVE') { sc += 20; factors.push({ label: 'Gamma', val: 'EXTREME NEGATIVE', cls: 'bear' }) }
-    else if (gamma === 'NEGATIVE')    { sc += 15; factors.push({ label: 'Gamma', val: 'NEGATIVE',         cls: 'bear' }) }
+    if (gamma === 'EXTREME POSITIVE') { sc += 20; factors.push({ label: 'Gamma', val: 'EXTREME POSITIVE', cls: 'bull' }) }
+    else if (gamma === 'POSITIVE')    { sc += 15; factors.push({ label: 'Gamma', val: 'POSITIVE',         cls: 'bull' }) }
+    else if (gamma === 'EXTREME NEGATIVE') { sc -= 20; factors.push({ label: 'Gamma', val: 'EXTREME NEGATIVE', cls: 'bear' }) }
+    else if (gamma === 'NEGATIVE')    { sc -= 15; factors.push({ label: 'Gamma', val: 'NEGATIVE',         cls: 'bear' }) }
     else { factors.push({ label: 'Gamma', val: 'TRANSITION', cls: 'warn' }) }
     const dh = src.delta_hedging_pressure ?? 'NEUTRAL'
     const ndVal = parseFloat(src.net_delta_val ?? 0) || 0

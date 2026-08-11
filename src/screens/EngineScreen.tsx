@@ -50,7 +50,7 @@ export default function EngineScreen() {
         <Row label="Day Bias"         value={data?.day_bias} />
         <Row label="Daily Open"       value={fmtN(data?.session_stats?.day_open ?? data?.daily_open)} />
         <Row label="Session"          value={data?.session} />
-        <Row label="Dealer Regime"    value={data?.uw_gamma_regime ?? data?.gamma_state} />
+        <Row label="Dealer Regime"    value={data?.gamma_regime ?? data?.uw_gamma_regime ?? data?.gamma_state} />
         <Row label="Dealer Alignment" value={data?.dealer_alignment} />
         <Divider />
         <Row label="Swing Break"      value={data?.swing_break ?? (data?.swing_break_confirmed != null ? (data.swing_break_confirmed ? `Confirmed ${data.swing_break_direction ?? 'UP'}` : 'Not confirmed') : null)} />
@@ -114,7 +114,7 @@ export default function EngineScreen() {
             { label: 'Bias',          value: data?.bias },
             { label: 'Day Bias',      value: data?.day_bias },
             { label: 'Flow',          value: data?.flow_state },
-            { label: 'Gamma',         value: data?.gamma_state },
+            { label: 'Gamma',         value: data?.gamma_regime ?? data?.gamma_state },
             { label: 'OI State',      value: data?.oi_state },
             { label: 'Trap',          value: data?.trap_state },
             { label: 'Price Loc',     value: data?.price_location_state },

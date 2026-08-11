@@ -28,7 +28,7 @@ export default function AIScreen() {
   }
 
   const stateRows = [
-    { label: 'Gamma Regime',  value: data?.gamma_state },
+    { label: 'Gamma Regime',  value: data?.gamma_regime ?? data?.gamma_state },
     { label: 'Net GEX',       value: data?.net_gex_state },
     { label: 'Flow State',    value: data?.flow_state },
     { label: 'Bias',          value: data?.bias },

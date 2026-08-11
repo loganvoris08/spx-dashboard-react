@@ -156,7 +156,7 @@ export default function NewsScreen() {
 
   // Context strip data
   const vix    = data?.vix != null ? Number(data.vix).toFixed(2) : '--'
-  const regime = data?.uw_gamma_regime ?? data?.gamma_state ?? '--'
+  const regime = data?.gamma_regime ?? data?.uw_gamma_regime ?? data?.gamma_state ?? '--'
   const spxVal = data?.spx != null ? parseFloat(String(data.spx).replace(/,/g,'')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'
   const flowBias = (data?.flow_bias ?? data?.flow_direction ?? '').toUpperCase() || '--'
   const flowColor = flowBias.includes('BULL') || flowBias.includes('CALL') ? 'var(--green)' : flowBias.includes('BEAR') || flowBias.includes('PUT') ? 'var(--red)' : 'var(--muted2)'
