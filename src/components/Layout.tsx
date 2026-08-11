@@ -49,6 +49,7 @@ interface Props {
   setTab: (t: string) => void
   data: any
   children: ReactNode
+  contentRef?: React.RefObject<HTMLDivElement>
 }
 
 function regimeClass(r?: string) {
@@ -86,7 +87,7 @@ function Sparkline({ bars, invert = false, baseline }: { bars: {time:number,valu
   )
 }
 
-export default function Layout({ activeTab, setTab, data, children }: Props) {
+export default function Layout({ activeTab, setTab, data, children, contentRef }: Props) {
   const { side, setSide } = useSide()
   const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -458,7 +459,7 @@ export default function Layout({ activeTab, setTab, data, children }: Props) {
       </div>
 
       {/* ── Content ── */}
-      <div className="tab-content">
+      <div className="tab-content" ref={contentRef}>
         {children}
       </div>
     </div>

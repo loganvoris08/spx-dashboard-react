@@ -23,6 +23,9 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.4;overflow:hidden;max-width:100vw;overscroll-behavior:none;}
 html,body,#root{height:100%;-webkit-font-smoothing:antialiased;}
+/* Prevent iOS address-bar resize from triggering layout recalculations */
+html{height:-webkit-fill-available;}
+body{min-height:-webkit-fill-available;}
 
 /* scrollbar */
 ::-webkit-scrollbar{width:3px;height:3px;}
@@ -121,13 +124,14 @@ html,body,#root{height:100%;-webkit-font-smoothing:antialiased;}
 /* Tab content — React controls visibility, not CSS */
 .tab-content{overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;overscroll-behavior:contain;padding-bottom:calc(70px + env(safe-area-inset-bottom,0px));max-width:100vw;background:var(--bg);}
 
-.panel{border-bottom:1px solid var(--border);padding:12px 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02);}
+/* Isolate each panel's layout — height change in one panel can't shift siblings' scroll position */
+.panel{border-bottom:1px solid var(--border);padding:12px 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02);contain:layout style;}
 .panel-title{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted2);margin-bottom:10px;font-weight:700;}
 
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
 .stat{background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:7px 9px;}
 .stat-label{font-size:8px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:3px;}
-.stat-val{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);}
+.stat-val{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);transition:color 0.3s;}
 .stat-val.bull{color:var(--green);}
 .stat-val.bear{color:var(--red);}
 .stat-val.warn{color:var(--yellow);}

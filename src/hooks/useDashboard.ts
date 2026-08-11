@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useTransition } from 'react'
 import { fetchData } from '../lib/api'
 import { useSSE } from '../lib/SSEContext'
 
@@ -68,26 +68,32 @@ export function useDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [error, setError]           = useState<string | null>(null)
   const { on }                      = useSSE()
+  const [, startTransition]         = useTransition()
 
   const refresh = useCallback(async () => {
     try {
       const d = await fetchData()
-      setData(d)
-      setLastUpdated(new Date())
-      setError(null)
+      // Non-urgent: don't block user interactions or cause scroll jumps
+      startTransition(() => {
+        setData(d)
+        setLastUpdated(new Date())
+        setError(null)
+      })
     } catch (e: any) {
       setError(e.message)
     }
   }, [])
 
   useEffect(() => {
-    // Initial full fetch
+    // Initial full fetch (urgent — first paint)
     refresh()
 
-    // SSE real-time patches for live scalar signals
+    // SSE real-time patches — also deferred so they don't interrupt scroll
     const off = on('update', (msg) => {
-      setData((prev: any) => applyUpdate(prev, msg))
-      setLastUpdated(new Date())
+      startTransition(() => {
+        setData((prev: any) => applyUpdate(prev, msg))
+        setLastUpdated(new Date())
+      })
     })
 
     // Fallback poll every 60s for ladder/OI data that doesn't come via SSE

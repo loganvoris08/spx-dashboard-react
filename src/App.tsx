@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getToken } from './lib/api'
 import { SideProvider } from './lib/SideContext'
 import { LivePriceProvider } from './lib/LivePriceContext'
@@ -30,9 +30,31 @@ import MarketStateScreen from './screens/MarketStateScreen'
 import TradingHaltBanner from './components/TradingHaltBanner'
 import './index.css'
 
+// Tabs that stay mounted after first visit to preserve scroll + avoid re-fetch
+const PERSISTENT_TABS = ['signal','levels','gex','oi','flow','tide','vol','news','engine','playbook','learn','smartmoney','journal','admin','optionssetup','hotoptions','marketstate']
+
 function Dashboard() {
   const [tab, setTab] = useState('levels')
   const { data } = useDashboard()
+  const visitedRef = useRef<Set<string>>(new Set(['levels']))
+  const scrollRef  = useRef<Record<string, number>>({})
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Save scroll position when leaving a tab
+  const handleSetTab = (next: string) => {
+    if (contentRef.current) scrollRef.current[tab] = contentRef.current.scrollTop
+    visitedRef.current.add(next)
+    setTab(next)
+  }
+
+  // Restore scroll position when switching to a tab
+  useEffect(() => {
+    if (!contentRef.current) return
+    const saved = scrollRef.current[tab] ?? 0
+    contentRef.current.scrollTop = saved
+  }, [tab])
+
+  const show = (id: string) => ({ display: tab === id ? 'block' : 'none' } as const)
 
   return (
     <SSEProvider>
@@ -40,30 +62,32 @@ function Dashboard() {
     <LiveFuturesProvider>
     <SideProvider>
       <TradingHaltBanner />
-      <Layout activeTab={tab} setTab={setTab} data={data}>
-        {tab === 'signal'     && <SignalScreen />}
-        {tab === 'levels'     && <LevelsScreen />}
-        {tab === 'gex'        && <GEXScreen />}
-        {tab === 'oi'         && <OIScreen />}
-        {tab === 'flow'       && <FlowScreen />}
-        {tab === 'tide'       && <TideScreen />}
-        {tab === 'vol'        && <VolScreen />}
-        {tab === 'news'       && <NewsScreen />}
-        {tab === 'spx'        && <ChartScreen />}
-        {tab === 'es'         && <EsChartScreen />}
-        {tab === 'es10m'      && <Es10mScreen />}
-        {tab === 'ndx'        && <ChartScreen />}
-        {tab === 'nq'         && <EsChartScreen />}
-        {tab === 'nq10m'      && <Es10mScreen />}
-        {tab === 'engine'      && <EngineScreen />}
-        {tab === 'playbook'    && <MMPlaybookScreen />}
-        {tab === 'learn'       && <LearnScreen />}
-        {tab === 'smartmoney'  && <SmartMoneyScreen />}
-        {tab === 'journal'     && <JournalScreen />}
-        {tab === 'admin'       && <AdminScreen />}
-        {tab === 'optionssetup'&& <OptionsSetupScreen />}
-        {tab === 'hotoptions'   && <HotOptionsScreen />}
-        {tab === 'marketstate'  && <MarketStateScreen />}
+      <Layout activeTab={tab} setTab={handleSetTab} data={data} contentRef={contentRef}>
+        {/* Always-mounted persistent tabs — hidden via CSS when inactive */}
+        <div style={show('levels')}><LevelsScreen /></div>
+        <div style={show('signal')}>{visitedRef.current.has('signal') && <SignalScreen />}</div>
+        <div style={show('gex')}>{visitedRef.current.has('gex') && <GEXScreen />}</div>
+        <div style={show('oi')}>{visitedRef.current.has('oi') && <OIScreen />}</div>
+        <div style={show('flow')}>{visitedRef.current.has('flow') && <FlowScreen />}</div>
+        <div style={show('tide')}>{visitedRef.current.has('tide') && <TideScreen />}</div>
+        <div style={show('vol')}>{visitedRef.current.has('vol') && <VolScreen />}</div>
+        <div style={show('news')}>{visitedRef.current.has('news') && <NewsScreen />}</div>
+        <div style={show('engine')}>{visitedRef.current.has('engine') && <EngineScreen />}</div>
+        <div style={show('playbook')}>{visitedRef.current.has('playbook') && <MMPlaybookScreen />}</div>
+        <div style={show('learn')}>{visitedRef.current.has('learn') && <LearnScreen />}</div>
+        <div style={show('smartmoney')}>{visitedRef.current.has('smartmoney') && <SmartMoneyScreen />}</div>
+        <div style={show('journal')}>{visitedRef.current.has('journal') && <JournalScreen />}</div>
+        <div style={show('admin')}>{visitedRef.current.has('admin') && <AdminScreen />}</div>
+        <div style={show('optionssetup')}>{visitedRef.current.has('optionssetup') && <OptionsSetupScreen />}</div>
+        <div style={show('hotoptions')}>{visitedRef.current.has('hotoptions') && <HotOptionsScreen />}</div>
+        <div style={show('marketstate')}>{visitedRef.current.has('marketstate') && <MarketStateScreen />}</div>
+        {/* Chart tabs are stateless/cheap — remount is fine */}
+        {tab === 'spx'   && <ChartScreen />}
+        {tab === 'es'    && <EsChartScreen />}
+        {tab === 'es10m' && <Es10mScreen />}
+        {tab === 'ndx'   && <ChartScreen />}
+        {tab === 'nq'    && <EsChartScreen />}
+        {tab === 'nq10m' && <Es10mScreen />}
       </Layout>
     </SideProvider>
     </LiveFuturesProvider>
