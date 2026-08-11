@@ -631,7 +631,7 @@ export default function LevelsScreen() {
           <div className="lv-stat">
             <span className="lv-stat-label"><Tooltip tip="NYSE TICK: count of NYSE stocks on an uptick minus stocks on a downtick, right now. Above +400 = broad buying. Below -400 = broad selling. Extreme readings (+1000 / -1000) signal capitulation or exhaustion.">NYSE TICK</Tooltip></span>
             <span className={`lv-stat-val ${nyseTick > 400 ? 'bull' : nyseTick < -400 ? 'bear' : 'neut'}`}>
-              {nyseTick === 0 ? '--' : (nyseTick > 0 ? '+' : '') + nyseTick}
+              {nyseTick === 0 ? <span style={{ color: 'var(--muted2)', fontSize: 10 }}>0</span> : (nyseTick > 0 ? '+' : '') + nyseTick}
             </span>
           </div>
         )}
@@ -639,7 +639,7 @@ export default function LevelsScreen() {
           <div className="lv-stat">
             <span className="lv-stat-label"><Tooltip tip="NYSE Advance/Decline Line: advancing stocks minus declining stocks today. Positive and rising = broad market participation in a rally (healthy). Negative = breadth deteriorating. Divergence from SPX price = warning sign.">A/D Line</Tooltip></span>
             <span className={`lv-stat-val ${nyseAdd > 500 ? 'bull' : nyseAdd < -500 ? 'bear' : 'neut'}`}>
-              {nyseAdd === 0 ? '--' : (nyseAdd > 0 ? '+' : '') + nyseAdd}
+              {nyseAdd === 0 ? <span style={{ color: 'var(--muted2)', fontSize: 10 }}>0</span> : (nyseAdd > 0 ? '+' : '') + nyseAdd}
             </span>
           </div>
         )}

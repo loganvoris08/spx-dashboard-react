@@ -216,27 +216,31 @@ export default function Layout({ activeTab, setTab, data, children, contentRef }
     prevVix.current = vixNum2
   }, [vixNum2])
 
-  // Intraday sparklines — historical base fetched once, live ticks appended
+  // Intraday sparklines — only last 50 historical bars so live ticks visibly shift the line
   const [spxBars, setSpxBars] = useState<{time:number,value:number}[]>([])
   const [esBars,  setEsBars]  = useState<{time:number,value:number}[]>([])
   const [vixBars, setVixBars] = useState<{time:number,value:number}[]>([])
   useEffect(() => {
     const spxEp = isNdx ? '/api/ndx-levels-history' : '/api/levels-history'
     const esEp  = isNdx ? '/api/nq-bars' : '/api/es-bars'
-    const extract = (d: any) => Array.isArray(d?.price_bars) && d.price_bars.length > 1 ? d.price_bars : []
+    const extract = (d: any) => {
+      const bars = Array.isArray(d?.price_bars) && d.price_bars.length > 1 ? d.price_bars : []
+      return bars.slice(-50) // rolling window: only last 50 so each live tick visibly moves the line
+    }
     localFetch(spxEp).then(d => setSpxBars(extract(d))).catch(() => {})
     localFetch(esEp).then(d  => setEsBars(extract(d))).catch(() => {})
     localFetch('/api/vix-bars').then(d => setVixBars(extract(d))).catch(() => {})
   }, [isNdx])
 
-  // Append live price ticks so sparkline shape updates in real time
-  const MAX_LIVE = 300
+  // Append live price ticks — rolling window of 80 so new ticks always visibly shift the line
+  const MAX_LIVE = 80
   useEffect(() => {
     if (displayNum == null) return
     setSpxBars(prev => {
       if (!prev.length) return prev
-      const t = Date.now()
-      const appended = [...prev, { time: t, value: displayNum }]
+      const last = prev[prev.length - 1]
+      if (last && last.value === displayNum) return prev // skip duplicate
+      const appended = [...prev, { time: Date.now(), value: displayNum }]
       return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
     })
   }, [displayNum])
@@ -244,8 +248,9 @@ export default function Layout({ activeTab, setTab, data, children, contentRef }
     if (esNum == null) return
     setEsBars(prev => {
       if (!prev.length) return prev
-      const t = Date.now()
-      const appended = [...prev, { time: t, value: esNum }]
+      const last = prev[prev.length - 1]
+      if (last && last.value === esNum) return prev
+      const appended = [...prev, { time: Date.now(), value: esNum }]
       return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
     })
   }, [esNum])
@@ -253,8 +258,9 @@ export default function Layout({ activeTab, setTab, data, children, contentRef }
     if (vixNum2 == null) return
     setVixBars(prev => {
       if (!prev.length) return prev
-      const t = Date.now()
-      const appended = [...prev, { time: t, value: vixNum2 }]
+      const last = prev[prev.length - 1]
+      if (last && last.value === vixNum2) return prev
+      const appended = [...prev, { time: Date.now(), value: vixNum2 }]
       return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
     })
   }, [vixNum2])

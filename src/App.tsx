@@ -37,6 +37,20 @@ function Dashboard() {
   const scrollRef  = useRef<Record<string, number>>({})
   const contentRef = useRef<HTMLDivElement>(null)
 
+  // Background-warm the most-used tabs 4s after initial data loads
+  const prefetchedRef = useRef(false)
+  useEffect(() => {
+    if (!data || prefetchedRef.current) return
+    prefetchedRef.current = true
+    const warmTabs = ['signal', 'gex', 'oi', 'flow', 'tide']
+    let i = 0
+    const iv = setInterval(() => {
+      if (i >= warmTabs.length) { clearInterval(iv); return }
+      visitedRef.current.add(warmTabs[i++])
+    }, 800) // stagger 800ms apart so they don't all fetch at once
+    return () => clearInterval(iv)
+  }, [data])
+
   // Save scroll position when leaving a tab
   const handleSetTab = (next: string) => {
     if (contentRef.current) scrollRef.current[tab] = contentRef.current.scrollTop

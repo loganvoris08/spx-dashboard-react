@@ -124,7 +124,13 @@ export default function NewsScreen() {
   useEffect(() => {
     loadOpex(); loadFomc(); loadEarnings(); loadCalendar(); loadHeadlines()
     const off = on('update', () => loadHeadlines())
-    return off
+    // Re-fetch calendar every 5 min during market hours so actuals appear as soon as released
+    const calTimer = setInterval(() => {
+      const now = new Date()
+      const etHour = parseInt(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/New_York' }).format(now))
+      if (etHour >= 8 && etHour < 17) loadCalendar()
+    }, 5 * 60 * 1000)
+    return () => { off(); clearInterval(calTimer) }
   }, [loadOpex, loadFomc, loadEarnings, loadCalendar, loadHeadlines, on])
 
   async function handleBrief() {
@@ -295,9 +301,14 @@ export default function NewsScreen() {
                     {fmtD(ev.date || ev.day)}{ev.time ? ` · ${ev.time}` : ''}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', minWidth: 72, paddingLeft: 8 }}>
-                  {ev.forecast != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Fcst: {ev.forecast}</div>}
-                  {ev.previous != null && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Prev: {ev.previous}</div>}
+                <div style={{ textAlign: 'right', minWidth: 80, paddingLeft: 8 }}>
+                  {ev.actual && ev.actual !== '' && (
+                    <div style={{ fontSize: 11, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                      {ev.actual}
+                    </div>
+                  )}
+                  {ev.forecast != null && ev.forecast !== '' && <div style={{ fontSize: 9, color: ev.actual ? 'var(--muted2)' : 'var(--text)' }}>Fcst: {ev.forecast}</div>}
+                  {ev.previous != null && ev.previous !== '' && <div style={{ fontSize: 9, color: 'var(--muted2)' }}>Prev: {ev.previous}</div>}
                 </div>
               </div>
             )
