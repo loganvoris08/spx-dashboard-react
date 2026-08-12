@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useTransition } from 'react'
+import { useState, useEffect, useCallback, useTransition, useRef } from 'react'
 import { fetchData, fetchAnalytics } from '../lib/api'
 import { useSSE } from '../lib/SSEContext'
 
@@ -70,6 +70,7 @@ export function useDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [error, setError]           = useState<string | null>(null)
   const { on }                      = useSSE()
+  const onRef                       = useRef(on)
   const [, startTransition]         = useTransition()
 
   const refresh = useCallback(async () => {
@@ -109,7 +110,7 @@ export function useDashboard() {
     refresh()
     refreshAnalytics()
 
-    const off = on('update', (msg) => {
+    const off = onRef.current('update', (msg) => {
       startTransition(() => {
         setData((prev: any) => applyUpdate(prev, msg))
         setLastUpdated(new Date())
@@ -124,7 +125,7 @@ export function useDashboard() {
       clearInterval(timer)
       clearInterval(anlyTimer)
     }
-  }, [refresh, refreshAnalytics, on])
+  }, [refresh, refreshAnalytics])
 
   return { data, lastUpdated, error, refresh }
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react'
 
 type Handler = (msg: any) => void
 
@@ -54,11 +54,11 @@ export function SSEProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const on = (type: string, handler: Handler) => {
+  const on = useCallback((type: string, handler: Handler) => {
     if (!listeners.current.has(type)) listeners.current.set(type, new Set())
     listeners.current.get(type)!.add(handler)
     return () => { listeners.current.get(type)?.delete(handler) }
-  }
+  }, [])
 
   return <SSEContext.Provider value={{ on }}>{children}</SSEContext.Provider>
 }
