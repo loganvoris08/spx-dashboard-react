@@ -65,8 +65,16 @@ function applyUpdate(prev: any, msg: any): any {
   return { ...prev, ...patch }
 }
 
+const DATA_CACHE_KEY = 'dashboard_data_cache'
+function readDataCache(): any | null {
+  try { return JSON.parse(localStorage.getItem(DATA_CACHE_KEY) ?? 'null') } catch { return null }
+}
+function writeDataCache(d: any) {
+  try { localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(d)) } catch {}
+}
+
 export function useDashboard() {
-  const [data, setData]             = useState<any>(null)
+  const [data, setData]             = useState<any>(() => readDataCache())
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [error, setError]           = useState<string | null>(null)
   const { on }                      = useSSE()
@@ -76,6 +84,9 @@ export function useDashboard() {
   const refresh = useCallback(async () => {
     try {
       const d = await fetchData()
+      // Only persist and show if we got real prices — don't overwrite good cache with cold-start zeros
+      const hasPrice = parseFloat(d?.spx ?? 0) > 0 || parseFloat(d?.es ?? 0) > 0
+      if (hasPrice) writeDataCache(d)
       startTransition(() => {
         setData(d)
         setLastUpdated(new Date())

@@ -19,6 +19,8 @@ async function apiFetch(path: string) {
   if (!res.ok) throw new Error(`${path} ${res.status}`)
   return res.json()
 }
+function lsRead(k: string) { try { return JSON.parse(localStorage.getItem(k) ?? 'null') } catch { return null } }
+function lsWrite(k: string, v: any) { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
 
 function TickerRow({ c }: { c: any }) {
   const isCall  = (c.type || '').toLowerCase() === 'call'
@@ -171,8 +173,8 @@ export default function LevelsScreen() {
   const [oiBucket, setOiBucket]   = useState<OIBucket>('all')
   const [gexBucket, setGexBucket] = useState<GEXBucket>('all')
   const [lvRange, setLvRange]     = useState(150)
-  const [gexStrikes, setGexStrikes] = useState<any[]>([])
-  const [gexBuckets, setGexBuckets] = useState<Record<string, any[]>>({'0dte': [], 'weekly': [], 'monthly': []})
+  const [gexStrikes, setGexStrikes] = useState<any[]>(() => lsRead(isNdx ? 'gex_strikes_ndx' : 'gex_strikes_spx') ?? [])
+  const [gexBuckets, setGexBuckets] = useState<Record<string, any[]>>(() => lsRead(isNdx ? 'gex_buckets_ndx' : 'gex_buckets_spx') ?? {'0dte': [], 'weekly': [], 'monthly': []})
   const [darkPool, setDarkPool]     = useState<any[]>([])
   const [dpLoaded, setDpLoaded]     = useState(false)
   const ladders = useLadders(true)
@@ -192,22 +194,26 @@ export default function LevelsScreen() {
   const { alerts: ticker, count: tickerCount } = useLiveFlow(isNdx ? 'ndx' : 'spx')
 
   useEffect(() => {
-    setGexStrikes([])
+    const cacheKey = isNdx ? 'gex_strikes_ndx' : 'gex_strikes_spx'
     apiFetch(isNdx ? '/api/ndx-gex-strikes' : '/api/gex-strikes')
-      .then(d => setGexStrikes(d.strikes ?? []))
+      .then(d => {
+        const strikes = d.strikes ?? []
+        if (strikes.length > 0) { lsWrite(cacheKey, strikes); setGexStrikes(strikes) }
+      })
       .catch(() => {})
   }, [isNdx])
 
   const bucketRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bucketIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   useEffect(() => {
-    setGexBuckets({'0dte': [], 'weekly': [], 'monthly': []})
+    const cacheKey = isNdx ? 'gex_buckets_ndx' : 'gex_buckets_spx'
     const load = () => {
       if (bucketRetryRef.current) clearTimeout(bucketRetryRef.current)
       apiFetch(isNdx ? '/api/ndx-gex-buckets' : '/api/gex-buckets')
         .then(d => {
-          setGexBuckets(d)
           const allEmpty = Object.values(d as Record<string, any[]>).every(v => v.length === 0)
+          if (!allEmpty) lsWrite(cacheKey, d)
+          setGexBuckets(d)
           if (allEmpty) bucketRetryRef.current = setTimeout(load, 4000)
         })
         .catch(() => {})

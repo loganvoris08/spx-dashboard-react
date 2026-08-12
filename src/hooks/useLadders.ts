@@ -13,14 +13,30 @@ async function fetchLadders() {
   return res.json()
 }
 
+const CACHE_KEY = 'ladders_cache'
+
+function readCache(): any | null {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null') } catch { return null }
+}
+function writeCache(d: any) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)) } catch {}
+}
+
 export function useLadders(active: boolean) {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<any>(() => readCache())
   const { on } = useSSE()
 
   const refresh = useCallback(async () => {
     try {
       const d = await fetchLadders()
-      setData(d)
+      // Only update if the response has actual ladder rows — don't overwrite good cached data with cold-start empties
+      const hasRows = (d?.ladder_rows?.length > 0) || (d?.ndx?.ladder_rows?.length > 0)
+      if (hasRows) {
+        writeCache(d)
+        setData(d)
+      } else if (!readCache()) {
+        setData(d) // first load, nothing cached — show empty so callers know request completed
+      }
     } catch {}
   }, [])
 
