@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { getToken } from './lib/api'
 import { SideProvider } from './lib/SideContext'
 import { LivePriceProvider } from './lib/LivePriceContext'
@@ -122,6 +123,16 @@ export default function App() {
   }, [])
 
   if (checking) return null
-  if (!authed)  return <LoginScreen onLogin={() => setAuthed(true)} />
-  return <Dashboard />
+  if (!authed)  return (
+    <>
+      <LoginScreen onLogin={() => setAuthed(true)} />
+      <SpeedInsights />
+    </>
+  )
+  return (
+    <>
+      <Dashboard />
+      <SpeedInsights />
+    </>
+  )
 }
