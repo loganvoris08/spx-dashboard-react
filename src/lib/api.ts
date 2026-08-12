@@ -10,23 +10,36 @@ function headers(): Record<string, string> {
   return h
 }
 
-async function get(path: string) {
-  const res = await fetch(`${BASE}${path}`, { headers: headers() })
-  if (res.status === 401) {
-    _token = ''
-    localStorage.removeItem('dash_token')
-    window.location.reload()
+async function get(path: string, timeoutMs = 15_000) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE}${path}`, { headers: headers(), signal: ctrl.signal })
+    clearTimeout(timer)
+    if (res.status === 401) {
+      _token = ''
+      localStorage.removeItem('dash_token')
+      window.location.reload()
+    }
+    return res
+  } catch (e: any) {
+    clearTimeout(timer)
+    if (e.name === 'AbortError') throw new Error(`Request timed out: ${path}`)
+    throw e
   }
-  return res
 }
 
 export async function login(_username: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 10_000)
   try {
     const res  = await fetch(`${BASE}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
+      signal: ctrl.signal,
     })
+    clearTimeout(timer)
     const data = await res.json()
     if (data.ok && data.token) {
       _token = data.token
@@ -35,7 +48,9 @@ export async function login(_username: string, password: string): Promise<{ ok: 
     }
     return { ok: false, error: data.error ?? `Server error ${res.status}` }
   } catch (e: any) {
-    return { ok: false, error: `Network error: ${e.message}` }
+    clearTimeout(timer)
+    const msg = e.name === 'AbortError' ? 'Connection timed out — backend unreachable' : `Network error: ${e.message}`
+    return { ok: false, error: msg }
   }
 }
 
