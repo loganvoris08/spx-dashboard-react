@@ -33,10 +33,11 @@ export async function login(_username: string, password: string): Promise<{ ok: 
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 10_000)
   try {
+    // text/plain avoids CORS preflight (simple request) — server reads raw body
     const res  = await fetch(`${BASE}/api/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      headers: { 'Content-Type': 'text/plain' },
+      body: password,
       signal: ctrl.signal,
     })
     clearTimeout(timer)
