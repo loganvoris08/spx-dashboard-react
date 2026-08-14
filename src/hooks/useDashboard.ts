@@ -121,10 +121,18 @@ export function useDashboard() {
     refresh()
     refreshAnalytics()
 
-    const off = onRef.current('update', (msg) => {
+    const offUpdate = onRef.current('update', (msg) => {
       startTransition(() => {
         setData((prev: any) => applyUpdate(prev, msg))
         setLastUpdated(new Date())
+      })
+    })
+
+    // 'tick' carries live prices from WebSocket ticks (spx/es/nq/vix) without
+    // triggering full data-reload API calls in other hooks
+    const offTick = onRef.current('tick', (msg) => {
+      startTransition(() => {
+        setData((prev: any) => applyUpdate(prev, msg))
       })
     })
 
@@ -132,7 +140,8 @@ export function useDashboard() {
     const anlyTimer  = setInterval(refreshAnalytics, ANLY_MS)
 
     return () => {
-      off()
+      offUpdate()
+      offTick()
       clearInterval(timer)
       clearInterval(anlyTimer)
     }
