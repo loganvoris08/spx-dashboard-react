@@ -234,35 +234,35 @@ export default function Layout({ activeTab, setTab, data, children, contentRef }
     localFetch('/api/vix-bars').then(d => setVixBars(extract(d))).catch(() => {})
   }, [isNdx])
 
-  // Append live price ticks — rolling window of 80 so new ticks always visibly shift the line
+  // Append live price ticks — seed sparkline from first tick if no historical bars loaded
   const MAX_LIVE = 80
   useEffect(() => {
     if (displayNum == null) return
     setSpxBars(prev => {
-      if (!prev.length) return prev
-      const last = prev[prev.length - 1]
-      if (last && last.value === displayNum) return prev // skip duplicate
-      const appended = [...prev, { time: Date.now(), value: displayNum }]
+      const base = prev.length ? prev : [{ time: Date.now() - 1, value: displayNum }]
+      const last = base[base.length - 1]
+      if (last && last.value === displayNum) return base
+      const appended = [...base, { time: Date.now(), value: displayNum }]
       return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
     })
   }, [displayNum])
   useEffect(() => {
     if (esNum == null) return
     setEsBars(prev => {
-      if (!prev.length) return prev
-      const last = prev[prev.length - 1]
-      if (last && last.value === esNum) return prev
-      const appended = [...prev, { time: Date.now(), value: esNum }]
+      const base = prev.length ? prev : [{ time: Date.now() - 1, value: esNum }]
+      const last = base[base.length - 1]
+      if (last && last.value === esNum) return base
+      const appended = [...base, { time: Date.now(), value: esNum }]
       return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
     })
   }, [esNum])
   useEffect(() => {
     if (vixNum2 == null) return
     setVixBars(prev => {
-      if (!prev.length) return prev
-      const last = prev[prev.length - 1]
-      if (last && last.value === vixNum2) return prev
-      const appended = [...prev, { time: Date.now(), value: vixNum2 }]
+      const base = prev.length ? prev : [{ time: Date.now() - 1, value: vixNum2 }]
+      const last = base[base.length - 1]
+      if (last && last.value === vixNum2) return base
+      const appended = [...base, { time: Date.now(), value: vixNum2 }]
       return appended.length > MAX_LIVE ? appended.slice(-MAX_LIVE) : appended
     })
   }, [vixNum2])
