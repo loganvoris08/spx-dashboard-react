@@ -602,7 +602,7 @@ export default function GEXScreen() {
     ? (ladders?.ndx?.gex_ladder_buckets?.all ?? [])
     : (ladders?.gex_ladder_buckets?.all ?? [])
   const activeGexRows = bucket === 'all'
-    ? (ladderAll.length > 0 ? ladderAll : gexStrikes)
+    ? (ladderAll.some((r: any) => (r.call_value || 0) > 0 || (r.put_value || 0) > 0) ? ladderAll : gexStrikes)
     : (gexBuckets[bucket] ?? [])
   const rangeFiltered = activeGexRows.filter((r: any) => {
     const s = parseFloat(String(r.strike).replace(/,/g, ''))

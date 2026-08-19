@@ -460,7 +460,7 @@ export default function LevelsScreen() {
     ? (ladders?.ndx?.gex_ladder_buckets?.all ?? [])
     : (ladders?.gex_ladder_buckets?.all ?? [])
   const allGexRows = gexBucket === 'all'
-    ? (ladderAll.length > 0 ? ladderAll : gexStrikes)
+    ? (ladderAll.some((r: any) => (r.call_value || 0) > 0 || (r.put_value || 0) > 0) ? ladderAll : gexStrikes)
     : (gexBuckets[gexBucket] ?? [])
 
   const ps = (v: any) => parseFloat(String(v).replace(/,/g, '')) || 0
