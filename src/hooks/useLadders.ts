@@ -31,6 +31,7 @@ export function useLadders(active: boolean) {
       const d = await fetchLadders()
       // Only update if the response has actual ladder rows — don't overwrite good cached data with cold-start empties
       const hasRows = (d?.ladder_rows?.length > 0) || (d?.ndx?.ladder_rows?.length > 0)
+        || (d?.gex_ladder_buckets?.all?.length > 0) || (d?.ndx?.gex_ladder_buckets?.all?.length > 0)
       if (hasRows) {
         writeCache(d)
         setData(d)

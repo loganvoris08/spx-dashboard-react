@@ -74,8 +74,8 @@ function GEXHBars({ rows, priceStrike, flipStrike, hotScores, priceRowRef }: { r
   if (!rows?.length) return (
     <div style={{ padding: '16px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}>No ladder data</div>
   )
-  const maxCall = Math.max(...rows.map((r: any) => Math.abs(r.call_gex ?? (r.net_gex > 0 ? r.net_gex : 0))), 1)
-  const maxPut  = Math.max(...rows.map((r: any) => Math.abs(r.put_gex  ?? (r.net_gex < 0 ? r.net_gex : 0))), 1)
+  const maxCall = Math.max(...rows.map((r: any) => Math.abs(r.call_gex ?? r.call_value ?? (r.net_gex > 0 ? r.net_gex : 0))), 1)
+  const maxPut  = Math.max(...rows.map((r: any) => Math.abs(r.put_gex  ?? r.put_value  ?? (r.net_gex < 0 ? r.net_gex : 0))), 1)
 
   return (
     <div>
@@ -87,8 +87,8 @@ function GEXHBars({ rows, priceStrike, flipStrike, hotScores, priceRowRef }: { r
         const hotScore = hotScores.get(skey)
         const isHot    = hotScore != null && hotScore >= 70
         const isWarm   = hotScore != null && hotScore >= 50 && hotScore < 70
-        const cGex = Math.abs(row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
-        const pGex = Math.abs(row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? row.net_gex : 0))
+        const cGex = Math.abs(row.call_gex ?? row.call_value ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
+        const pGex = Math.abs(row.put_gex  ?? row.put_value  ?? (row.net_gex && row.net_gex < 0 ? row.net_gex : 0))
         const pFill = Math.min(1, pGex / maxPut)
         const cFill = Math.min(1, cGex / maxCall)
         const sc100 = hotScore != null ? hotScore / 100 : 0
@@ -598,7 +598,12 @@ export default function GEXScreen() {
   const sortDesc = (rows: any[]) => [...rows].sort((a: any, b: any) =>
     (parseFloat(String(b.strike).replace(/,/g,''))||0) - (parseFloat(String(a.strike).replace(/,/g,''))||0)
   )
-  const activeGexRows = bucket === 'all' ? gexStrikes : (gexBuckets[bucket] ?? [])
+  const ladderAll = isNdx
+    ? (ladders?.ndx?.gex_ladder_buckets?.all ?? [])
+    : (ladders?.gex_ladder_buckets?.all ?? [])
+  const activeGexRows = bucket === 'all'
+    ? (ladderAll.length > 0 ? ladderAll : gexStrikes)
+    : (gexBuckets[bucket] ?? [])
   const rangeFiltered = activeGexRows.filter((r: any) => {
     const s = parseFloat(String(r.strike).replace(/,/g, ''))
     return Math.abs(s - priceNum) <= range

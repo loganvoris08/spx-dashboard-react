@@ -127,8 +127,8 @@ function GEXRow({ row, priceStrike, flipStrike, maxCall, maxPut, hotScores, pric
   const hotScore  = hotScores.get(skey)
   const isHot     = hotScore != null && hotScore >= 70
   const isWarm    = hotScore != null && hotScore >= 50 && hotScore < 70
-  const cGex = Math.abs(row.call_gex ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
-  const pGex = Math.abs(row.put_gex  ?? (row.net_gex && row.net_gex < 0 ? Math.abs(row.net_gex) : 0))
+  const cGex = Math.abs(row.call_gex ?? row.call_value ?? (row.net_gex && row.net_gex > 0 ? row.net_gex : 0))
+  const pGex = Math.abs(row.put_gex  ?? row.put_value  ?? (row.net_gex && row.net_gex < 0 ? Math.abs(row.net_gex) : 0))
   const pFill = Math.min(1, pGex / maxPut)
   const cFill = Math.min(1, cGex / maxCall)
   const sc100 = hotScore != null ? hotScore / 100 : 0
@@ -456,7 +456,12 @@ export default function LevelsScreen() {
   const allOiRows = isNdx
     ? (ladders?.ndx?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ndx?.ladder_rows ?? [])
     : (ladders?.oi_ladder_buckets?.[oiBucket === 'all' ? 'all' : 'weekly'] ?? ladders?.ladder_rows ?? [])
-  const allGexRows = gexBucket === 'all' ? gexStrikes : (gexBuckets[gexBucket] ?? [])
+  const ladderAll = isNdx
+    ? (ladders?.ndx?.gex_ladder_buckets?.all ?? [])
+    : (ladders?.gex_ladder_buckets?.all ?? [])
+  const allGexRows = gexBucket === 'all'
+    ? (ladderAll.length > 0 ? ladderAll : gexStrikes)
+    : (gexBuckets[gexBucket] ?? [])
 
   const ps = (v: any) => parseFloat(String(v).replace(/,/g, '')) || 0
   const sortDesc = (rows: any[]) => [...rows].sort((a, b) => ps(b.strike) - ps(a.strike))
@@ -498,8 +503,8 @@ export default function LevelsScreen() {
 
   const maxOICall = Math.max(...oiRows.map((r: any) => r.call_value || 0), 1)
   const maxOIPut  = Math.max(...oiRows.map((r: any) => r.put_value  || 0), 1)
-  const maxGexCall = Math.max(...gexRows.map((r: any) => Math.abs(r.call_gex ?? (r.net_gex > 0 ? r.net_gex : 0))), 1)
-  const maxGexPut  = Math.max(...gexRows.map((r: any) => Math.abs(r.put_gex  ?? (r.net_gex < 0 ? r.net_gex : 0))), 1)
+  const maxGexCall = Math.max(...gexRows.map((r: any) => Math.abs(r.call_gex ?? r.call_value ?? (r.net_gex > 0 ? r.net_gex : 0))), 1)
+  const maxGexPut  = Math.max(...gexRows.map((r: any) => Math.abs(r.put_gex  ?? r.put_value  ?? (r.net_gex < 0 ? r.net_gex : 0))), 1)
 
   const hotStrikes = isNdx ? (nd.hot_strikes ?? []) : (data?.hot_strikes ?? [])
   const ps2 = (v: any) => parseFloat(String(v).replace(/,/g, '')) || 0
